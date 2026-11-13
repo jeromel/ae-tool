@@ -73,6 +73,27 @@ api.MapPut("/metamodel/object-types/{key}", (Workspace ws, string key, ObjectTyp
     return Results.Ok(type);
 }));
 
+api.MapPut("/metamodel/relationship-types/{key}", (Workspace ws, string key, RelationshipType input, HttpRequest req) => ws.Write(repo =>
+{
+    var type = repo.Metamodel.RelType(key);
+    if (type is null) return Results.NotFound();
+    if (input.Head is not null && !DrawingDefaults.Heads.Contains(input.Head)) return Results.BadRequest(new { error = $"Tête inconnue : {input.Head}" });
+    type.Label = string.IsNullOrWhiteSpace(input.Label) ? key : input.Label;
+    type.SoftLine = string.IsNullOrWhiteSpace(input.SoftLine) ? null : input.SoftLine;
+    type.Head = string.IsNullOrWhiteSpace(input.Head) ? null : input.Head;
+    repo.Log(User(req), "Métamodèle : type de relation modifié", key);
+    return Results.Ok(type);
+}));
+
+api.MapPut("/metamodel/properties/displayable", (Workspace ws, DisplayableInput input, HttpRequest req) => ws.Write(repo =>
+{
+    var def = repo.Metamodel.Property(input.Key);
+    if (def is null) return Results.NotFound();
+    def.Displayable = input.Displayable;
+    repo.Log(User(req), input.Displayable ? "Métamodèle : propriété proposée en calque" : "Métamodèle : propriété retirée des calques", input.Key);
+    return Results.Ok(def);
+}));
+
 api.MapPut("/metamodel/scoring", (Workspace ws, ScoringGrid grid, HttpRequest req) => ws.Write(repo =>
 {
     if (grid.Criteria.Count == 0) return Results.BadRequest(new { error = "La grille doit contenir au moins un critère." });
@@ -398,6 +419,7 @@ app.Run();
 public sealed record ObjectInput(string? Name, string? TypeKey, string? Documentation, string? Owner, string? ValidationStatus,
     List<PropertyValue>? Properties, Visual? VisualOverride, bool? ClearVisualOverride);
 public sealed record RelationshipInput(string TypeKey, string SourceId, string TargetId, string? Name);
+public sealed record DisplayableInput(string Key, bool Displayable);
 public sealed record ImpactInput(string Nature, string? Comment);
 public sealed record BriefDto(string Id, string Name, string TypeKey, string TypeLabel, string Layer, string LayerLabel, string Source, string Status, string? Owner);
 
@@ -426,38 +448,89 @@ public static class Dto
     /// </summary>
     public static object Diagram(Repository repo, Diagram d, bool metamodelVisuals)
     {
+        var meta = repo.Metamodel;
+        var analyzer = new Analyzer(repo);
+        var stateKey = meta.Scoring.StatePropertyKey;
+        var displayable = meta.PropertyDefinitions.Where(p => p.Displayable && p.Key != stateKey).ToList();
+
+        // Valeurs des calques pour un objet : notation d'urbanisation, état, puis propriétés marquées « affichables ».
+        Dictionary<string, string> LayerValues(ArchObject o)
+        {
+            var values = new Dictionary<string, string>();
+            if (repo.Assessments.TryGetValue(o.Id, out var a))
+            {
+                if (a.Cm is not null) values["cm"] = a.Cm.Value.ToString();
+                var decision = a.RetainedDecision ?? ScoringEngine.Evaluate(meta.Scoring, a, analyzer.IsRetired(o)).ComputedDecision;
+                if (!string.IsNullOrWhiteSpace(decision)) values["decision"] = decision;
+            }
+            if (o.Get(stateKey) is { Length: > 0 } state) values["etat"] = state;
+            foreach (var p in displayable)
+                if (o.Get(p.Key) is { Length: > 0 } v) values["p:" + p.Key] = v;
+            return values;
+        }
+
         var nodes = new List<object>();
         void Visit(DiagramNode n, int depth)
         {
             repo.Objects.TryGetValue(n.ElementId ?? "", out var o);
-            var visual = o is null ? new Visual() : repo.Metamodel.EffectiveVisual(o);
+            var visual = o is null ? new Visual() : meta.EffectiveVisual(o);
             var useStyle = !metamodelVisuals || o is null;
             nodes.Add(new
             {
                 n.Id, n.Kind, n.ElementId, Name = o?.Name ?? n.Label ?? "", TypeKey = o?.TypeKey,
-                TypeLabel = o is null ? null : repo.Metamodel.Type(o.TypeKey)?.Label, n.ViewRefId,
+                TypeLabel = o is null ? null : meta.Type(o.TypeKey)?.Label, n.ViewRefId,
                 n.X, n.Y, n.W, n.H, Depth = depth,
                 Fill = (useStyle ? n.Style?.Fill?.Hex : null) ?? visual.Fill ?? "#ffffff",
                 Stroke = (useStyle ? n.Style?.Line?.Hex : null) ?? visual.Stroke ?? "#5c5c5c",
                 TextColor = (useStyle ? n.Style?.Font?.Color?.Hex : null) ?? visual.TextColor ?? "#000000",
                 FontSize = int.TryParse(n.Style?.Font?.Size, out var size) ? size : 9,
                 Bold = n.Style?.Font?.Style?.Contains("bold") == true,
-                Shape = visual.Shape ?? "rectangle", visual.Icon,
+                Shape = visual.Shape ?? "rectangle",
+                Template = o is null ? null : visual.Template ?? DrawingDefaults.Template(o.TypeKey),
+                Glyph = o is null ? null : visual.Icon ?? DrawingDefaults.Glyph(o.TypeKey),
+                Layers = o is null ? null : LayerValues(o),
                 HasChildren = n.Children.Count > 0,
             });
             foreach (var c in n.Children) Visit(c, depth + 1);
         }
         foreach (var n in d.Nodes) Visit(n, 0);
+
+        // Objets rattachés à une relation (ArchiMate autorise une relation vers une relation) : les données qu'un flux transporte.
+        var shown = d.Connections.Select(c => c.RelationshipId).Where(id => id is not null).ToHashSet();
+        var carried = new Dictionary<string, List<string>>();
+        foreach (var r in repo.ActiveRelationships)
+        {
+            var (relationId, objectId) = shown.Contains(r.TargetId) ? (r.TargetId, r.SourceId) : shown.Contains(r.SourceId) ? (r.SourceId, r.TargetId) : (null, null);
+            if (relationId is null || !repo.Objects.TryGetValue(objectId!, out var o)) continue;
+            if (!carried.TryGetValue(relationId, out var list)) carried[relationId] = list = new List<string>();
+            list.Add(o.Name);
+        }
+
+        var layers = new List<object>
+        {
+            new { Key = "cm", Label = "Criticité métier", Kind = "note" },
+            new { Key = "decision", Label = "Décision d'urbanisation", Kind = "texte" },
+            new { Key = "etat", Label = "État", Kind = "texte" },
+        };
+        layers.AddRange(displayable.Select(p => new { Key = "p:" + p.Key, Label = p.Label ?? p.Key, Kind = "texte" }));
+
         return new
         {
-            d.Id, d.Name, d.Documentation, d.Viewpoint, Nodes = nodes,
+            d.Id, d.Name, d.Documentation, d.Viewpoint, Nodes = nodes, Layers = layers,
             Connections = d.Connections.Select(c =>
             {
                 repo.Relationships.TryGetValue(c.RelationshipId ?? "", out var r);
+                var type = r is null ? null : meta.RelType(r.TypeKey);
+                var soft = DrawingDefaults.Relation(type?.ArchimateType);
                 return new
                 {
-                    c.Id, c.SourceNodeId, c.TargetNodeId, c.Bendpoints, TypeKey = r?.TypeKey, r?.Name,
-                    LineStyle = r is null ? "plein" : repo.Metamodel.RelType(r.TypeKey)?.LineStyle ?? "plein",
+                    c.Id, c.SourceNodeId, c.TargetNodeId, c.Bendpoints, TypeKey = r?.TypeKey, TypeLabel = type?.Label, r?.Name,
+                    LineStyle = type?.LineStyle ?? "plein",
+                    SoftLine = type?.SoftLine ?? soft.Line, Head = type?.Head ?? soft.Head,
+                    Flow = type?.ArchimateType == "Flow",
+                    Protocol = r?.Properties.FirstOrDefault(p => p.Key == meta.Settings.FlowProtocolKey)?.Value,
+                    Encryption = r?.Properties.FirstOrDefault(p => p.Key == meta.Settings.FlowEncryptionKey)?.Value,
+                    Carried = r is not null && carried.TryGetValue(r.Id, out var list) ? list : null,
                     Color = c.Style?.Line?.Hex ?? "#000000",
                 };
             }),

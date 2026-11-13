@@ -60,6 +60,23 @@ que par le modèle du cœur ; le stockage est derrière l'interface `IRepository
 - **Vues** : affichage SVG des diagrammes importés, avec les couleurs d'Archi ou celles du métamodèle (type, puis élément).
 - **Journal** des opérations.
 
+## Rendu des vues
+
+Deux rendus, au choix dans le menu « Affichage » d'une vue :
+
+- **Soigné** (par défaut) : positions d'Archi conservées, dessin recalculé. Trois gabarits de nœud (carte, rond, zone) avec
+  pictogramme de type, liens courbes accrochés au côté qui fait face à leur cible, tête et trait selon le type de relation,
+  pastille de protocole sur les flux. Aucun texte n'est affiché sous 9 px à l'écran : les noms grossissent quand on dézoome,
+  puis s'abrègent, puis disparaissent ; les titres de zones prennent alors le relais.
+- **Géométrie Archi exacte** : polices, formes et points de cassure d'Archi, pour vérifier une vue.
+
+Un **calque** affiche une propriété en pastille sur les cartes et peut les colorer : criticité métier, décision d'urbanisation,
+état, plus toute propriété cochée « Calque sur les vues » dans le métamodèle. Le choix est mémorisé par navigateur et ne modifie
+pas la vue. Gabarit, pictogramme, trait et tête se règlent dans le métamodèle ; rien de tout cela ne change l'export vers Archi.
+
+Code : `frontend/src/app/diagram-view.ts` (dessin), `geometry.ts` (tracé des liens, fonctions pures), `glyphs.ts` (pictogrammes),
+`DrawingDefaults` dans `backend/src/AeTool.Core/Metamodel.cs` (styles par défaut).
+
 ## Ce qu'il ne fait pas encore
 
 | Sujet | État | Lot du cahier des charges |

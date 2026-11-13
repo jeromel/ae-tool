@@ -18,3 +18,19 @@ export function writePref(key: string, value: boolean): void {
     /* préférence non mémorisée : sans conséquence */
   }
 }
+
+export function readText(key: string, fallback: string): string {
+  try {
+    return localStorage.getItem('ae.' + key) ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+export function writeText(key: string, value: string): void {
+  try {
+    localStorage.setItem('ae.' + key, value);
+  } catch {
+    /* préférence non mémorisée : sans conséquence */
+  }
+}

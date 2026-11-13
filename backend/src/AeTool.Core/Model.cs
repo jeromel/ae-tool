@@ -19,7 +19,9 @@ public sealed class Visual
     public string? Fill { get; set; }       // #rrggbb
     public string? Stroke { get; set; }
     public string? TextColor { get; set; }
-    public string? Icon { get; set; }       // court libellé ou symbole affiché en coin
+    public string? Icon { get; set; }       // clé du pictogramme (application, acteur, noeud…) ; vide = celui du type
+    /// <summary>Gabarit du rendu soigné : carte | rond | zone. Vide = gabarit par défaut du type.</summary>
+    public string? Template { get; set; }
 }
 
 public sealed class ArchObject

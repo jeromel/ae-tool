@@ -4,7 +4,7 @@ import { Router, RouterLink } from '@angular/router';
 import { Api, SOURCE_LABELS } from '../api';
 import { DiagramNode, DiagramView } from '../diagram-view';
 import { NoteGauge } from '../note-gauge';
-import { readPref, writePref } from '../prefs';
+import { readPref, readText, writePref, writeText } from '../prefs';
 
 /**
  * Atelier des vues : le plan occupe tout l'écran disponible. L'arborescence se replie à gauche,
@@ -12,7 +12,7 @@ import { readPref, writePref } from '../prefs';
  */
 @Component({
   imports: [RouterLink, NgTemplateOutlet, DiagramView, NoteGauge],
-  host: { '(document:fullscreenchange)': 'syncFullscreen()', '(document:keydown.escape)': 'selected.set(null)' },
+  host: { '(document:fullscreenchange)': 'syncFullscreen()', '(document:keydown.escape)': 'selected.set(null)', '(document:click)': 'closeMenu($event)' },
   template: `
     <div class="workspace" #workspace>
       @if (treeOpen()) {
@@ -55,13 +55,33 @@ import { readPref, writePref } from '../prefs';
               <span class="muted small">{{ d.nodes.length }} éléments, {{ d.connections.length }} connexions</span>
             </div>
             <input type="search" class="find" placeholder="Repérer un élément" [value]="find()" (input)="find.set($any($event.target).value)" />
-            <label class="small">Couleurs
-              <select (change)="mode.set($any($event.target).value)">
-                <option value="diagramme">de la vue (Archi)</option>
-                <option value="metamodele">du métamodèle</option>
-              </select>
-            </label>
-            <button type="button" class="ghost" [attr.aria-pressed]="dark()" (click)="setDark(!dark())">{{ dark() ? 'Fond clair' : 'Fond sombre' }}</button>
+            <details class="menu" #display>
+              <summary class="btn ghost">Affichage</summary>
+              <div class="panel">
+                <label>Rendu
+                  <select (change)="setExact($any($event.target).value === 'exact')">
+                    <option value="soigne" [selected]="!exact()">Soigné (liens courbes)</option>
+                    <option value="exact" [selected]="exact()">Géométrie Archi exacte</option>
+                  </select>
+                </label>
+                <label>Couleurs
+                  <select (change)="mode.set($any($event.target).value)">
+                    <option value="diagramme">de la vue (Archi)</option>
+                    <option value="metamodele">du métamodèle</option>
+                  </select>
+                </label>
+                <label>Calque
+                  <select [disabled]="exact()" (change)="setLayer($any($event.target).value)">
+                    <option value="" [selected]="layer() === ''">Aucun</option>
+                    @for (l of d.layers; track l.key) { <option [value]="l.key" [selected]="layer() === l.key">{{ l.label }}</option> }
+                  </select>
+                </label>
+                <label class="check"><input type="checkbox" [checked]="colorize()" [disabled]="exact() || layer() === ''" (change)="setColorize($any($event.target).checked)" />
+                  Colorer les cartes selon le calque</label>
+                <label class="check"><input type="checkbox" [checked]="dark()" (change)="setDark($any($event.target).checked)" /> Fond sombre</label>
+                <p class="muted small">Le calque affiche une propriété en pastille sur les cartes. Les propriétés proposées se règlent dans le métamodèle.</p>
+              </div>
+            </details>
             <a class="btn ghost" [href]="api.url('/export/archimate?diagram=' + d.id)">Exporter vers Archi</a>
           } @else {
             <div class="title"><h1>Vues</h1></div>
@@ -70,7 +90,7 @@ import { readPref, writePref } from '../prefs';
         </header>
 
         @if (diagram(); as d) {
-          <app-diagram-view [diagram]="d" [selectedId]="selected()" [find]="find()" [dark]="dark()"
+          <app-diagram-view [diagram]="d" [selectedId]="selected()" [find]="find()" [dark]="dark()" [exact]="exact()" [layer]="layer()" [colorize]="colorize()"
             (select)="onSelect($event)" (openObject)="go(['/objets', $event])" (openView)="go(['/vues', $event])" />
         } @else {
           <div class="empty">
@@ -175,6 +195,16 @@ import { readPref, writePref } from '../prefs';
     .bar h1 { margin: 0; font-size: 17px; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .bar .title span { display: block; white-space: nowrap; }
     .bar .find { width: 150px; }
+    .menu { position: relative; }
+    .menu summary { list-style: none; padding: 6px 12px; }
+    .menu summary::-webkit-details-marker { display: none; }
+    .menu[open] summary { background: var(--accent-soft); border-color: var(--accent); }
+    .menu .panel { position: absolute; right: 0; top: calc(100% + 6px); z-index: 5; width: 300px; padding: 14px; display: grid; gap: 10px;
+      background: var(--card); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 24px #14262d2e; }
+    .menu label { display: grid; gap: 3px; font-size: 12.5px; color: var(--muted); }
+    .menu label.check { display: flex; align-items: center; gap: 7px; color: var(--ink); font-size: 13.5px; }
+    .menu select { width: 100%; }
+    .menu p { margin: 0; }
     app-diagram-view { flex: 1; }
     .empty { flex: 1; display: grid; place-content: center; text-align: center; padding: 24px; }
     .empty p { margin: 0 0 6px; max-width: 46ch; }
@@ -195,6 +225,7 @@ export class ViewsPage {
   api = inject(Api);
   private router = inject(Router);
   private workspace = viewChild.required<ElementRef<HTMLElement>>('workspace');
+  private display = viewChild<ElementRef<HTMLDetailsElement>>('display');
 
   id = input<string>();
   tree = signal<any>(null);
@@ -204,6 +235,10 @@ export class ViewsPage {
   treeFilter = signal('');
   treeOpen = signal(readPref('vues.arbre', true));
   dark = signal(readPref('vues.sombre', false));
+  exact = signal(readPref('vues.exact', false));
+  /** Calque choisi par l'utilisateur ; mémorisé dans son navigateur, sans toucher à la vue. */
+  layer = signal(readText('vues.calque', 'cm'));
+  colorize = signal(readPref('vues.colorer', false));
   fullscreen = signal(false);
   /** Identifiant de l'objet sélectionné dans le plan, et sa fiche chargée. */
   selected = signal<string | null>(null);
@@ -276,6 +311,27 @@ export class ViewsPage {
   setDark(dark: boolean): void {
     this.dark.set(dark);
     writePref('vues.sombre', dark);
+  }
+
+  /** Un clic hors du menu Affichage le referme. */
+  closeMenu(event: Event): void {
+    const menu = this.display()?.nativeElement;
+    if (menu?.open && !menu.contains(event.target as Node)) menu.open = false;
+  }
+
+  setExact(exact: boolean): void {
+    this.exact.set(exact);
+    writePref('vues.exact', exact);
+  }
+
+  setLayer(key: string): void {
+    this.layer.set(key);
+    writeText('vues.calque', key);
+  }
+
+  setColorize(on: boolean): void {
+    this.colorize.set(on);
+    writePref('vues.colorer', on);
   }
 
   toggleFullscreen(): void {

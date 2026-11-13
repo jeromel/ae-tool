@@ -1,5 +1,6 @@
 import { Component, inject, signal } from '@angular/core';
 import { Api } from '../api';
+import { GLYPH_KEYS } from '../glyphs';
 
 /** Paramétrage du métamodèle : libellé, couche et visuel de chaque type, sans livraison de code. */
 @Component({
@@ -21,7 +22,7 @@ import { Api } from '../api';
         <h2>Types d'objets et visuels</h2>
         <div class="scroll">
           <table>
-            <tr><th>Clé</th><th>Libellé</th><th>Couche</th><th>Type ArchiMate</th><th>Fond</th><th>Bordure</th><th>Forme</th><th class="num">Objets</th></tr>
+            <tr><th>Clé</th><th>Libellé</th><th>Couche</th><th>Type ArchiMate</th><th>Fond</th><th>Bordure</th><th>Forme</th><th>Gabarit</th><th>Pictogramme</th><th class="num">Objets</th></tr>
             @for (t of types(); track t.key) {
               <tr>
                 <td class="muted small">{{ t.key }}</td>
@@ -39,11 +40,48 @@ import { Api } from '../api';
                     @for (s of shapes; track s) { <option [selected]="t.visual.shape === s">{{ s }}</option> }
                   </select>
                 </td>
+                <td>
+                  <select (change)="t.visual.template = $any($event.target).value || null; save(t)">
+                    <option value="" [selected]="!t.visual.template">par défaut</option>
+                    @for (s of templates; track s) { <option [selected]="t.visual.template === s">{{ s }}</option> }
+                  </select>
+                </td>
+                <td>
+                  <select (change)="t.visual.icon = $any($event.target).value || null; save(t)">
+                    <option value="" [selected]="!t.visual.icon">par défaut</option>
+                    @for (g of glyphs; track g) { <option [selected]="t.visual.icon === g">{{ g }}</option> }
+                  </select>
+                </td>
                 <td class="num">{{ counts()[t.key] ?? 0 }}</td>
               </tr>
             }
           </table>
         </div>
+      </div>
+      <div class="card">
+        <h2>Relations dans le rendu soigné des vues</h2>
+        <p class="muted small">« Par défaut » applique la notation ArchiMate du type. Le rendu « Géométrie Archi exacte » n'est pas concerné.</p>
+        <table>
+          <tr><th>Relation</th><th>Libellé</th><th>Trait</th><th>Tête</th></tr>
+          @for (r of m.relationshipTypes; track r.key) {
+            <tr>
+              <td class="muted small">{{ r.key }}</td>
+              <td><input type="text" [value]="r.label" (change)="r.label = $any($event.target).value; saveRelation(r)" /></td>
+              <td>
+                <select (change)="r.softLine = $any($event.target).value || null; saveRelation(r)">
+                  <option value="" [selected]="!r.softLine">par défaut</option>
+                  @for (l of lines; track l) { <option [selected]="r.softLine === l">{{ l }}</option> }
+                </select>
+              </td>
+              <td>
+                <select (change)="r.head = $any($event.target).value || null; saveRelation(r)">
+                  <option value="" [selected]="!r.head">par défaut</option>
+                  @for (h of heads; track h) { <option [selected]="r.head === h">{{ h }}</option> }
+                </select>
+              </td>
+            </tr>
+          }
+        </table>
       </div>
       <div class="row">
         <div class="card">
@@ -72,8 +110,11 @@ import { Api } from '../api';
         <h2>Propriétés ({{ m.propertyDefinitions.length }})</h2>
         <div class="scroll" style="max-height: 260px">
           <table>
-            <tr><th>Clé</th><th>Libellé</th><th>Source</th></tr>
-            @for (p of m.propertyDefinitions; track p.key) { <tr><td>{{ p.key || '(vide)' }}</td><td>{{ p.label }}</td><td>{{ p.source }}</td></tr> }
+            <tr><th>Clé</th><th>Libellé</th><th>Source</th><th title="Proposée dans le menu Affichage des vues">Calque sur les vues</th></tr>
+            @for (p of m.propertyDefinitions; track p.key) {
+              <tr><td>{{ p.key || '(vide)' }}</td><td>{{ p.label }}</td><td>{{ p.source }}</td>
+                <td><input type="checkbox" [checked]="p.displayable" [attr.aria-label]="'Proposer ' + p.label + ' en calque'" (change)="setDisplayable(p, $any($event.target).checked)" /></td></tr>
+            }
           </table>
         </div>
       </div>
@@ -88,6 +129,10 @@ export class MetamodelPage {
   saved = signal(false);
   error = signal('');
   shapes = ['rectangle', 'arrondi', 'ellipse'];
+  templates = ['carte', 'rond', 'zone'];
+  glyphs = GLYPH_KEYS;
+  lines = ['plein', 'tirets', 'pointillés'];
+  heads = ['fleche', 'ouverte', 'triangle', 'losange', 'losange-creux', 'point', 'aucune'];
 
   constructor() {
     this.load();
@@ -123,6 +168,25 @@ export class MetamodelPage {
       await this.api.put(`/metamodel/object-types/${encodeURIComponent(type.key)}`, type);
       this.saved.set(true);
       this.m.set({ ...this.m() });
+    } catch (e) {
+      this.error.set((e as Error).message);
+    }
+  }
+
+  async saveRelation(type: any): Promise<void> {
+    await this.run(() => this.api.put(`/metamodel/relationship-types/${encodeURIComponent(type.key)}`, type));
+  }
+
+  async setDisplayable(property: any, displayable: boolean): Promise<void> {
+    property.displayable = displayable;
+    await this.run(() => this.api.put('/metamodel/properties/displayable', { key: property.key, displayable }));
+  }
+
+  private async run(action: () => Promise<unknown>): Promise<void> {
+    this.error.set('');
+    try {
+      await action();
+      this.saved.set(true);
     } catch (e) {
       this.error.set((e as Error).message);
     }
