@@ -18,7 +18,7 @@ import { readPref, readText, writePref, writeText } from '../prefs';
       @if (treeOpen()) {
         <aside class="pane tree">
           <div class="pane-head">
-            <h2>Vues</h2>
+            <h2>Vues Archi</h2>
             <button type="button" class="icon" title="Replier l'arborescence" aria-label="Replier l'arborescence" (click)="setTree(false)">«</button>
           </div>
           <input type="search" placeholder="Chercher une vue" [value]="treeFilter()" (input)="treeFilter.set($any($event.target).value)" />
@@ -84,7 +84,7 @@ import { readPref, readText, writePref, writeText } from '../prefs';
             </details>
             <a class="btn ghost" [href]="api.url('/export/archimate?diagram=' + d.id)">Exporter vers Archi</a>
           } @else {
-            <div class="title"><h1>Vues</h1></div>
+            <div class="title"><h1>Vues Archi</h1></div>
           }
           <button type="button" (click)="toggleFullscreen()">{{ fullscreen() ? 'Quitter le plein écran' : 'Plein écran' }}</button>
         </header>
@@ -160,7 +160,8 @@ import { readPref, readText, writePref, writeText } from '../prefs';
             }
           </div>
           <div class="pane-foot">
-            <a class="btn" [routerLink]="['/objets', o.brief.id]">Ouvrir la fiche</a>
+            <a class="btn" [routerLink]="['/objets', o.brief.id]">Contexte</a>
+            <a class="btn ghost" routerLink="/impact" [queryParams]="{ objet: o.brief.id }">Impact</a>
             @if (o.hasAssessment) { <a class="btn ghost" [routerLink]="['/portefeuille', o.brief.id]">Noter</a> }
           </div>
         </aside>

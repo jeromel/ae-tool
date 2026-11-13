@@ -264,8 +264,16 @@ api.MapGet("/analysis/impact/{id}", (Workspace ws, string id, int? depth, string
 api.MapGet("/analysis/graph/{id}", (Workspace ws, string id, int? depth) => ws.Read((repo, an) =>
     repo.Objects.ContainsKey(id) ? Results.Ok(an.Neighborhood(id, Math.Clamp(depth ?? 1, 1, 4))) : Results.NotFound()));
 
-api.MapGet("/analysis/matrix", (Workspace ws, string rows, string cols, bool? nesting) => ws.Read((_, an) =>
-    an.CrossMatrix(rows, cols, nesting ?? true)));
+api.MapGet("/analysis/matrix", (Workspace ws, string rows, string cols, bool? nesting, string? relation) => ws.Read((_, an) =>
+    an.CrossMatrix(rows, cols, nesting ?? true, string.IsNullOrWhiteSpace(relation) ? null : relation)));
+
+// ---------------------------------------------------------------- Espaces par couche
+
+api.MapGet("/spaces/capabilities", (Workspace ws) => ws.Read((repo, an) => new SpaceReader(repo, an).CapabilityMap()));
+api.MapGet("/spaces/applications", (Workspace ws) => ws.Read((repo, an) => new SpaceReader(repo, an).Applications()));
+api.MapGet("/spaces/flows", (Workspace ws) => ws.Read((repo, an) => new SpaceReader(repo, an).Flows()));
+api.MapGet("/spaces/data", (Workspace ws) => ws.Read((repo, an) => new SpaceReader(repo, an).Data()));
+api.MapGet("/spaces/infrastructure", (Workspace ws) => ws.Read((repo, an) => new SpaceReader(repo, an).Infrastructure()));
 
 // ---------------------------------------------------------------- Projets
 

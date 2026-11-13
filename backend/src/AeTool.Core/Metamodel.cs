@@ -111,6 +111,7 @@ public sealed class MetamodelSettings
     public string ProjectFolderLabel { get; set; } = "Projets";
     public string ProjectTypeKey { get; set; } = "WorkPackage";
     public List<string> ApplicationTypeKeys { get; set; } = new() { "ApplicationComponent" };
+    public string CapabilityTypeKey { get; set; } = "Capability";
     /// <summary>Types servant de fond de carte : présents dans une vue projet, ils ne valent pas impact.</summary>
     public List<string> ImpactExcludedTypeKeys { get; set; } = new() { "Capability", "Grouping", "Location", "WorkPackage", "AndJunction", "OrJunction" };
     public string FallbackArchimateType { get; set; } = "Grouping";

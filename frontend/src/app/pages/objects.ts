@@ -5,7 +5,7 @@ import { Api, Brief, SOURCE_LABELS } from '../api';
 @Component({
   imports: [RouterLink],
   template: `
-    <h1>Référentiel</h1>
+    <h1>Tous les objets</h1>
     <p class="lead">Les objets d'architecture existent indépendamment des vues : un objet n'est créé qu'une fois, quel que soit le nombre de diagrammes où il apparaît.</p>
     <div class="card flush">
       <div class="tools">
@@ -17,7 +17,7 @@ import { Api, Brief, SOURCE_LABELS } from '../api';
           <option value="">Tous les types</option>
           @for (t of types(); track t.key) { <option [value]="t.key" [selected]="type() === t.key">{{ t.label }}</option> }
         </select>
-        <input type="search" placeholder="Nom ou valeur de propriété" (input)="q.set($any($event.target).value); load()" />
+        <input type="search" placeholder="Nom ou valeur de propriété" [value]="q()" (input)="q.set($any($event.target).value); load()" />
         <span class="muted">{{ total() }} objet(s)@if (total() > items().length) {, {{ items().length }} affichés}</span>
         <a class="btn ghost right" [href]="api.url('/export/objects.csv')">Exporter en CSV</a>
       </div>
@@ -39,6 +39,8 @@ export class ObjectsPage {
   api = inject(Api);
   private router = inject(Router);
   couche = input<string>();
+  /** Texte cherché, transmis par la recherche du menu. */
+  rechercheInitiale = input<string>(undefined, { alias: 'q' });
   meta = signal<any>(null);
   layer = signal('');
   type = signal('');
@@ -55,6 +57,7 @@ export class ObjectsPage {
     this.api.get('/metamodel').then((m) => this.meta.set(m));
     effect(() => {
       this.layer.set(this.couche() ?? '');
+      this.q.set(this.rechercheInitiale() ?? '');
       this.load();
     });
   }

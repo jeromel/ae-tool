@@ -7,13 +7,14 @@ import { Api, SOURCE_LABELS } from '../api';
   imports: [RouterLink],
   template: `
     @if (d(); as d) {
-      <a routerLink="/referentiel">← Référentiel</a>
+      <a routerLink="/referentiel">← Tous les objets</a>
       <h1><span class="swatch" [style.background]="d.effectiveVisual.fill"></span>{{ d.brief.name || '(sans nom)' }}</h1>
       <p class="lead">
         <span class="chip info">{{ d.brief.typeLabel }}</span> <span class="chip">{{ d.brief.layerLabel }}</span>
         <span class="chip">Source : {{ sources[d.brief.source] ?? d.brief.source }}</span> <span class="chip">{{ d.brief.status }}</span>
         @if (d.object.archived) { <span class="chip bad">Archivé</span> }
         @if (d.hasAssessment) { <a [routerLink]="['/portefeuille', d.brief.id]">Voir la notation</a> }
+        <a routerLink="/impact" [queryParams]="{ objet: d.brief.id }">Analyser l'impact</a>
       </p>
       <div class="row">
         <div class="card">

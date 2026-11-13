@@ -60,6 +60,25 @@ que par le modèle du cœur ; le stockage est derrière l'interface `IRepository
 - **Vues** : affichage SVG des diagrammes importés, avec les couleurs d'Archi ou celles du métamodèle (type, puis élément).
 - **Journal** des opérations.
 
+## Menu et espaces
+
+Le menu suit l'intention, pas les objets de l'outil :
+
+- **Comprendre** : un espace par couche (Capacités, Applications, Flux, Données, Infrastructure).
+- **Décider** : Portefeuille, Projets, Analyse d'impact.
+- **Tenir à jour** : Qualité du référentiel, Vues Archi, Imports et exports, Métamodèle.
+
+Les cas d'usage ne sont pas des entrées de menu. Ils apparaissent comme **questions** en tête de chaque espace
+(« Lesquelles ne sont reliées à rien ? »), sur l'accueil (triées selon le profil choisi) et comme actions « Contexte » et
+« Impact » sur chaque objet. La question choisie est portée par l'adresse (`?question=…`) : le lien se partage.
+Une question en pointillés est une question à laquelle le référentiel ne sait pas encore répondre ; elle dit quoi renseigner.
+
+La carte des capacités est générée depuis les relations de composition, sans dépendre d'un dessin. Le rattachement
+application → capacité vient d'une relation ou, à défaut, d'une imbrication dans une vue Archi (signalé « vue »).
+
+Ajouter une question à un espace en liste : une ligne dans `frontend/src/app/spaces.config.ts`.
+Projections côté serveur : `backend/src/AeTool.Core/Spaces.cs`, exposées sous `/api/spaces/…`.
+
 ## Rendu des vues
 
 Deux rendus, au choix dans le menu « Affichage » d'une vue :

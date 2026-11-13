@@ -97,8 +97,9 @@ public sealed class Analyzer
     /// <summary>
     /// Matrice croisée entre deux types. Une cellule porte « R » si une relation directe lie les deux objets,
     /// « V » si l'un est imbriqué dans l'autre dans au moins une vue (lecture type POS), « RV » pour les deux.
+    /// Avec <paramref name="relationType"/> (type ArchiMate, par exemple « Flow »), seules ces relations comptent, dans leur sens.
     /// </summary>
-    public Matrix CrossMatrix(string rowType, string colType, bool includeNesting)
+    public Matrix CrossMatrix(string rowType, string colType, bool includeNesting, string? relationType = null)
     {
         var rows = _repo.ActiveObjects.Where(o => o.TypeKey == rowType).OrderBy(o => o.Name).ToList();
         var cols = _repo.ActiveObjects.Where(o => o.TypeKey == colType).OrderBy(o => o.Name).ToList();
@@ -114,10 +115,12 @@ public sealed class Analyzer
         }
         foreach (var rel in _repo.ActiveRelationships)
         {
+            // Limitée à un type de relation, la matrice se lit dans le sens de la relation : ligne = source, colonne = cible.
+            if (relationType is not null && _repo.Metamodel.RelType(rel.TypeKey)?.ArchimateType != relationType) continue;
             Mark(rel.SourceId, rel.TargetId, "R");
-            Mark(rel.TargetId, rel.SourceId, "R");
+            if (relationType is null) Mark(rel.TargetId, rel.SourceId, "R");
         }
-        if (includeNesting)
+        if (includeNesting && relationType is null)
             foreach (var (ancestor, descendant) in NestingPairs())
             {
                 Mark(ancestor, descendant, "V");
@@ -137,7 +140,7 @@ public sealed class Analyzer
     /// Couples (contenant, contenu) lus dans les vues. Archi n'imbrique pas toujours les nœuds dans le XML :
     /// on retient donc l'inclusion géométrique, qui couvre aussi les nœuds imbriqués.
     /// </summary>
-    private IEnumerable<(string Ancestor, string Descendant)> NestingPairs()
+    public IEnumerable<(string Ancestor, string Descendant)> NestingPairs()
     {
         var pairs = new HashSet<(string, string)>();
         foreach (var d in _repo.ActiveDiagrams)

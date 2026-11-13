@@ -1,10 +1,16 @@
-import { Component, signal } from '@angular/core';
-import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { Component, inject, signal } from '@angular/core';
+import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { Brief } from './api';
+import { ObjectSearch } from './object-search';
 import { readPref, writePref } from './prefs';
 
+/**
+ * Le menu suit l'intention, pas les objets de l'outil : comprendre le système d'information couche par couche,
+ * décider en comité, tenir le référentiel à jour. Les cas d'usage vivent dans chaque espace, sous forme de questions.
+ */
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, ObjectSearch],
   host: { '[class.nav-closed]': 'closed()' },
   template: `
     <nav class="side" aria-label="Navigation principale">
@@ -14,16 +20,25 @@ import { readPref, writePref } from './prefs';
       @if (!closed()) {
         <div class="brand">Référentiel<br /><span>d'architecture</span></div>
         <a routerLink="/" routerLinkActive="on" [routerLinkActiveOptions]="{ exact: true }">Accueil</a>
+        <div class="find"><app-object-search placeholder="Rechercher un objet" (picked)="open($event)" (all)="openAll($event)" /></div>
+
+        <div class="group">Comprendre</div>
+        <a routerLink="/capacites" routerLinkActive="on">Capacités</a>
+        <a routerLink="/applications" routerLinkActive="on">Applications</a>
+        <a routerLink="/flux" routerLinkActive="on">Flux</a>
+        <a routerLink="/donnees" routerLinkActive="on">Données</a>
+        <a routerLink="/infrastructure" routerLinkActive="on">Infrastructure</a>
+
         <div class="group">Décider</div>
-        <a routerLink="/portefeuille" routerLinkActive="on">Portefeuille applicatif</a>
-        <a routerLink="/projets" routerLinkActive="on">Projets et adhérences</a>
-        <div class="group">Explorer</div>
-        <a routerLink="/referentiel" routerLinkActive="on">Référentiel</a>
-        <a routerLink="/vues" routerLinkActive="on">Vues</a>
-        <a routerLink="/matrices" routerLinkActive="on">Matrices</a>
-        <div class="group">Administrer</div>
-        <a routerLink="/metamodele" routerLinkActive="on">Métamodèle</a>
+        <a routerLink="/portefeuille" routerLinkActive="on">Portefeuille</a>
+        <a routerLink="/projets" routerLinkActive="on">Projets</a>
+        <a routerLink="/impact" routerLinkActive="on">Analyse d'impact</a>
+
+        <div class="group">Tenir à jour</div>
+        <a routerLink="/qualite" routerLinkActive="on">Qualité du référentiel</a>
+        <a routerLink="/vues" routerLinkActive="on">Vues Archi</a>
         <a routerLink="/imports" routerLinkActive="on">Imports et exports</a>
+        <a routerLink="/metamodele" routerLinkActive="on">Métamodèle</a>
         <div class="foot">Prototype lot 1</div>
       }
     </nav>
@@ -31,11 +46,20 @@ import { readPref, writePref } from './prefs';
   `,
 })
 export class App {
+  private router = inject(Router);
   /** Menu replié : la place gagnée va aux vues et aux tableaux. */
   closed = signal(readPref('menu.replie', false));
 
   toggle(): void {
     this.closed.update((c) => !c);
     writePref('menu.replie', this.closed());
+  }
+
+  open(o: Brief): void {
+    this.router.navigate(['/objets', o.id]);
+  }
+
+  openAll(text: string): void {
+    this.router.navigate(['/referentiel'], { queryParams: { q: text } });
   }
 }
