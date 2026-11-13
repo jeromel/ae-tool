@@ -1,4 +1,4 @@
-import { Component, effect, inject, input, signal } from '@angular/core';
+import { Component, computed, effect, inject, input, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { Api, Brief, SOURCE_LABELS } from '../api';
 
@@ -7,7 +7,7 @@ import { Api, Brief, SOURCE_LABELS } from '../api';
   template: `
     <h1>Référentiel</h1>
     <p class="lead">Les objets d'architecture existent indépendamment des vues : un objet n'est créé qu'une fois, quel que soit le nombre de diagrammes où il apparaît.</p>
-    <div class="card">
+    <div class="card flush">
       <div class="tools">
         <select (change)="setLayer($any($event.target).value)">
           <option value="">Toutes les couches</option>
@@ -21,13 +21,13 @@ import { Api, Brief, SOURCE_LABELS } from '../api';
         <span class="muted">{{ total() }} objet(s)@if (total() > items().length) {, {{ items().length }} affichés}</span>
         <a class="btn ghost right" [href]="api.url('/export/objects.csv')">Exporter en CSV</a>
       </div>
-      <div class="scroll">
+      <div class="scroll tall" style="--above: 190px">
         <table>
           <tr><th>Nom</th><th>Type</th><th>Couche</th><th>Source</th><th>Statut</th></tr>
           @for (o of items(); track o.id) {
             <tr class="click" (click)="open(o.id)">
-              <td><a [routerLink]="['/objets', o.id]">{{ o.name || '(sans nom)' }}</a></td>
-              <td>{{ o.typeLabel }}</td><td>{{ o.layerLabel }}</td><td>{{ sources[o.source] ?? o.source }}</td><td>{{ o.status }}</td>
+              <td><span class="swatch" [style.background]="fills()[o.typeKey]"></span><a [routerLink]="['/objets', o.id]">{{ o.name || '(sans nom)' }}</a></td>
+              <td>{{ o.typeLabel }}</td><td>{{ o.layerLabel }}</td><td>{{ sources[o.source] ?? o.source }}</td><td><span class="chip" [class.ok]="o.status === 'Validé'">{{ o.status }}</span></td>
             </tr>
           }
         </table>
@@ -46,6 +46,10 @@ export class ObjectsPage {
   items = signal<Brief[]>([]);
   total = signal(0);
   sources = SOURCE_LABELS;
+  /** Couleur de fond de chaque type, pour repérer la nature d'un objet d'un coup d'œil. */
+  fills = computed<Record<string, string>>(() =>
+    Object.fromEntries(((this.meta()?.objectTypes ?? []) as any[]).map((t) => [t.key, t.visual?.fill ?? '#ffffff'])),
+  );
 
   constructor() {
     this.api.get('/metamodel').then((m) => this.meta.set(m));

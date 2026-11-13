@@ -20,7 +20,8 @@ Ouvrir http://localhost:5080, puis **Imports et exports** :
 
 Le référentiel est enregistré dans un fichier JSON (`data/referentiel.json` à côté de l'exécutable, ou le chemin donné par `DataPath`).
 
-Tout reconstruire et tester : `./build.sh`. Tests seuls :
+Tout reconstruire et tester : `./build.sh` (Linux, macOS, Git Bash) ou `.\build.ps1` (Windows PowerShell).
+Prérequis : SDK .NET 8 (le `global.json` l'impose même si un SDK plus récent est installé) et Node.js 22.22.3 ou plus récent. Tests seuls :
 
 ```bash
 dotnet run --project backend/tests/AeTool.Tests

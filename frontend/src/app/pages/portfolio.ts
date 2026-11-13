@@ -1,9 +1,16 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { Api } from '../api';
+import { NoteGauge } from '../note-gauge';
 
 /** Portefeuille applicatif : une ligne par application, notation recalculée par l'outil selon la grille du métamodèle. */
 @Component({
+  imports: [NoteGauge],
+  styles: `
+    td.app { white-space: nowrap; }
+    td.nowrap { white-space: nowrap; }
+    th .sub { font-weight: 400; font-size: 11.5px; }
+  `,
   template: `
     <h1>Portefeuille applicatif</h1>
     <p class="lead">
@@ -19,14 +26,18 @@ import { Api } from '../api';
       <div class="stat"><b>{{ notInArchi() }}</b><span>absentes du modèle Archi</span></div>
     </div>
 
-    <div class="card">
-      <h2>Quadrant d'urbanisation</h2>
+    <div class="tabs" role="tablist">
+      <button type="button" role="tab" [attr.aria-selected]="tab() === 'tableau'" (click)="tab.set('tableau')">Tableau</button>
+      <button type="button" role="tab" [attr.aria-selected]="tab() === 'quadrant'" (click)="tab.set('quadrant')">Quadrant d'urbanisation</button>
+    </div>
+
+    @if (tab() === 'quadrant') {
       <div class="quadrant">
         @for (q of quadrants; track q.key) {
           <div>
-            <h3>{{ q.key }} <span class="muted">· {{ q.hint }}</span></h3>
+            <h3>{{ q.key }} <span class="muted">{{ q.hint }}</span></h3>
             @for (r of inQuadrant(q.key); track r.id) {
-              <span class="chip" style="margin: 0 4px 4px 0">{{ r.name }}</span>
+              <a class="chip" [class]="tone(q.key)" style="margin: 0 4px 4px 0; text-decoration: none" [href]="'/portefeuille/' + r.id" (click)="open(r.id); $event.preventDefault()">{{ r.name }}</a>
             } @empty {
               <span class="muted small">Aucune application placée.</span>
             }
@@ -34,43 +45,44 @@ import { Api } from '../api';
         }
       </div>
       @if (incomplete() > 0) {
-        <p class="muted small" style="margin: 10px 0 0">
+        <p class="muted" style="margin: 10px 0 0">
           {{ incomplete() }} application(s) ne sont pas placées : il leur manque des preuves, le besoin métier ou les déclencheurs rouges.
         </p>
       }
-    </div>
-
-    <div class="card">
-      <div class="tools">
-        <input type="search" placeholder="Filtrer par nom ou domaine" (input)="filter.set($any($event.target).value)" />
-        <label><input type="checkbox" (change)="onlyIncomplete.set($any($event.target).checked)" /> Notations incomplètes seulement</label>
-        <span class="muted right">{{ shown().length }} ligne(s) · cliquer une ligne pour noter</span>
-      </div>
-      <div class="scroll">
-        <table>
-          <tr>
-            <th>ID</th><th>Application</th><th>Domaine</th><th>État</th><th class="num">CM</th><th>Besoin</th>
-            @for (c of grid()?.criteria ?? []; track c.code) { <th class="num" [title]="c.label">{{ c.code }}</th> }
-            <th class="num">Maîtrise</th><th>Décision calculée</th><th>Décision retenue</th><th>Priorité</th><th>Contrôle</th>
-          </tr>
-          @for (r of shown(); track r.id) {
-            <tr class="click" (click)="open(r.id)">
-              <td>{{ r.urbaId }}</td>
-              <td><b>{{ r.name }}</b> @if (!r.inArchi) { <span class="chip warn" title="Absente du modèle Archi">hors Archi</span> }</td>
-              <td>{{ r.domain }}</td><td>{{ r.state }}</td><td class="num">{{ r.cm ?? '–' }}</td><td>{{ r.need }}</td>
-              @for (c of grid()?.criteria ?? []; track c.code) { <td class="num">{{ r.result.notes[c.code] ?? '–' }}</td> }
-              <td class="num">{{ r.result.mastery ?? '–' }}</td>
-              <td>@if (r.result.computedDecision) { <span class="chip" [class.bad]="r.result.computedDecision === 'À instruire'">{{ r.result.computedDecision }}</span> }</td>
-              <td>{{ r.retainedDecision }}</td>
-              <td>@if (r.result.priority) { <span class="chip" [class.bad]="r.result.priority === 'Haute'" [class.warn]="r.result.priority === 'Moyenne'">{{ r.result.priority }}</span> }</td>
-              <td class="small" [title]="r.result.missing.join(' ; ')">
-                <span class="chip" [class.ok]="r.result.control === 'Conforme au calcul'" [class.warn]="r.result.control !== 'Conforme au calcul' && r.result.control !== 'Sans objet'">{{ r.result.control }}</span>
-              </td>
+    } @else {
+      <div class="card flush">
+        <div class="tools">
+          <input type="search" placeholder="Filtrer par nom ou domaine" (input)="filter.set($any($event.target).value)" />
+          <label><input type="checkbox" (change)="onlyIncomplete.set($any($event.target).checked)" /> Notations incomplètes seulement</label>
+          <span class="muted right">{{ shown().length }} ligne(s), cliquer une ligne pour noter</span>
+        </div>
+        <div class="scroll tall" style="--above: 330px">
+          <table>
+            <tr>
+              <th>Application</th><th>Domaine</th><th>État</th><th>CM</th><th>Besoin</th>
+              @for (c of grid()?.criteria ?? []; track c.code) { <th [title]="c.label">{{ c.code }}<div class="sub">{{ c.label }}</div></th> }
+              <th>Maîtrise</th><th>Décision calculée</th><th>Décision retenue</th><th>Priorité</th><th>Contrôle</th>
             </tr>
-          }
-        </table>
+            @for (r of shown(); track r.id) {
+              <tr class="click" (click)="open(r.id)">
+                <td class="app"><b>{{ r.name }}</b>
+                  <div class="muted small">{{ r.urbaId }} @if (!r.inArchi) { <span class="chip warn" title="Absente du modèle Archi">hors Archi</span> }</div></td>
+                <td>{{ r.domain }}</td><td>{{ r.state }}</td>
+                <td><app-note-gauge [value]="r.cm" /></td><td class="nowrap">{{ r.need }}</td>
+                @for (c of grid()?.criteria ?? []; track c.code) { <td><app-note-gauge [value]="r.result.notes[c.code]" [lowUnder]="2" /></td> }
+                <td><app-note-gauge [value]="r.result.mastery" [lowUnder]="2.5" /></td>
+                <td>@if (r.result.computedDecision) { <span class="chip" [class]="tone(r.result.computedDecision)">{{ r.result.computedDecision }}</span> }</td>
+                <td>@if (r.retainedDecision) { <span class="chip" [class]="tone(r.retainedDecision)">{{ r.retainedDecision }}</span> }</td>
+                <td>@if (r.result.priority) { <span class="chip" [class.bad]="r.result.priority === 'Haute'" [class.warn]="r.result.priority === 'Moyenne'">{{ r.result.priority }}</span> }</td>
+                <td [title]="r.result.missing.join(' ; ')">
+                  <span class="chip" [class.ok]="r.result.control === 'Conforme au calcul'" [class.warn]="r.result.control !== 'Conforme au calcul' && r.result.control !== 'Sans objet'">{{ r.result.control }}</span>
+                </td>
+              </tr>
+            }
+          </table>
+        </div>
       </div>
-    </div>
+    }
   `,
 })
 export class PortfolioPage {
@@ -78,6 +90,7 @@ export class PortfolioPage {
   private router = inject(Router);
   rows = signal<any[]>([]);
   grid = signal<any>(null);
+  tab = signal<'tableau' | 'quadrant'>('tableau');
   filter = signal('');
   onlyIncomplete = signal(false);
 
@@ -111,6 +124,15 @@ export class PortfolioPage {
 
   inQuadrant(key: string): any[] {
     return this.active().filter((r) => r.result.quadrant === key);
+  }
+
+  /** Teinte d'une décision : la même dans le tableau et dans le quadrant. */
+  tone(decision: string): string {
+    if (decision.startsWith('Maintenir')) return 'chip ok';
+    if (decision.startsWith('Moderniser')) return 'chip warn';
+    if (decision.startsWith('Éliminer') || decision.startsWith('À instruire')) return 'chip bad';
+    if (decision.startsWith('Tolérer')) return 'chip info';
+    return 'chip';
   }
 
   open(id: string): void {
