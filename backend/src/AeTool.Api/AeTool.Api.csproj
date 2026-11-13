@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <ItemGroup>
+    <ProjectReference Include="../AeTool.Core/AeTool.Core.csproj" />
+    <ProjectReference Include="../AeTool.Connectors/AeTool.Connectors.csproj" />
+  </ItemGroup>
+</Project>

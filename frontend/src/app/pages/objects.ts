@@ -1,0 +1,80 @@
+import { Component, effect, inject, input, signal } from '@angular/core';
+import { Router, RouterLink } from '@angular/router';
+import { Api, Brief, SOURCE_LABELS } from '../api';
+
+@Component({
+  imports: [RouterLink],
+  template: `
+    <h1>Référentiel</h1>
+    <p class="lead">Les objets d'architecture existent indépendamment des vues : un objet n'est créé qu'une fois, quel que soit le nombre de diagrammes où il apparaît.</p>
+    <div class="card">
+      <div class="tools">
+        <select (change)="setLayer($any($event.target).value)">
+          <option value="">Toutes les couches</option>
+          @for (l of meta()?.layers ?? []; track l.key) { <option [value]="l.key" [selected]="layer() === l.key">{{ l.label }}</option> }
+        </select>
+        <select (change)="type.set($any($event.target).value); load()">
+          <option value="">Tous les types</option>
+          @for (t of types(); track t.key) { <option [value]="t.key" [selected]="type() === t.key">{{ t.label }}</option> }
+        </select>
+        <input type="search" placeholder="Nom ou valeur de propriété" (input)="q.set($any($event.target).value); load()" />
+        <span class="muted">{{ total() }} objet(s)@if (total() > items().length) {, {{ items().length }} affichés}</span>
+        <a class="btn ghost right" [href]="api.url('/export/objects.csv')">Exporter en CSV</a>
+      </div>
+      <div class="scroll">
+        <table>
+          <tr><th>Nom</th><th>Type</th><th>Couche</th><th>Source</th><th>Statut</th></tr>
+          @for (o of items(); track o.id) {
+            <tr class="click" (click)="open(o.id)">
+              <td><a [routerLink]="['/objets', o.id]">{{ o.name || '(sans nom)' }}</a></td>
+              <td>{{ o.typeLabel }}</td><td>{{ o.layerLabel }}</td><td>{{ sources[o.source] ?? o.source }}</td><td>{{ o.status }}</td>
+            </tr>
+          }
+        </table>
+      </div>
+    </div>
+  `,
+})
+export class ObjectsPage {
+  api = inject(Api);
+  private router = inject(Router);
+  couche = input<string>();
+  meta = signal<any>(null);
+  layer = signal('');
+  type = signal('');
+  q = signal('');
+  items = signal<Brief[]>([]);
+  total = signal(0);
+  sources = SOURCE_LABELS;
+
+  constructor() {
+    this.api.get('/metamodel').then((m) => this.meta.set(m));
+    effect(() => {
+      this.layer.set(this.couche() ?? '');
+      this.load();
+    });
+  }
+
+  types(): any[] {
+    const all = (this.meta()?.objectTypes ?? []) as any[];
+    return all.filter((t) => !this.layer() || t.layerKey === this.layer()).sort((a, b) => a.label.localeCompare(b.label));
+  }
+
+  setLayer(layer: string): void {
+    this.layer.set(layer);
+    this.type.set('');
+    this.load();
+  }
+
+  load(): void {
+    const p = new URLSearchParams({ layer: this.layer(), type: this.type(), q: this.q() });
+    this.api.get(`/objects?${p}`).then((d) => {
+      this.items.set(d.items);
+      this.total.set(d.total);
+    });
+  }
+
+  open(id: string): void {
+    this.router.navigate(['/objets', id]);
+  }
+}

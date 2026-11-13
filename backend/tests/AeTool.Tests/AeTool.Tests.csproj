@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType></PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/AeTool.Core/AeTool.Core.csproj" />
+    <ProjectReference Include="../../src/AeTool.Connectors/AeTool.Connectors.csproj" />
+  </ItemGroup>
+</Project>

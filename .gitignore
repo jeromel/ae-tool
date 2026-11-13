@@ -1,0 +1,8 @@
+bin/
+obj/
+node_modules/
+dist/
+.angular/
+# Données du référentiel : jamais dans le dépôt
+data/
+*.tmp
