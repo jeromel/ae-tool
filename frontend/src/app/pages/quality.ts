@@ -2,6 +2,17 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { Api } from '../api';
 
+const CODE_LABELS: Record<string, string> = {
+  'type-inconnu': 'Type inconnu',
+  'type-archive': 'Type archivé',
+  'propriete-obligatoire-absente': 'Propriété obligatoire absente',
+  'valeur-hors-liste': 'Valeur hors liste',
+  'valeur-nombre-invalide': 'Nombre invalide',
+  'valeur-date-invalide': 'Date invalide',
+  'valeur-booleen-invalide': 'Oui / non invalide',
+  'relation-non-autorisee': 'Relation non autorisée',
+};
+
 /** Qualité du référentiel : ce qui manque pour que les espaces répondent, avec un lien vers chaque liste à traiter. */
 @Component({
   imports: [RouterLink],
@@ -20,6 +31,38 @@ import { Api } from '../api';
           </tr>
         }
       </table>
+    </div>
+    <div class="card">
+      <h2>Conformité au métamodèle</h2>
+      @if (conformity(); as c) {
+        @if (c.total === 0) {
+          <p class="muted">Toutes les données respectent le métamodèle : types connus, propriétés obligatoires renseignées, valeurs et relations conformes.</p>
+        } @else {
+          <p class="muted">{{ c.total }} écart(s) entre les données et le métamodèle. Ils sont signalés sans bloquer la saisie ; cliquez sur une nature pour ne voir qu'elle.</p>
+          <div class="questions">
+            @for (s of c.summary; track s.code) {
+              <button type="button" class="question" [attr.aria-pressed]="code() === s.code" (click)="code.set(code() === s.code ? '' : s.code)">
+                {{ codeLabel(s.code) }} : <b>{{ s.count }}</b>
+              </button>
+            }
+          </div>
+          <div class="scroll" style="max-height: 360px">
+            <table>
+              <tr><th>Nature</th><th>Constat</th><th></th></tr>
+              @for (i of issues(); track $index) {
+                <tr>
+                  <td><span class="chip" [class.bad]="i.severity === 'erreur'" [class.warn]="i.severity !== 'erreur'">{{ codeLabel(i.code) }}</span></td>
+                  <td>{{ i.message }}</td>
+                  <td class="actions">@if (i.kind === 'objet') { <a [routerLink]="['/objets', i.id]">Ouvrir l'objet</a> } @else { <span class="muted small">Relation</span> }</td>
+                </tr>
+              }
+            </table>
+          </div>
+          @if (c.total > c.issues.length) { <p class="muted small">Les {{ c.issues.length }} premiers constats sur {{ c.total }} sont listés ; les effectifs ci-dessus portent sur tous.</p> }
+        }
+      } @else {
+        <p class="muted">Chargement…</p>
+      }
     </div>
     <div class="card flush">
       <div class="tools"><h2 style="margin: 0">Complétude par type d'objet</h2></div>
@@ -41,6 +84,10 @@ import { Api } from '../api';
 export class QualityPage {
   private api = inject(Api);
   quality = signal<any[]>([]);
+  conformity = signal<any>(null);
+  /** Nature de constat retenue pour filtrer la liste ; vide = toutes. */
+  code = signal('');
+  issues = computed(() => (this.conformity()?.issues ?? []).filter((i: any) => !this.code() || i.code === this.code()));
   private applications = signal<any[]>([]);
   private flows = signal<any[]>([]);
   private data = signal<any[]>([]);
@@ -64,10 +111,15 @@ export class QualityPage {
   });
 
   constructor() {
+    this.api.get('/quality/conformity').then((c) => this.conformity.set(c));
     this.api.get('/quality').then((q) => this.quality.set(q));
     this.api.get('/spaces/applications').then((r) => this.applications.set(r));
     this.api.get('/spaces/flows').then((r) => this.flows.set(r));
     this.api.get('/spaces/data').then((r) => this.data.set(r));
+  }
+
+  codeLabel(code: string): string {
+    return CODE_LABELS[code] ?? code;
   }
 
   pct(part: number, total: number): string {

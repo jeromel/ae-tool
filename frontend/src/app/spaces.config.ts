@@ -20,6 +20,10 @@ export interface SpaceConfig {
   questions: SpaceQuestion[];
   /** Clé de l'identifiant d'objet d'une ligne : active les actions « Contexte » et « Impact ». */
   actionsIdKey?: string;
+  /** Rôle fonctionnel des objets de l'espace : active le bouton de création, qui propose le premier type portant ce rôle. */
+  createRole?: string;
+  /** Libellé du bouton de création (« Nouvelle application »). */
+  createLabel?: string;
   matrix?: { rows: string; cols: string; relation?: string; label: string };
 }
 
@@ -30,6 +34,8 @@ export const APPLICATIONS: SpaceConfig = {
   noun: 'application(s)',
   searchKeys: ['name', 'decision'],
   actionsIdKey: 'id',
+  createRole: 'application',
+  createLabel: 'Nouvelle application',
   matrix: { rows: 'role:application', cols: 'role:capacite', label: 'Applications × capacités' },
   columns: [
     { key: 'name', label: 'Application', kind: 'objet', idKey: 'id' },
@@ -88,6 +94,8 @@ export const DATA: SpaceConfig = {
   noun: 'objet(s) de données',
   searchKeys: ['name', 'typeLabel'],
   actionsIdKey: 'id',
+  createRole: 'donnee',
+  createLabel: 'Nouvelle donnée',
   columns: [
     { key: 'name', label: 'Donnée', kind: 'objet', idKey: 'id' },
     { key: 'typeLabel', label: 'Type' },
@@ -112,6 +120,8 @@ export const INFRASTRUCTURE: SpaceConfig = {
   noun: 'élément(s) technique(s)',
   searchKeys: ['name', 'typeLabel'],
   actionsIdKey: 'id',
+  createRole: 'infrastructure',
+  createLabel: 'Nouvel élément technique',
   columns: [
     { key: 'name', label: 'Élément', kind: 'objet', idKey: 'id' },
     { key: 'typeLabel', label: 'Type' },

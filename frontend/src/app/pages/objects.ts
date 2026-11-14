@@ -1,6 +1,7 @@
 import { Component, computed, effect, inject, input, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { Api, Brief, SOURCE_LABELS } from '../api';
+import { Session } from '../session';
 
 @Component({
   imports: [RouterLink],
@@ -19,7 +20,10 @@ import { Api, Brief, SOURCE_LABELS } from '../api';
         </select>
         <input type="search" placeholder="Nom ou valeur de propriété" [value]="q()" (input)="q.set($any($event.target).value); load()" />
         <span class="muted">{{ total() }} objet(s)@if (total() > items().length) {, {{ items().length }} affichés}</span>
-        <a class="btn ghost right" [href]="api.url('/export/objects.csv')">Exporter en CSV</a>
+        <span class="right tools-right">
+          @if (session.can('contributeur')) { <a class="btn" routerLink="/objets/nouveau" [queryParams]="type() ? { type: type() } : {}">Nouvel objet</a> }
+          <a class="btn ghost" [href]="api.url('/export/objects.csv')">Exporter en CSV</a>
+        </span>
       </div>
       <div class="scroll tall" style="--above: 190px">
         <table>
@@ -34,9 +38,11 @@ import { Api, Brief, SOURCE_LABELS } from '../api';
       </div>
     </div>
   `,
+  styles: `.tools-right { display: flex; gap: 8px; }`,
 })
 export class ObjectsPage {
   api = inject(Api);
+  session = inject(Session);
   private router = inject(Router);
   couche = input<string>();
   /** Texte cherché, transmis par la recherche du menu. */

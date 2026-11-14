@@ -15,7 +15,10 @@ import { Api, Brief } from './api';
           } @empty {
             <p>Aucun objet ne porte ce nom.</p>
           }
-          @if (total() > items().length) { <button type="button" class="more" (click)="all.emit(text())">Voir les {{ total() }} résultats</button> }
+          @if (total() > items().length) {
+            @if (showAll()) { <button type="button" class="more" (click)="all.emit(text())">Voir les {{ total() }} résultats</button> }
+            @else { <p class="rest">{{ total() - items().length }} autre(s) résultat(s) : précisez la recherche.</p> }
+          }
         </div>
       }
     </div>
@@ -31,11 +34,16 @@ import { Api, Brief } from './api';
     .results span { font-size: 12px; color: var(--muted); }
     .results .more { color: var(--accent); font-weight: 600; border-top: 1px solid var(--line); border-radius: 0; }
     .results p { margin: 0; padding: 8px; color: var(--muted); }
+    .results .rest { font-size: 12px; border-top: 1px solid var(--line); }
   `,
 })
 export class ObjectSearch {
   private api = inject(Api);
   placeholder = input('Rechercher un objet');
+  /** Clés des types d'objets proposés ; absent = tous les types. Une liste vide ne propose rien. */
+  types = input<string[] | undefined>(undefined);
+  /** Propose la liste complète des résultats ; à désactiver quand l'appelant n'a pas de page où l'afficher. */
+  showAll = input(true);
   picked = output<Brief>();
   /** Demande de la liste complète des résultats pour le texte saisi. */
   all = output<string>();
@@ -51,7 +59,10 @@ export class ObjectSearch {
     this.open.set(true);
     if (value.trim().length < 2) return this.items.set([]);
     const mine = ++this.request;
-    this.api.get(`/objects?q=${encodeURIComponent(value)}&limit=8`).then((d) => {
+    const types = this.types();
+    if (types?.length === 0) return this.items.set([]);
+    const url = types ? `/objects/search?q=${encodeURIComponent(value)}&types=${encodeURIComponent(types.join(','))}&limit=8` : `/objects?q=${encodeURIComponent(value)}&limit=8`;
+    this.api.get(url).then((d) => {
       if (mine !== this.request) return; // une saisie plus récente est en cours
       this.items.set(d.items);
       this.total.set(d.total);
