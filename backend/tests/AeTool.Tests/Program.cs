@@ -24,5 +24,6 @@ AccessRulesTests.Run();
 AuthTests.Run();
 ApiTests.Run();
 MetamodelApiTests.Run();
+MetamodelInsightTests.Run();
 RealFileTests.Run(args);
 return Harness.Finish();

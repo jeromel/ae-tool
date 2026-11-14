@@ -142,3 +142,54 @@ details > summary { cursor: pointer; padding: 3px 0; }
 .form label input { font-weight: 400; }
 .open-banner { margin: -22px -26px 16px; padding: 4px 26px; font-size: 12px; background: #fbe9cc; color: var(--warn); }
 code { font-family: Consolas, 'Courier New', monospace; background: #fff; padding: 1px 6px; border-radius: 4px; border: 1px solid var(--line); }
+
+/* Lot B1a : écran du métamodèle (onglets types, relations, propriétés, transcodification). */
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.mm-split { display: flex; gap: 16px; align-items: flex-start; }
+.mm-main { flex: 1; min-width: 0; margin-bottom: 0; }
+.mm-aside { width: 400px; flex: none; position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow: auto; margin-bottom: 0; }
+.mm-aside .head, .card .head { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.mm-aside .head h2 { margin: 0; }
+.mm-aside fieldset, .card fieldset { border: 1px solid var(--line); border-radius: 6px; margin: 0 0 12px; padding: 8px 12px 10px; min-width: 0; }
+.mm-aside legend, .card legend { font-weight: 600; padding: 0 6px; }
+.mm-aside .grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px 12px; }
+.mm-aside .grid select { width: 100%; min-width: 0; }
+.card .confirm { margin: 12px 0 0; }
+.mm-aside .chip { white-space: normal; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 0 16px; }
+label.check { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 8px; }
+label.check input { margin-top: 3px; }
+label.block, .mm-aside .grid label { display: flex; flex-direction: column; gap: 4px; font-weight: 600; margin-bottom: 10px; }
+label.block > span, label.block > input, label.block > select, label.block > textarea { font-weight: 400; }
+label.inline { display: inline-flex; gap: 6px; align-items: center; }
+.inline-form { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 10px 14px; margin-bottom: 12px; }
+.checklist { max-height: 190px; overflow: auto; margin-top: 8px; border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px 0; }
+ul.pairs { list-style: none; margin: 0 0 8px; padding: 0; }
+ul.pairs li { display: flex; gap: 10px; align-items: center; padding: 4px 0; border-bottom: 1px solid var(--line); }
+ul.pairs li > span:first-child { flex: 1; }
+tr.group td { background: #f6f8f8; padding: 4px 10px; }
+button.fold { background: none; border: 0; padding: 2px 0; color: var(--ink); font-weight: 600; }
+button.fold:hover { background: none; color: var(--accent); }
+tr.on td { background: var(--accent-soft); }
+tr.archived td { color: var(--muted); }
+tr.typehead td { background: #f6f8f8; border-top: 2px solid var(--line); }
+tr.msg td { padding: 3px 10px 6px; border-bottom: 1px solid var(--line); color: var(--muted); }
+tr.bad td { background: #fdf1f0; }
+table.rules td input[type=text], table.rules td select { width: 100%; min-width: 120px; }
+button.danger, .confirm button.danger { background: var(--bad); border-color: var(--bad); color: #fff; }
+button.ghost.danger { background: #fff; color: var(--bad); border-color: #e1b5b1; }
+button.ghost.danger:hover { background: #f9dedb; }
+.confirm { background: #fffaf0; border: 1px solid var(--signal); border-left-width: 5px; border-radius: 8px; padding: 12px 16px; margin-bottom: 14px; }
+.confirm h3 { margin: 0 0 6px; font-family: var(--display); font-size: 15px; }
+.tools.sticky { position: sticky; top: 0; z-index: 3; background: var(--bg); padding: 8px 0; margin-bottom: 4px; }
+.partbody { margin-top: 12px; }
+ul.findings { margin: 4px 0 8px 24px; padding: 0; }
+.toast { position: fixed; right: 20px; bottom: 20px; z-index: 20; padding: 9px 14px; border-radius: 8px; box-shadow: 0 4px 16px #0003; font-weight: 600; max-width: 460px; }
+.toast.ok { background: var(--ok); color: #fff; } .toast.bad { background: #fff; color: var(--bad); border: 1px solid var(--bad); }
+label.btn:focus-visible { outline: 2px solid var(--signal); outline-offset: 2px; }
+/* Dans les tableaux du métamodèle, les champs remplissent leur cellule : le tableau tient à côté du panneau de détail. */
+.mm-main td input[type=text], .mm-main td select { width: 100%; min-width: 0; }
+.mm-main td { padding: 6px 8px; }
+label.btn { font-weight: 600; padding: 6px 12px; border: 1px solid #b9c5ca; border-radius: 6px; background: #fff; color: var(--accent); cursor: pointer; display: inline-block; white-space: nowrap; }
+label.btn:hover { background: var(--accent-soft); }
+@media (max-width: 1100px) { .mm-split { flex-direction: column; } .mm-aside { width: 100%; position: static; max-height: none; } }
