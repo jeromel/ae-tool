@@ -37,6 +37,19 @@ public sealed class ArchObject
     public string? Owner { get; set; }
     public bool Archived { get; set; }
     public DateTime UpdatedAt { get; set; }
+    public string? UpdatedBy { get; set; }
+
+    /// <summary>Concept ArchiMate d'origine quand l'objet vient d'un import Archi ; sert à le réexporter à l'identique.</summary>
+    public string? ArchimateType { get; set; }
+    /// <summary>Identifiant de l'objet dans chaque source externe rapprochée : clé de la source → identifiant chez elle.</summary>
+    public Dictionary<string, string> ExternalRefs { get; set; } = new();
+
+    // Circuit de validation (Brouillon → Proposé → Validé) : qui a proposé, qui a validé, et le commentaire d'un refus.
+    public string? ProposedBy { get; set; }
+    public DateTime? ProposedAt { get; set; }
+    public string? ValidatedBy { get; set; }
+    public DateTime? ValidatedAt { get; set; }
+    public string? ValidationComment { get; set; }
 
     public string? Get(string key) => Properties.FirstOrDefault(p => p.Key == key)?.Value;
 
@@ -63,6 +76,8 @@ public sealed class Relationship
     public string? Modifier { get; set; }
     public string Source { get; set; } = "saisie";
     public bool Archived { get; set; }
+    /// <summary>Type de relation ArchiMate d'origine quand la relation vient d'un import Archi.</summary>
+    public string? ArchimateType { get; set; }
 }
 
 /// <summary>Dossier de classement. Ce n'est pas une relation d'architecture.</summary>
@@ -176,13 +191,20 @@ public static class ImpactNature
     public static readonly string[] All = { ToQualify, "Création", "Évolution", "Remplacement", "Retrait", "Hors périmètre" };
 }
 
+/// <summary>Modification d'un champ : valeur avant et valeur après (exigence EF-52).</summary>
+public sealed record FieldChange(string Field, string? Before, string? After);
+
 public sealed class JournalEntry
 {
     public DateTime At { get; set; }
     public string User { get; set; } = "";
     public string Action { get; set; } = "";
     public string? TargetId { get; set; }
+    /// <summary>Nature de la cible : objet, relation, impact, notation, métamodèle, import…</summary>
+    public string? TargetKind { get; set; }
     public string? Detail { get; set; }
+    /// <summary>Champs modifiés, avec leur valeur avant et après. Vide pour une action sans modification de champ.</summary>
+    public List<FieldChange>? Changes { get; set; }
 }
 
 /// <summary>Tout l'état de l'outil. Sérialisable en un seul fichier JSON (réversibilité, exigence ED-01).</summary>

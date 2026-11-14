@@ -3,6 +3,8 @@ obj/
 node_modules/
 dist/
 .angular/
+# Interface compilée, recopiée par les scripts de construction
+backend/src/AeTool.Api/wwwroot/
 # Données du référentiel : jamais dans le dépôt
 data/
 *.tmp

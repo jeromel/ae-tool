@@ -14,6 +14,30 @@ public interface IRepositoryStore
     void Save(Repository repository);
 }
 
+/// <summary>
+/// Emplacement des données de l'application. Tous les fichiers (référentiel, comptes, sources externes, sauvegardes)
+/// vivent dans le dossier du fichier du référentiel : un seul dossier à sauvegarder et à protéger.
+/// </summary>
+public sealed class DataPaths
+{
+    public string RepositoryFile { get; }
+    public string Directory { get; }
+
+    public DataPaths(string repositoryFile)
+    {
+        RepositoryFile = Path.GetFullPath(repositoryFile);
+        Directory = Path.GetDirectoryName(RepositoryFile)!;
+    }
+
+    /// <summary>Chemin d'un fichier ou d'un sous-dossier du dossier de données ; le dossier parent est créé au besoin.</summary>
+    public string File(params string[] parts)
+    {
+        var path = Path.Combine(new[] { Directory }.Concat(parts).ToArray());
+        System.IO.Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        return path;
+    }
+}
+
 public sealed class JsonFileStore : IRepositoryStore
 {
     private readonly string _path;
