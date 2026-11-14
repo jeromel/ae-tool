@@ -7,6 +7,9 @@ root="$(cd "$(dirname "$0")" && pwd)"
 
 "$root/build.sh"
 
+# Failles connues des paquets livrés avec l'interface : une faille critique bloque la livraison (exigence ET-23).
+(cd "$root/frontend" && npm audit --omit=dev --audit-level=critical)
+
 sortie="$root/livraison/ae-tool"
 rm -rf "$sortie"
 dotnet publish "$root/backend/src/AeTool.Api" -c Release -o "$sortie"

@@ -105,7 +105,7 @@ public static class MetamodelApiTests
             Equal(HttpStatusCode.OK, Send(server, HttpMethod.Put, "/api/objects/id-itsm", new { properties = new[] { new { key = "niveau", value = "A" }, new { key = "cout", value = "12.5" } } }).Status, "valeurs valides");
             var missing = server.GetJson("/api/objects/id-report").GetProperty("missingRequired");
             Equal("niveau", missing[0].GetProperty("key").GetString(), "propriété obligatoire absente signalée");
-            Equal(HttpStatusCode.OK, Send(server, HttpMethod.Put, "/api/objects/id-report", new { documentation = "sans valeur de niveau : non bloquant" }).Status, "l'obligatoire ne bloque pas");
+            Equal(HttpStatusCode.OK, Send(server, HttpMethod.Put, "/api/objects/id-report", new { owner = "sans valeur de niveau : non bloquant" }).Status, "l'obligatoire ne bloque pas");
             var detail = server.GetJson("/api/objects/id-itsm").GetProperty("properties").EnumerateArray().Single(p => p.GetProperty("key").GetString() == "niveau");
             Equal(("liste", true, 2), (detail.GetProperty("dataType").GetString()!, detail.GetProperty("required").GetBoolean(), detail.GetProperty("allowedValues").GetArrayLength()), "type, obligatoire et valeurs permises");
             Equal(HttpStatusCode.Conflict, Send(server, HttpMethod.Delete, "/api/metamodel/properties?key=niveau").Status, "suppression refusée");

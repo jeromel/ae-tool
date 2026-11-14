@@ -40,7 +40,7 @@ Deux principes tiennent l'ensemble :
 - **Les cas d'usage se branchent sur des rôles, pas sur des types.** L'espace « Applications » lit les types qui portent
   le rôle `application`, quel que soit leur nom. Renommer ou ajouter un type ne casse aucun écran (décision 002).
 - **Une donnée a un seul maître.** Ce qui vient d'Archi se modifie dans Archi, ce qui vient d'une source externe se
-  modifie dans cette source ; l'outil le dit sur chaque champ en lecture seule.
+  modifie dans cette source ; l'outil le dit sur chaque champ en lecture seule, et le serveur refuse la modification.
 
 ## 3. Couche applicative : les composants
 

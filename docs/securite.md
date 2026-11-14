@@ -61,6 +61,7 @@ Hypothèses du pilote : l'outil est sur le réseau interne, derrière HTTPS, pou
 | Corps des requêtes de connexion et de gestion des comptes | 16 ko au plus | `Auth/AuthSetup.cs` |
 | Nom de sauvegarde à télécharger ou restaurer | comparé à un motif strict ; aucun chemin fourni n'est jamais ouvert | `Storage/BackupStore.cs` |
 | Valeurs saisies | contrôlées par le serveur contre le métamodèle : type, liste de valeurs, couple source et cible d'une relation | `Core/Conformity.cs`, `Endpoints/ObjectEndpoints.cs` |
+| Données maîtrisées ailleurs | nom, description et propriétés venus d'Archi ou d'une source externe : le serveur refuse de les modifier et les conserve si une demande les omet | `Core/Mastery.cs` |
 | Affichage | Angular échappe tout texte affiché ; le code n'injecte jamais de HTML brut | interface |
 
 Il n'y a ni base SQL ni interpréteur de commandes : les injections correspondantes sont sans objet.

@@ -157,6 +157,33 @@ public static class EditingTests
             True(refusal.GetProperty("error").GetString()!.Contains("non autorisée"), "message du serveur");
         });
 
+        Test("un seul maître : nom, description et propriétés venus d'Archi refusés par le serveur, le reste accepté, rien d'effacé par omission", () =>
+        {
+            using var server = Loaded();
+            var before = server.GetJson("/api/objects/id-itsm").GetProperty("object");
+            var archiProperty = before.GetProperty("properties")[0];
+            var (key, value) = (archiProperty.GetProperty("key").GetString()!, archiProperty.GetProperty("value").GetString()!);
+
+            var renamed = Send(server, HttpMethod.Put, "/api/objects/id-itsm", new { name = "Renommé dans l'outil" }, out var status);
+            Equal(HttpStatusCode.BadRequest, status, "nom");
+            True(renamed.GetProperty("error").GetString()!.Contains("Archi"), "le message dit où modifier");
+            Send(server, HttpMethod.Put, "/api/objects/id-itsm", new { documentation = "Réécrite dans l'outil" }, out status);
+            Equal(HttpStatusCode.BadRequest, status, "description");
+            Send(server, HttpMethod.Put, "/api/objects/id-itsm", new { properties = new[] { new { key, value = value + " modifiée" } } }, out status);
+            Equal(HttpStatusCode.BadRequest, status, "propriété venue d'Archi");
+            Equal(before.GetProperty("name").GetString(), server.GetJson("/api/objects/id-itsm").GetProperty("object").GetProperty("name").GetString(), "rien n'a changé");
+
+            Send(server, HttpMethod.Put, "/api/objects/id-itsm", new { owner = "DSI", typeKey = "logiciel-systeme" }, out status);
+            Equal(HttpStatusCode.OK, status, "responsable et type se règlent dans l'outil");
+            Send(server, HttpMethod.Post, "/api/metamodel/properties", new { key = "cout", label = "Coût", dataType = "nombre" }, out _);
+            Send(server, HttpMethod.Put, "/api/objects/id-itsm", new { properties = new[] { new { key = "cout", value = "12" } } }, out status);
+            Equal(HttpStatusCode.OK, status, "propriété saisie ajoutée sans renvoyer celles d'Archi");
+            var after = server.GetJson("/api/objects/id-itsm").GetProperty("object").GetProperty("properties").EnumerateArray()
+                .ToDictionary(p => p.GetProperty("key").GetString()!, p => p.GetProperty("value").GetString());
+            Equal(value, after[key], "la propriété venue d'Archi est conservée");
+            Equal("12", after["cout"], "la propriété saisie est enregistrée");
+        });
+
         Test("objet créé dans l'outil : propriétés enregistrées, valeur invalide refusée avec la liste des problèmes", () =>
         {
             using var server = new ApiTests.Server();

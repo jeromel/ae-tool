@@ -83,6 +83,10 @@ public static class ObjectEndpoints
         {
             if (!repo.Objects.TryGetValue(id, out var o)) return Results.NotFound();
             if (input.TypeKey is not null && repo.Metamodel.Type(input.TypeKey) is null) return Results.BadRequest(new { error = $"Type inconnu : {input.TypeKey}" });
+            // Une donnée a un seul maître : ce qui vient d'Archi ou d'une source externe ne se modifie pas ici.
+            if (Mastery.Violations(repo.Metamodel, o, input.Name, input.Documentation, input.Properties) is { Count: > 0 } mastered)
+                return Results.BadRequest(new { error = string.Join(" ", mastered), problems = mastered });
+            input = input with { Properties = Mastery.Keep(repo.Metamodel, o, input.Properties) };
             if (PropertyProblems(repo.Metamodel, input.Properties, o) is { Count: > 0 } problems) return InvalidValues(problems);
             var before = ChangeSet.Capture(o);
             if (!string.IsNullOrWhiteSpace(input.Name)) o.Name = input.Name.Trim();

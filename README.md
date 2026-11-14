@@ -41,6 +41,7 @@ n'a pas été validée et laisse les tests trancher ; pour revenir au SDK 8 s'il
 | [Exploitation](docs/exploitation.md) | dossier de données, sauvegardes, restauration, comptes, supervision, incidents |
 | [Sécurité](docs/securite.md) | mesures en place, risques résiduels, liste de contrôle avant mise en service |
 | [Architecture](docs/architecture.md) | l'outil décrit par couche, ses flux, son stockage, ses limites |
+| [Couverture du cahier des charges](docs/couverture-cahier-des-charges.md) | l'état de chaque exigence, lot par lot |
 | [Décisions d'architecture](docs/decisions/README.md) | les huit choix structurants et ce qui a été écarté |
 | [Nomenclature logicielle](docs/nomenclature/interface.cdx.json) | paquets livrés avec l'interface (CycloneDX) |
 

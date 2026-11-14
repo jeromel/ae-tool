@@ -6,6 +6,13 @@ $root = $PSScriptRoot
 
 & "$root\build.ps1"
 
+# Failles connues des paquets livrés avec l'interface : une faille critique bloque la livraison (exigence ET-23).
+Push-Location "$root\frontend"
+npm audit --omit=dev --audit-level=critical
+$audit = $LASTEXITCODE
+Pop-Location
+if ($audit) { throw "npm audit signale une faille critique dans un paquet livré, ou le registre npm est injoignable" }
+
 $sortie = "$root\livraison\ae-tool"
 if (Test-Path $sortie) { Remove-Item $sortie -Recurse -Force }
 dotnet publish "$root\backend\src\AeTool.Api" -c Release -o $sortie

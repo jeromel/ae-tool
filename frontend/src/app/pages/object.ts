@@ -18,6 +18,7 @@ import { HistoryRefresh, ObjectHistory } from '../object-history';
         <span class="chip info">{{ d.brief.typeLabel }}</span> <span class="chip">{{ d.brief.layerLabel }}</span>
         <span class="chip">Source : {{ sources[d.brief.source] ?? d.brief.source }}</span> <span class="chip">{{ d.brief.status }}</span>
         @if (d.object.archived) { <span class="chip bad">Archivé</span> }
+        @if (updated(d.object); as u) { <span class="muted small">{{ u }}</span> }
         @if (d.hasAssessment) { <a [routerLink]="['/portefeuille', d.brief.id]">Voir la notation</a> }
         <a routerLink="/impact" [queryParams]="{ objet: d.brief.id }">Analyser l'impact</a>
       </p>
@@ -131,6 +132,13 @@ import { HistoryRefresh, ObjectHistory } from '../object-history';
   `,
 })
 export class ObjectPage {
+  /** « Mis à jour le … par … » (exigence EF-05) ; rien tant que l'objet ne porte pas de date. */
+  updated(o: { updatedAt?: string; updatedBy?: string | null }): string {
+    const at = o.updatedAt ? new Date(o.updatedAt) : null;
+    if (!at || at.getFullYear() < 2000) return '';
+    return `Mis à jour le ${at.toLocaleDateString('fr-FR')}` + (o.updatedBy ? ` par ${o.updatedBy}` : '');
+  }
+
   private api = inject(Api);
   private router = inject(Router);
   private session = inject(Session);

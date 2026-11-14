@@ -12,6 +12,7 @@ HistoryTests.Run();
 ValidationTests.Run(args);
 StorageTests.Run();
 ConformityTests.Run();
+MasteryTests.Run();
 SpacesTests.Run();
 DrawingTests.Run();
 ScoringTests.Run();
