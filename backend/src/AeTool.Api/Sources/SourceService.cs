@@ -10,10 +10,7 @@ public static class SourceServices
 {
     public static IServiceCollection AddSources(this IServiceCollection services, DataPaths paths)
     {
-        // Les clés de chiffrement des secrets vivent dans le dossier de données, sous « cles » : même sauvegarde, même protection.
-        var keyDirectory = Path.GetDirectoryName(paths.File("cles", "x"))!;
-        if (!OperatingSystem.IsWindows()) File.SetUnixFileMode(keyDirectory, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
-        services.AddDataProtection().PersistKeysToFileSystem(new DirectoryInfo(keyDirectory)).SetApplicationName("ae-tool");
+        // Le chiffrement des secrets s'appuie sur les clés de l'application (voir KeyStorage).
         services.AddSingleton<SourceStore>();
         services.AddSingleton<SourceRuns>();
         // Pas de redirection suivie : les identifiants ne doivent jamais partir vers un autre serveur que celui configuré.

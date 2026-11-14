@@ -15,6 +15,8 @@ ReconciliationTests.Run();
 TabularTests.Run();
 EasyVistaClientTests.Run();
 SourcesApiTests.Run();
+AccessRulesTests.Run();
+AuthTests.Run();
 ApiTests.Run();
 RealFileTests.Run(args);
 return Harness.Finish();
