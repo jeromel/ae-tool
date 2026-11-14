@@ -60,6 +60,8 @@ public static partial class SourceValidator
     private static string? MappingError(SourceMapping m, Metamodel metamodel)
     {
         if (string.IsNullOrWhiteSpace(m.IdField) || string.IsNullOrWhiteSpace(m.NameField)) return "Les colonnes de l'identifiant et du nom sont obligatoires.";
+        // Contrôlé avant la recherche du type : une clé absente passerait sinon pour « aucun type inconnu ».
+        if (m.Types.Any(t => string.IsNullOrWhiteSpace(t.TypeKey))) return "Chaque valeur de nature doit être associée à un type du métamodèle.";
         var keys = m.Types.Select(t => t.TypeKey).Concat(string.IsNullOrWhiteSpace(m.DefaultTypeKey) ? Array.Empty<string>() : new[] { m.DefaultTypeKey });
         if (keys.FirstOrDefault(k => metamodel.Type(k) is null) is { } unknown) return $"Type inconnu du métamodèle : {unknown}";
         if (m.Types.Any(t => string.IsNullOrWhiteSpace(t.SourceValue))) return "Chaque type du mappage doit indiquer la valeur de la source qu'il remplace.";

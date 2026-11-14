@@ -118,6 +118,8 @@ public static class SourcesApiTests
             var (status, body) = Send(server, HttpMethod.Put, "/api/sources/cmdb", FileProfile("TypeQuiNExistePas", node));
             Equal(HttpStatusCode.BadRequest, status, "type inconnu");
             True(body.Contains("TypeQuiNExistePas"), "le type fautif est nommé");
+            var withoutType = FileProfile("TYPE-ABSENT", node).Replace("\"TYPE-ABSENT\"", "null");
+            Equal(HttpStatusCode.BadRequest, Send(server, HttpMethod.Put, "/api/sources/cmdb", withoutType).Status, "nature sans type");
             Equal(HttpStatusCode.BadRequest, Send(server, HttpMethod.Put, "/api/sources/Mauvaise%20Cle", FileProfile(node, node)).Status, "clé invalide");
             Equal(HttpStatusCode.NotFound, Send(server, HttpMethod.Get, "/api/sources/absente").Status, "source inconnue");
             Equal(HttpStatusCode.NotFound, Send(server, HttpMethod.Post, "/api/sources/absente/apply", "{}").Status, "application sans rapprochement");

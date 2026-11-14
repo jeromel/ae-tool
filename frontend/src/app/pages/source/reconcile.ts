@@ -303,7 +303,8 @@ function plain(text: string | null | undefined): string {
     td.actions button, td.actions .chip { margin-left: 6px; }
     th.actions-h { text-align: right; }
     th.chk, td.chk { width: 34px; text-align: center; }
-    .diff { white-space: normal; overflow-wrap: anywhere; }
+    /* « break-word » et non « anywhere » : la colonne garde sa largeur naturelle au lieu de se réduire à quelques lettres. */
+    .diff { white-space: normal; overflow-wrap: break-word; min-width: 220px; max-width: 460px; }
     .diff .arrow { margin: 0 4px; }
     .empty-note { padding: 18px 14px; margin: 0; }
     .more { display: flex; gap: 12px; align-items: center; padding: 10px 14px; }

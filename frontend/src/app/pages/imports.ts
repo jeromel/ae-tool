@@ -1,9 +1,10 @@
 import { Component, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
+import { RouterLink } from '@angular/router';
 import { Api } from '../api';
 
 @Component({
-  imports: [DatePipe],
+  imports: [DatePipe, RouterLink],
   template: `
     <h1>Imports et exports</h1>
     <p class="lead">Les imports sont rejouables : le même fichier importé deux fois ne crée aucun doublon. Les anomalies sont signalées, jamais corrigées en silence.</p>
@@ -51,13 +52,16 @@ import { Api } from '../api';
       </div>
     }
     <div class="card">
-      <h2>Journal</h2>
+      <div class="tools">
+        <h2 style="margin: 0">Dernières opérations d'import</h2>
+        <a routerLink="/journal">Tout le journal</a>
+      </div>
       <div class="scroll" style="max-height: 300px">
         <table>
           @for (j of journal(); track $index) {
             <tr><td class="muted" style="width: 120px">{{ j.at | date: 'dd/MM HH:mm:ss' }}</td><td style="width: 110px">{{ j.user }}</td><td style="width: 220px">{{ j.action }}</td>
               <td class="small muted" style="overflow-wrap: anywhere">{{ (j.detail ?? '').slice(0, 220) }}</td></tr>
-          }
+          } @empty { <tr><td class="muted">Aucun import pour l'instant.</td></tr> }
         </table>
       </div>
     </div>
@@ -76,7 +80,8 @@ export class ImportsPage {
 
   refresh(): void {
     this.api.get('/import/reports').then((r) => this.reports.set(r));
-    this.api.get('/journal?limit=100').then((j) => this.journal.set(j));
+    // Le journal est paginé et filtrable : seules les opérations d'import intéressent cette page.
+    this.api.get('/journal?kind=import&limit=30').then((j) => this.journal.set(j.items));
   }
 
   entries(counts: Record<string, any>): [string, any][] {
