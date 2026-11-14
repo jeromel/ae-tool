@@ -1,4 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="$(MSBuildThisFileDirectory)../../Cadre.props" />
   <PropertyGroup><OutputType>Exe</OutputType></PropertyGroup>
   <ItemGroup>
     <!-- Cadre ASP.NET Core partagé (livré avec le SDK, pas un paquet NuGet) : nécessaire aux tests d'intégration de l'API. -->

@@ -1,5 +1,5 @@
 # Construction complète sous Windows : interface, API, tests.
-# Prérequis : SDK .NET 8 et Node.js 22.22.3 ou plus récent (voir README).
+# Prérequis : un SDK .NET (8 ou plus récent ; 10 recommandé) et Node.js 22.22.3 ou plus récent (voir README).
 $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
 
@@ -15,6 +15,13 @@ if (Test-Path $www) { Remove-Item $www -Recurse -Force }
 Copy-Item "$root\frontend\dist\frontend\browser" $www -Recurse
 
 Push-Location "$root\backend"
+# Le cadre cible suit le SDK retenu (voir backend\Cadre.props) : SDK 8 donne net8.0, SDK 10 donne net10.0, etc.
+$sdk = dotnet --version
+Write-Host "SDK .NET utilisé : $sdk"
+if ($sdk -notmatch '^(8|10)\.') {
+    Write-Host "Ce SDK n'a pas été validé avec l'outil : les tests qui suivent font foi." -ForegroundColor Yellow
+    Write-Host "En cas d'échec, pour revenir au SDK 8 : dans global.json, remplacer latestMajor par latestFeature." -ForegroundColor Yellow
+}
 dotnet build src\AeTool.Api
 if ($LASTEXITCODE) { throw "dotnet build a échoué" }
 dotnet run --project tests\AeTool.Tests

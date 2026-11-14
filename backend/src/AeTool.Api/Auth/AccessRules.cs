@@ -15,6 +15,8 @@ public static class AccessRules
         if (p != "/api" && !p.StartsWith("/api/", StringComparison.Ordinal)) return null;
 
         var read = IsRead(method);
+        // Sonde de disponibilité : la supervision n'a pas de session, et la réponse ne dit rien du contenu.
+        if (read && p == "/api/health") return null;
         if (IsUnder(p, "/api/auth")) return IsAnonymousAuth(method, p) ? null : Roles.Reader;
         if (IsUnder(p, "/api/users") || IsUnder(p, "/api/admin") || IsUnder(p, "/api/sources")) return Roles.Administrator;
         // L'export JSON contient tout l'état du référentiel, journal compris.

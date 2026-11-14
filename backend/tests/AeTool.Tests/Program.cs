@@ -20,6 +20,7 @@ ReconciliationTests.Run();
 TabularTests.Run();
 EasyVistaClientTests.Run();
 SourcesApiTests.Run();
+HostingTests.Run();
 AccessRulesTests.Run();
 AuthTests.Run();
 ApiTests.Run();

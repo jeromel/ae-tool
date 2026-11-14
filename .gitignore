@@ -8,3 +8,7 @@ backend/src/AeTool.Api/wwwroot/
 # Données du référentiel : jamais dans le dépôt
 data/
 *.tmp
+
+# Données locales et livraisons : jamais versionnées
+donnees/
+livraison/

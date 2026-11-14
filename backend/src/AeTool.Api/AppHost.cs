@@ -22,8 +22,11 @@ public static class AppHost
         builder.AddAeAuthentication(paths);
         builder.Services.AddSources(paths);
         builder.WebHost.ConfigureKestrel(k => k.Limits.MaxRequestBodySize = 100 * 1024 * 1024);
+        builder.AddProxySupport();
 
         var app = builder.Build();
+        // En premier : le reste de la chaîne doit voir l'adresse et le protocole d'origine quand un mandataire est devant.
+        app.UseHosting(paths);
         // Avant les fichiers statiques : les en-têtes de sécurité couvrent aussi l'interface ; les habilitations ne visent que /api.
         app.UseAeAuthentication();
         app.UseDefaultFiles();
@@ -31,6 +34,7 @@ public static class AppHost
 
         // Tout ce que fait l'interface passe par les routes de /api, regroupées par domaine dans Endpoints/.
         var api = app.MapGroup("/api");
+        Hosting.MapHealth(api);
         AuthEndpoints.Map(api);
         UserEndpoints.Map(api);
         SummaryEndpoints.Map(api);

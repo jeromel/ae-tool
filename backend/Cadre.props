@@ -1,0 +1,16 @@
+<Project>
+  <!--
+    Cadre cible : celui du SDK utilisé pour construire (SDK 8 : net8.0, SDK 10 : net10.0…). Le paquet de ciblage de ce
+    cadre est livré avec le SDK : la construction ne télécharge rien. Le serveur doit porter le runtime ASP.NET Core de
+    la même version majeure.
+    Pour forcer un autre cadre : -p:Cadre=net10.0 (le SDK doit alors télécharger le paquet de ciblage : accès NuGet requis).
+    Ce fichier est importé par chaque projet, et non par Directory.Build.props, parce que la version du SDK n'est pas
+    encore connue quand Directory.Build.props est lu.
+  -->
+  <PropertyGroup>
+    <Cadre Condition="'$(Cadre)' == ''">net$(BundledNETCoreAppTargetFrameworkVersion)</Cadre>
+    <TargetFramework>$(Cadre)</TargetFramework>
+    <!-- Zéro avertissement sur les SDK validés (8 et 10). Un SDK plus récent peut en signaler de nouveaux : ils ne bloquent pas la construction. -->
+    <TreatWarningsAsErrors Condition="$([MSBuild]::VersionLessThan('$(NETCoreSdkVersion)', '11.0.0'))">true</TreatWarningsAsErrors>
+  </PropertyGroup>
+</Project>
