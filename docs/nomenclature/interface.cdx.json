@@ -1,0 +1,204 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.5",
+  "version": 1,
+  "metadata": {
+    "component": {
+      "type": "application",
+      "name": "ae-tool-interface",
+      "version": "0.9.0"
+    }
+  },
+  "components": [
+    {
+      "type": "library",
+      "name": "@angular/common",
+      "version": "22.2.6",
+      "purl": "pkg:npm/%40angular/common@22.2.6",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "c0beeabf67dbfea5880e1aba95e5f74851aa97bea58c23c2eaa5c70762a9289dc6969a6e17d7d82702e8f9189c47233bda716ef6a40fcddf5997d937fde522b1"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "@angular/compiler",
+      "version": "22.2.6",
+      "purl": "pkg:npm/%40angular/compiler@22.2.6",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "f5036a2c01be6eab134436596e0817e74b12f4dc96c770027e078b29401a1cfcde6d05ed22c018213e87f07369476ec61c9daa2478bdc849bce21009b0a642b9"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "@angular/core",
+      "version": "22.2.6",
+      "purl": "pkg:npm/%40angular/core@22.2.6",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "6ad1123523ec3347415d4f3c683b41c813f85bfc1bf1449b84bd7a96c78fcb106f016b4cd579fb401078f3d413987a58e950971e7a8c85759cad9b03a68201b3"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "@angular/forms",
+      "version": "22.2.6",
+      "purl": "pkg:npm/%40angular/forms@22.2.6",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "5bbb7cc3a9797ed18948262f30b7ec9e9590725223358d337e967f07710852110ef60ce2d779b81a4478de87a9c8adbfa063cb50db459e1afe612144d01b9c8d"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "@angular/platform-browser",
+      "version": "22.2.6",
+      "purl": "pkg:npm/%40angular/platform-browser@22.2.6",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "c574a07679cb2efff76840bfa6acab51dd31972614446646d87477b0e20dddbb08a1cb4616fcc0e62c2dfc610aa480c0d6b9fe36728d2cafc429068f03861913"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "@angular/router",
+      "version": "22.2.6",
+      "purl": "pkg:npm/%40angular/router@22.2.6",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "5ece57d8660ac690b567a605a621efc0103efced66c97ce185a9b45ca605aac186c848d55b6b6c9062b716ae446dc6b0d4e32db2f258d9702cd7dccfc5fe56b0"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "@standard-schema/spec",
+      "version": "1.1.0",
+      "purl": "pkg:npm/%40standard-schema/spec@1.1.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "976685cb98c02e19e21b91e0aab0fa8d72e2feb516acabea37fa89c7aca826c80a85b95577e8aaa94e110976af9bf8cf8adc83a394c2bca327a632a73ab8b2d3"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "rxjs",
+      "version": "7.8.2",
+      "purl": "pkg:npm/rxjs@7.8.2",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "76129ff74dd4fcf41963a6e834db4019d59b1bce5601b8d3ff5c58a19202ec5018d3259aa4e05056c56b0e5e7c5bcebffded55a4c341b5157831a5df74cc9214"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "tslib",
+      "version": "2.9.1",
+      "purl": "pkg:npm/tslib@2.9.1",
+      "licenses": [
+        {
+          "license": {
+            "id": "0BSD"
+          }
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "6b8531f552ae20c1ec392ec435b12aea12b66466084f6ed1b65d04e1e0fd2aac3184a89078c644ffdc5bdc8758c166923b220140b1318508170d3628882c6758"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "zod",
+      "version": "4.6.6",
+      "purl": "pkg:npm/zod@4.6.6",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "e149b34141797f1bdf7181e56e30667a353ec3e85b0e7585c78692f24071ee73c11dc3b64aa3dba401bcb276dd83e5ec7b8a5179f47df2182316020c088fd484"
+        }
+      ]
+    }
+  ]
+}
