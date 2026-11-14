@@ -41,6 +41,7 @@ public static class AppHost
         UserEndpoints.Map(api);
         SummaryEndpoints.Map(api);
         MetamodelEndpoints.Map(api);
+        MetamodelInsightEndpoints.Map(api);
         ObjectEndpoints.Map(api);
         EditingEndpoints.Map(api);
         ValidationEndpoints.Map(api);

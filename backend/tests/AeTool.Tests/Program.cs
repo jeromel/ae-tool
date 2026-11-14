@@ -30,5 +30,6 @@ ApiTests.Run();
 MetamodelApiTests.Run();
 EditingTests.Run();
 WorkflowApiTests.Run();
+MetamodelInsightTests.Run();
 RealFileTests.Run(args);
 return Harness.Finish();
