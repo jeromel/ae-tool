@@ -13,6 +13,7 @@ public static class UrbaImporter
     public const string Prefix = "urba:";
     public const string IdKey = Prefix + "ID";
     private const string SourceTag = "urba";
+    private const string DefaultTechnicalType = "logiciel-systeme";
 
     // Noms de feuilles et de colonnes attendus. À adapter ici si le classeur évolue.
     private const string SheetReferentiel = "Référentiel consolidé";
@@ -68,7 +69,16 @@ public static class UrbaImporter
         foreach (var column in DescriptiveColumns) repo.Metamodel.EnsureProperty(Prefix + column, column, SourceTag);
         repo.Metamodel.EnsureProperty(IdKey, "Identifiant urbanisation", SourceTag);
 
-        var appTypes = repo.Metamodel.Settings.ApplicationTypeKeys;
+        // Types choisis par rôle : une application créée prend le premier type d'application ; un composant technique, le type
+        // « logiciel-systeme » du métamodèle par défaut s'il existe, sinon le premier type d'infrastructure.
+        var appTypes = repo.Metamodel.TypeKeysWith(Roles.Application);
+        var applicationType = repo.Metamodel.FirstTypeWith(Roles.Application)?.Key;
+        var technicalType = (repo.Metamodel.Type(DefaultTechnicalType) ?? repo.Metamodel.FirstTypeWith(Roles.Infrastructure))?.Key ?? applicationType;
+        if (applicationType is null)
+        {
+            report.Error("type-application-absent", "Aucun type du métamodèle ne porte le rôle « application » : reprise des applications impossible.");
+            return byUrbaId;
+        }
         var existingByUrbaId = repo.Objects.Values.Where(o => o.Get(IdKey) is not null)
             .GroupBy(o => o.Get(IdKey)!).ToDictionary(g => g.Key, g => g.First());
         var existingByName = repo.ActiveObjects.Where(o => appTypes.Contains(o.TypeKey))
@@ -101,7 +111,7 @@ public static class UrbaImporter
                     obj = new ArchObject
                     {
                         Id = "id-urba-" + urbaId.ToLowerInvariant(), Name = name, Source = SourceTag,
-                        TypeKey = layer.StartsWith("Applicative", StringComparison.Ordinal) ? appTypes.FirstOrDefault() ?? "ApplicationComponent" : "SystemSoftware",
+                        TypeKey = layer.StartsWith("Applicative", StringComparison.Ordinal) ? applicationType : technicalType!,
                     };
                     repo.Objects[obj.Id] = obj;
                     added = true;

@@ -17,6 +17,8 @@ public static class ImportTests
             Equal(8, repo.Objects.Count, "objets"); Equal(6, repo.Relationships.Count, "relations"); Equal(3, repo.Diagrams.Count, "vues");
             Equal(0, report.Anomalies.Count, "anomalies");
             Equal("2", repo.Objects["id-cap"].Get("pos.order"));
+            Equal("application", repo.Objects["id-itsm"].TypeKey, "type du métamodèle :");
+            Equal("ApplicationComponent", repo.Objects["id-itsm"].ArchimateType, "concept d'origine :");
             Equal("Suite ITSM cible.", repo.Objects["id-itsm"].Documentation);
             True(repo.Metamodel.Property("lifecycle.state") is not null, "la définition de propriété doit être créée");
         });
@@ -81,15 +83,17 @@ public static class ImportTests
             var repo = Imported(out var report, xml);
             True(report.Anomalies.Any(a => a.Code == "reference-cassee" && a.Ref == "id-bad"), "référence cassée non signalée");
             True(report.Anomalies.Any(a => a.Code == "identifiant-duplique" && a.Ref == "id-r1"), "doublon non signalé");
-            True(report.Anomalies.Any(a => a.Code == "type-inconnu"), "type inconnu non signalé");
+            True(report.Anomalies.Any(a => a.Code == "concept-non-transcode"), "concept sans règle non signalé");
+            Equal("autre", repo.Objects["id-srv"].TypeKey, "le concept sans règle tombe dans le type non classé :");
+            Equal("TypeMaison", repo.Objects["id-srv"].ArchimateType, "le concept d'origine est conservé :");
             True(report.Anomalies.Any(a => a.Code == "occurrence-orpheline"), "occurrence orpheline non signalée");
             Equal("id-fantome", repo.Relationships["id-bad"].TargetId, "la relation cassée est conservée telle quelle :");
-            Equal("Realization", repo.Relationships["id-r1"].TypeKey, "la première occurrence fait foi :");
+            Equal("realisation", repo.Relationships["id-r1"].TypeKey, "la première occurrence fait foi :");
         });
         Test("relation non conforme au métamodèle : signalée", () =>
         {
             var repo = new Repository();
-            repo.Metamodel.RelType("Realization")!.AllowedPairs.Add("ApplicationComponent>ApplicationService");
+            repo.Metamodel.RelType("realisation")!.AllowedPairs.Add("application>service-applicatif");
             var report = ArchimateExchange.Import(Fixtures.Stream(Fixtures.Model()), repo);
             Equal(2, report.Anomalies.Count(a => a.Code == "relation-non-conforme"));
         });

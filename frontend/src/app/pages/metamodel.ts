@@ -7,8 +7,8 @@ import { GLYPH_KEYS } from '../glyphs';
   template: `
     <h1>Métamodèle</h1>
     <p class="lead">
-      Types d'objets, couches, visuels et grille de notation sont des données. Le gabarit par défaut suit ArchiMate ; un type sans
-      correspondance ArchiMate est exporté vers Archi avec le type de repli.
+      Types d'objets, couches, visuels et grille de notation sont des données. Les rôles portés par un type
+      déterminent ce que l'outil en fait ; la correspondance avec ArchiMate est portée par la matrice de transcodification.
     </p>
     @if (error()) { <div class="error">{{ error() }}</div> }
     @if (m(); as m) {
@@ -22,7 +22,7 @@ import { GLYPH_KEYS } from '../glyphs';
         <h2>Types d'objets et visuels</h2>
         <div class="scroll">
           <table>
-            <tr><th>Clé</th><th>Libellé</th><th>Couche</th><th>Type ArchiMate</th><th>Fond</th><th>Bordure</th><th>Forme</th><th>Gabarit</th><th>Pictogramme</th><th class="num">Objets</th></tr>
+            <tr><th>Clé</th><th>Libellé</th><th>Couche</th><th>Fond</th><th>Bordure</th><th>Forme</th><th>Gabarit</th><th>Pictogramme</th><th class="num">Objets</th></tr>
             @for (t of types(); track t.key) {
               <tr>
                 <td class="muted small">{{ t.key }}</td>
@@ -32,7 +32,6 @@ import { GLYPH_KEYS } from '../glyphs';
                     @for (l of m.layers; track l.key) { <option [value]="l.key" [selected]="t.layerKey === l.key">{{ l.label }}</option> }
                   </select>
                 </td>
-                <td class="muted">{{ t.archimateType ?? 'repli : ' + m.settings.fallbackArchimateType }}</td>
                 <td><input type="color" [value]="t.visual.fill ?? '#ffffff'" (change)="t.visual.fill = $any($event.target).value; save(t)" /></td>
                 <td><input type="color" [value]="t.visual.stroke ?? '#5c5c5c'" (change)="t.visual.stroke = $any($event.target).value; save(t)" /></td>
                 <td>
@@ -101,8 +100,8 @@ import { GLYPH_KEYS } from '../glyphs';
             <dt>Maîtrise technique</dt><dd>moyenne de {{ m.scoring.masteryCriteria.join(' et ') }}, seuil {{ m.scoring.thresholds.mastery }}</dd>
             <dt>Priorité</dt><dd>haute si U &gt; {{ m.scoring.thresholds.priorityHigh }}, moyenne si U ≥ {{ m.scoring.thresholds.priorityMedium }}</dd>
             <dt>Règle de garde</dt><dd>CM ≥ {{ m.scoring.thresholds.guardCm }} et besoin non maintenu : à instruire</dd>
-            <dt>Projets</dt><dd>type {{ m.settings.projectTypeKey }}, dossier « {{ m.settings.projectFolderLabel }} »</dd>
-            <dt>Fond de carte (hors impacts)</dt><dd>{{ m.settings.impactExcludedTypeKeys.join(', ') }}</dd>
+            <dt>Projets</dt><dd>types {{ typesWith('projet') }}, dossier « {{ m.settings.projectFolderLabel }} »</dd>
+            <dt>Fond de carte (hors impacts)</dt><dd>{{ typesWith('fond-de-carte') }}</dd>
           </dl>
         </div>
       </div>
@@ -152,6 +151,11 @@ export class MetamodelPage {
     return (this.m().objectTypes as any[])
       .filter((t) => !this.onlyUsed() || this.counts()[t.key])
       .sort((a, b) => (order.get(a.layerKey) ?? 99) - (order.get(b.layerKey) ?? 99) || a.label.localeCompare(b.label));
+  }
+
+  /** Libellés des types qui portent un rôle. */
+  typesWith(role: string): string {
+    return (this.m().objectTypes as any[]).filter((t) => t.roles.includes(role)).map((t) => t.label).join(', ');
   }
 
   total(c: any): number {

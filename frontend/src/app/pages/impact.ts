@@ -87,7 +87,7 @@ export class ImpactPage {
     this.api.get('/metamodel').then((m) => {
       this.types.set(Object.fromEntries(m.objectTypes.map((t: any) => [t.key, t.label])));
       this.layers.set(m.layers);
-      this.applicationTypes.set(m.settings.applicationTypeKeys);
+      this.applicationTypes.set(m.objectTypes.filter((t: any) => t.roles.includes('application')).map((t: any) => t.key));
     });
     effect(() => {
       const id = this.objet();

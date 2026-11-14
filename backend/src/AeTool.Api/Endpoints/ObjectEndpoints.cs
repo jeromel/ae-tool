@@ -40,8 +40,13 @@ public static class ObjectEndpoints
                 Brief = Dto.Brief(repo, o),
                 TypeVisual = repo.Metamodel.Type(o.TypeKey)?.Visual,
                 EffectiveVisual = repo.Metamodel.EffectiveVisual(o),
-                Properties = o.Properties.Select(p => new { p.Key, Label = repo.Metamodel.Property(p.Key)?.Label ?? p.Key, p.Value,
-                    Source = repo.Metamodel.Property(p.Key)?.Source }),
+                Properties = o.Properties.Select(p =>
+                {
+                    var def = repo.Metamodel.Property(p.Key);
+                    return new { p.Key, Label = def?.Label ?? p.Key, p.Value, Source = def?.Source,
+                        DataType = def?.DataType ?? PropertyTypes.Text, AllowedValues = def?.AllowedValues ?? new List<string>(), Required = def?.Required ?? false };
+                }),
+                MissingRequired = Conformity.MissingRequired(repo.Metamodel, o).Select(p => new { p.Key, Label = p.Label ?? p.Key, p.DataType, p.AllowedValues }),
                 Outgoing = an.Outgoing(id).Select(r => Rel(r, r.TargetId)),
                 Incoming = an.Incoming(id).Select(r => Rel(r, r.SourceId)),
                 Diagrams = repo.ActiveDiagrams.Where(d => d.AllNodes().Any(n => n.ElementId == id)).Select(d => new { d.Id, d.Name }),
@@ -56,7 +61,9 @@ public static class ObjectEndpoints
         {
             if (string.IsNullOrWhiteSpace(input.Name)) return Results.BadRequest(new { error = "Le nom est obligatoire." });
             if (repo.Metamodel.Type(input.TypeKey ?? "") is null) return Results.BadRequest(new { error = $"Type inconnu : {input.TypeKey}" });
-            var o = new ArchObject { Id = "id-" + Guid.NewGuid().ToString("N"), TypeKey = input.TypeKey!, Name = input.Name.Trim(), UpdatedAt = DateTime.UtcNow };
+            if (PropertyProblems(repo.Metamodel, input.Properties, null) is { Count: > 0 } problems) return InvalidValues(problems);
+            // Un objet créé dans l'outil a la source « saisie » et aucun concept ArchiMate d'origine.
+            var o = new ArchObject { Id = "id-" + Guid.NewGuid().ToString("N"), TypeKey = input.TypeKey!, Name = input.Name.Trim(), Source = "saisie", UpdatedAt = DateTime.UtcNow };
             Dto.Apply(o, input);
             repo.Objects[o.Id] = o;
             repo.Log(User(req), "Objet créé", o.Id, o.Name);
@@ -67,6 +74,7 @@ public static class ObjectEndpoints
         {
             if (!repo.Objects.TryGetValue(id, out var o)) return Results.NotFound();
             if (input.TypeKey is not null && repo.Metamodel.Type(input.TypeKey) is null) return Results.BadRequest(new { error = $"Type inconnu : {input.TypeKey}" });
+            if (PropertyProblems(repo.Metamodel, input.Properties, o) is { Count: > 0 } problems) return InvalidValues(problems);
             var before = JsonSerializer.Serialize(o);
             if (!string.IsNullOrWhiteSpace(input.Name)) o.Name = input.Name.Trim();
             if (input.TypeKey is not null) o.TypeKey = input.TypeKey;
@@ -96,6 +104,26 @@ public static class ObjectEndpoints
             return Results.Ok(r);
         }));
 
+        api.MapPut("/relationships/{id}", (Workspace ws, string id, RelationshipUpdate input, HttpRequest req) => ws.Write(repo =>
+        {
+            if (!repo.Relationships.TryGetValue(id, out var r)) return Results.NotFound();
+            if (input.TypeKey is not null)
+            {
+                if (repo.Objects.TryGetValue(r.SourceId, out var s) && repo.Objects.TryGetValue(r.TargetId, out var t))
+                {
+                    if (repo.Metamodel.CheckRelationship(input.TypeKey, s.TypeKey, t.TypeKey) is string problem) return Results.BadRequest(new { error = problem });
+                }
+                else if (repo.Metamodel.RelType(input.TypeKey) is null) return Results.BadRequest(new { error = $"Type de relation inconnu : {input.TypeKey}" });
+            }
+            if (PropertyProblems(repo.Metamodel, input.Properties, null) is { Count: > 0 } problems) return InvalidValues(problems);
+            var before = JsonSerializer.Serialize(r);
+            if (input.Name is not null) r.Name = string.IsNullOrWhiteSpace(input.Name) ? null : input.Name.Trim();
+            if (input.TypeKey is not null) r.TypeKey = input.TypeKey;
+            if (input.Properties is not null) r.Properties = input.Properties;
+            repo.Log(User(req), "Relation modifiée", id, $"avant : {before}");
+            return Results.Ok(r);
+        }));
+
         api.MapDelete("/relationships/{id}", (Workspace ws, string id, HttpRequest req) => ws.Write(repo =>
         {
             if (!repo.Relationships.TryGetValue(id, out var r)) return Results.NotFound();
@@ -104,4 +132,17 @@ public static class ObjectEndpoints
             return Results.NoContent();
         }));
     }
+
+    /// <summary>
+    /// Valeurs de propriétés non conformes à leur définition (liste, nombre, date, booléen). Seules les valeurs modifiées
+    /// sont contrôlées : un ancien écart n'empêche pas d'enregistrer autre chose.
+    /// </summary>
+    private static List<string> PropertyProblems(Metamodel m, List<PropertyValue>? values, ArchObject? current) =>
+        (values ?? new List<PropertyValue>())
+            .Where(v => current is null || current.Get(v.Key) != v.Value)
+            .Select(v => m.Property(v.Key) is { } def ? Conformity.ValueProblem(def, v.Value)?.Message : null)
+            .OfType<string>().ToList();
+
+    private static IResult InvalidValues(List<string> problems) =>
+        Results.BadRequest(new { error = "Valeurs de propriétés invalides : " + string.Join(" ", problems), problems });
 }

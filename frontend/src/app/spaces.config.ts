@@ -30,7 +30,7 @@ export const APPLICATIONS: SpaceConfig = {
   noun: 'application(s)',
   searchKeys: ['name', 'decision'],
   actionsIdKey: 'id',
-  matrix: { rows: 'ApplicationComponent', cols: 'Capability', label: 'Applications × capacités' },
+  matrix: { rows: 'role:application', cols: 'role:capacite', label: 'Applications × capacités' },
   columns: [
     { key: 'name', label: 'Application', kind: 'objet', idKey: 'id' },
     { key: 'flows', label: 'Flux', kind: 'nombre' },
@@ -60,7 +60,7 @@ export const FLOWS: SpaceConfig = {
   endpoint: '/spaces/flows',
   noun: 'flux',
   searchKeys: ['name', 'sourceName', 'targetName', 'protocol'],
-  matrix: { rows: 'ApplicationComponent', cols: 'ApplicationComponent', relation: 'Flow', label: 'Émetteurs × récepteurs' },
+  matrix: { rows: 'role:application', cols: 'role:application', relation: 'role:flux', label: 'Émetteurs × récepteurs' },
   columns: [
     { key: 'sourceName', label: 'Émetteur', kind: 'objet', idKey: 'sourceId' },
     { key: 'targetName', label: 'Récepteur', kind: 'objet', idKey: 'targetId' },

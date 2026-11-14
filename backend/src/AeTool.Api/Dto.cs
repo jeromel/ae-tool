@@ -7,6 +7,10 @@ namespace AeTool.Api;
 public sealed record ObjectInput(string? Name, string? TypeKey, string? Documentation, string? Owner, string? ValidationStatus,
     List<PropertyValue>? Properties, Visual? VisualOverride, bool? ClearVisualOverride);
 public sealed record RelationshipInput(string TypeKey, string SourceId, string TargetId, string? Name);
+public sealed record RelationshipUpdate(string? Name, string? TypeKey, List<PropertyValue>? Properties);
+public sealed record ObjectTypeInput(string? Label, string? LayerKey, string? Description, List<string>? Roles, Visual? Visual);
+public sealed record RelationshipTypeInput(string? Label, string? ReverseLabel, string? Description, List<string>? Roles, string? LineStyle,
+    string? SoftLine, string? Head, List<string>? AllowedPairs);
 public sealed record DisplayableInput(string Key, bool Displayable);
 public sealed record ImpactInput(string Nature, string? Comment);
 public sealed record BriefDto(string Id, string Name, string TypeKey, string TypeLabel, string Layer, string LayerLabel, string Source, string Status, string? Owner);
@@ -74,8 +78,8 @@ public static class Dto
                 FontSize = int.TryParse(n.Style?.Font?.Size, out var size) ? size : 9,
                 Bold = n.Style?.Font?.Style?.Contains("bold") == true,
                 Shape = visual.Shape ?? "rectangle",
-                Template = o is null ? null : visual.Template ?? DrawingDefaults.Template(o.TypeKey),
-                Glyph = o is null ? null : visual.Icon ?? DrawingDefaults.Glyph(o.TypeKey),
+                Template = o is null ? null : visual.Template ?? DrawingDefaults.FallbackTemplate,
+                Glyph = o is null ? null : visual.Icon ?? DrawingDefaults.FallbackGlyph,
                 Layers = o is null ? null : LayerValues(o),
                 HasChildren = n.Children.Count > 0,
             });
@@ -109,13 +113,12 @@ public static class Dto
             {
                 repo.Relationships.TryGetValue(c.RelationshipId ?? "", out var r);
                 var type = r is null ? null : meta.RelType(r.TypeKey);
-                var soft = DrawingDefaults.Relation(type?.ArchimateType);
                 return new
                 {
                     c.Id, c.SourceNodeId, c.TargetNodeId, c.Bendpoints, TypeKey = r?.TypeKey, TypeLabel = type?.Label, r?.Name,
                     LineStyle = type?.LineStyle ?? "plein",
-                    SoftLine = type?.SoftLine ?? soft.Line, Head = type?.Head ?? soft.Head,
-                    Flow = type?.ArchimateType == "Flow",
+                    SoftLine = type?.SoftLine ?? DrawingDefaults.FallbackLine, Head = type?.Head ?? DrawingDefaults.FallbackHead,
+                    Flow = r is not null && meta.RelIsA(r.TypeKey, Roles.Flow),
                     Protocol = r?.Properties.FirstOrDefault(p => p.Key == meta.Settings.FlowProtocolKey)?.Value,
                     Encryption = r?.Properties.FirstOrDefault(p => p.Key == meta.Settings.FlowEncryptionKey)?.Value,
                     Carried = r is not null && carried.TryGetValue(r.Id, out var list) ? list : null,

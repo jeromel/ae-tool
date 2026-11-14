@@ -49,7 +49,7 @@ public static class SpacesTests
         Test("matrice limitée aux flux : elle se lit de l'émetteur vers le récepteur", () =>
         {
             var repo = Imported(out _);
-            var m = new Analyzer(repo).CrossMatrix("ApplicationComponent", "ApplicationComponent", true, "Flow");
+            var m = new Analyzer(repo).CrossMatrix(Roles.Prefix + Roles.Application, "application", true, Roles.Prefix + Roles.Flow);
             Equal(1, m.Rows.Count, "émetteurs");
             Equal("id-itsm", m.Rows[0].Id, "émetteur");
             Equal("id-report", m.Columns.Single().Id, "récepteur");

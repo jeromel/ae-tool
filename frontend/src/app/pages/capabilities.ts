@@ -40,7 +40,7 @@ const DUPLICATE_FROM = 3;
     </div>
 
     @if (mode() === 'matrice') {
-      <div class="card flush"><app-matrix-view rows="Capability" cols="ApplicationComponent" above="330px" /></div>
+      <div class="card flush"><app-matrix-view rows="role:capacite" cols="role:application" above="330px" /></div>
     } @else {
       <div class="layout">
         <div class="map">

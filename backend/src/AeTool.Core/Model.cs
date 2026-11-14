@@ -210,6 +210,10 @@ public sealed class JournalEntry
 /// <summary>Tout l'état de l'outil. Sérialisable en un seul fichier JSON (réversibilité, exigence ED-01).</summary>
 public sealed class Repository
 {
+    public const int CurrentSchemaVersion = 2;
+
+    /// <summary>Version du format de stockage. Un fichier sans cette propriété est en version 1 (voir <see cref="RepositoryUpgrader"/>).</summary>
+    public int SchemaVersion { get; set; } = CurrentSchemaVersion;
     public string ModelId { get; set; } = "";
     public string ModelName { get; set; } = "Référentiel";
     public string Language { get; set; } = "fr";

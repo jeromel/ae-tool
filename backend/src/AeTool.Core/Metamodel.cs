@@ -1,7 +1,9 @@
+using System.Text;
+
 namespace AeTool.Core;
 
-// Le métamodèle est une donnée : couches, types, relations, propriétés, visuels et grille de notation
-// se modifient sans toucher au code. Le gabarit par défaut est aligné sur ArchiMate 3.
+// Le métamodèle est une donnée propre à l'outil : couches, types, rôles, relations, propriétés typées, visuels,
+// grille de notation et matrice de transcodification vers ArchiMate. ArchiMate n'est qu'un format d'échange.
 
 public sealed class Layer
 {
@@ -14,9 +16,10 @@ public sealed class ObjectType
 {
     public string Key { get; set; } = "";
     public string Label { get; set; } = "";
+    public string? Description { get; set; }
     public string LayerKey { get; set; } = "autre";
-    /// <summary>Concept ArchiMate d'export. Vide = type hors ArchiMate, exporté selon FallbackArchimateType.</summary>
-    public string? ArchimateType { get; set; }
+    /// <summary>Rôles fonctionnels portés par le type (voir <see cref="Core.Roles"/>). Vide = aucun effet fonctionnel.</summary>
+    public List<string> Roles { get; set; } = new();
     public Visual Visual { get; set; } = new();
     public bool Archived { get; set; }
 }
@@ -25,96 +28,81 @@ public sealed class RelationshipType
 {
     public string Key { get; set; } = "";
     public string Label { get; set; } = "";
-    public string? ArchimateType { get; set; }
+    /// <summary>Sens de lecture inverse (« Est servi par »). Il n'existe pas de type de relation inversé.</summary>
+    public string? ReverseLabel { get; set; }
+    public string? Description { get; set; }
+    public List<string> Roles { get; set; } = new();
     /// <summary>Trait du rendu fidèle à Archi : plein | tirets | pointillés.</summary>
     public string LineStyle { get; set; } = "plein";
-    /// <summary>Rendu soigné : trait (plein | tirets | pointillés) et tête. Vide = style par défaut du type ArchiMate.</summary>
+    /// <summary>Rendu soigné : trait (plein | tirets | pointillés) et tête. Vide = valeur de repli.</summary>
     public string? SoftLine { get; set; }
     /// <summary>fleche | ouverte | triangle | losange | losange-creux | point | aucune.</summary>
     public string? Head { get; set; }
     /// <summary>Couples « TypeSource&gt;TypeCible » autorisés. Vide = aucun contrôle.</summary>
     public List<string> AllowedPairs { get; set; } = new();
+    public bool Archived { get; set; }
+}
+
+/// <summary>Types de données d'une propriété.</summary>
+public static class PropertyTypes
+{
+    public const string Text = "texte";
+    public const string Number = "nombre";
+    public const string Date = "date";
+    public const string Boolean = "booleen";
+    public const string List = "liste";
+
+    public static readonly IReadOnlyList<(string Key, string Label)> All = new[]
+    {
+        (Text, "Texte"), (Number, "Nombre"), (Date, "Date (AAAA-MM-JJ)"), (Boolean, "Oui / non"), (List, "Liste de valeurs"),
+    };
+
+    public static bool IsKnown(string key) => All.Any(t => t.Key == key);
 }
 
 public sealed class PropertyDefinition
 {
     public string Key { get; set; } = "";
     public string? Label { get; set; }
-    public string DataType { get; set; } = "string";
+    public string? Description { get; set; }
+    /// <summary>texte | nombre | date | booleen | liste. L'ancienne valeur « string » se lit comme texte.</summary>
+    public string DataType { get; set; } = PropertyTypes.Text;
+    /// <summary>Valeurs permises quand le type de donnée est « liste ».</summary>
     public List<string> AllowedValues { get; set; } = new();
+    /// <summary>Clés des types d'objets concernés ; vide = tous.</summary>
+    public List<string> AppliesTo { get; set; } = new();
+    public bool Required { get; set; }
     public string Source { get; set; } = "saisie";
     /// <summary>Proposée comme calque sur les vues : sa valeur s'affiche en pastille sur les cartes et peut les colorer.</summary>
     public bool Displayable { get; set; }
+    /// <summary>Nom de la propriété dans Archi ; vide = identique à la clé.</summary>
+    public string? ArchiName { get; set; }
+
+    public string ArchiPropertyName => string.IsNullOrEmpty(ArchiName) ? Key : ArchiName;
+    public bool AppliesToType(string typeKey) => AppliesTo.Count == 0 || AppliesTo.Contains(typeKey);
 }
 
 /// <summary>
-/// Styles par défaut du rendu soigné des vues, appliqués quand le métamodèle ne précise rien.
+/// Styles de repli du rendu soigné des vues, appliqués quand le métamodèle ne précise rien (type créé à la main).
 /// Les têtes reprennent la notation ArchiMate pour que les lecteurs d'Archi s'y retrouvent.
 /// </summary>
 public static class DrawingDefaults
 {
     public static readonly string[] Heads = { "fleche", "ouverte", "triangle", "losange", "losange-creux", "point", "aucune" };
     public static readonly string[] Templates = { "carte", "rond", "zone" };
+    public static readonly string[] Lines = { "plein", "tirets", "pointillés" };
+    public static readonly string[] Shapes = { "rectangle", "arrondi", "ellipse", "hexagone" };
 
-    public static (string Line, string Head) Relation(string? archimateType) => archimateType switch
-    {
-        "Flow" or "Triggering" => ("plein", "fleche"),
-        "Serving" => ("plein", "ouverte"),
-        "Realization" => ("tirets", "triangle"),
-        "Specialization" => ("plein", "triangle"),
-        "Access" => ("pointillés", "aucune"),
-        "Influence" => ("tirets", "ouverte"),
-        "Composition" => ("plein", "losange"),
-        "Aggregation" => ("plein", "losange-creux"),
-        "Assignment" => ("plein", "point"),
-        _ => ("plein", "aucune"),
-    };
-
-    public static string Template(string typeKey) => typeKey switch
-    {
-        "BusinessActor" or "BusinessRole" or "Stakeholder" or "BusinessObject" or "DataObject" or "Artifact"
-            or "Contract" or "Representation" or "Deliverable" => "rond",
-        "Grouping" or "Location" => "zone",
-        _ => "carte",
-    };
-
-    public static string Glyph(string typeKey) => typeKey switch
-    {
-        "ApplicationComponent" or "ApplicationCollaboration" => "application",
-        "BusinessActor" or "Stakeholder" => "acteur",
-        "BusinessRole" => "role",
-        "BusinessObject" or "Contract" or "Representation" or "Product" => "objet",
-        "DataObject" => "donnee",
-        "Artifact" or "Deliverable" => "artefact",
-        "Node" or "Facility" => "noeud",
-        "Device" or "Equipment" => "equipement",
-        "SystemSoftware" => "logiciel",
-        "CommunicationNetwork" or "Path" or "DistributionNetwork" => "reseau",
-        "Capability" or "Resource" => "capacite",
-        "Location" => "lieu",
-        "WorkPackage" or "Plateau" or "Gap" or "CourseOfAction" => "projet",
-        "Goal" or "Outcome" or "Driver" or "Principle" or "Value" or "Meaning" or "Assessment" => "objectif",
-        "Requirement" or "Constraint" => "exigence",
-        "Grouping" => "zone",
-        _ when typeKey.EndsWith("Service") => "service",
-        _ when typeKey.EndsWith("Function") => "fonction",
-        _ when typeKey.EndsWith("Interface") => "interface",
-        _ when typeKey.EndsWith("Event") => "evenement",
-        _ when typeKey.EndsWith("Process") || typeKey.EndsWith("Interaction") || typeKey == "ValueStream" => "processus",
-        _ => "defaut",
-    };
+    public const string FallbackTemplate = "carte";
+    public const string FallbackGlyph = "defaut";
+    public const string FallbackLine = "plein";
+    public const string FallbackHead = "aucune";
 }
 
 public sealed class MetamodelSettings
 {
     /// <summary>Nom du dossier dont les sous-dossiers portent le nom des projets.</summary>
     public string ProjectFolderLabel { get; set; } = "Projets";
-    public string ProjectTypeKey { get; set; } = "WorkPackage";
-    public List<string> ApplicationTypeKeys { get; set; } = new() { "ApplicationComponent" };
-    public string CapabilityTypeKey { get; set; } = "Capability";
-    /// <summary>Types servant de fond de carte : présents dans une vue projet, ils ne valent pas impact.</summary>
-    public List<string> ImpactExcludedTypeKeys { get; set; } = new() { "Capability", "Grouping", "Location", "WorkPackage", "AndJunction", "OrJunction" };
-    public string FallbackArchimateType { get; set; } = "Grouping";
     /// <summary>Propriétés d'une relation de flux affichées sur sa pastille : protocole et chiffrement.</summary>
     public string FlowProtocolKey { get; set; } = "connect.protocol";
     public string FlowEncryptionKey { get; set; } = "security.encryption";
@@ -128,11 +116,23 @@ public sealed class Metamodel
     public List<PropertyDefinition> PropertyDefinitions { get; set; } = new();
     public MetamodelSettings Settings { get; set; } = new();
     public ScoringGrid Scoring { get; set; } = ScoringGrid.Default();
+    public Transcoding Transcoding { get; set; } = new();
 
     public ObjectType? Type(string key) => ObjectTypes.FirstOrDefault(t => t.Key == key);
     public RelationshipType? RelType(string key) => RelationshipTypes.FirstOrDefault(t => t.Key == key);
     public PropertyDefinition? Property(string key) => PropertyDefinitions.FirstOrDefault(p => p.Key == key);
     public string LayerOf(string typeKey) => Type(typeKey)?.LayerKey ?? "autre";
+
+    // ---- Rôles ----
+
+    public bool IsA(string typeKey, string role) => Type(typeKey)?.Roles.Contains(role) == true;
+    public IEnumerable<ObjectType> TypesWith(string role) => ObjectTypes.Where(t => t.Roles.Contains(role));
+    /// <summary>Clés des types portant un rôle : à calculer une fois avant de parcourir beaucoup d'objets.</summary>
+    public HashSet<string> TypeKeysWith(string role) => TypesWith(role).Select(t => t.Key).ToHashSet();
+    /// <summary>Premier type actif portant le rôle (à défaut, un type archivé).</summary>
+    public ObjectType? FirstTypeWith(string role) => TypesWith(role).FirstOrDefault(t => !t.Archived) ?? TypesWith(role).FirstOrDefault();
+    public bool RelIsA(string relTypeKey, string role) => RelType(relTypeKey)?.Roles.Contains(role) == true;
+    public HashSet<string> RelTypeKeysWith(string role) => RelationshipTypes.Where(t => t.Roles.Contains(role)).Select(t => t.Key).ToHashSet();
 
     public PropertyDefinition EnsureProperty(string key, string? label = null, string source = "saisie")
     {
@@ -168,64 +168,43 @@ public sealed class Metamodel
             : $"relation {rt.Label} non autorisée entre {sourceTypeKey} et {targetTypeKey}";
     }
 
-    public static Metamodel Default()
+    public static Metamodel Default() => MetamodelDefault.Create();
+
+    /// <summary>Lettre sans accent d'un caractère ; null pour un séparateur. Table explicite : la normalisation Unicode n'est pas disponible en mode invariant.</summary>
+    private static string? Fold(char c) => c switch
     {
-        var m = new Metamodel();
-        string[][] layers =
-        {
-            new[] { "strategie", "Stratégie et capacités" }, new[] { "metier", "Métier" },
-            new[] { "fonctionnelle", "Fonctionnelle" }, new[] { "applicative", "Applicative" },
-            new[] { "donnees", "Données" }, new[] { "technique", "Technique et infrastructure" },
-            new[] { "transformation", "Transformation" }, new[] { "motivation", "Motivation" },
-            new[] { "autre", "Autre" },
-        };
-        for (var i = 0; i < layers.Length; i++) m.Layers.Add(new Layer { Key = layers[i][0], Label = layers[i][1], Order = i });
+        >= 'a' and <= 'z' or >= '0' and <= '9' => c.ToString(),
+        'à' or 'â' or 'ä' or 'á' or 'ã' => "a",
+        'ç' => "c",
+        'é' or 'è' or 'ê' or 'ë' => "e",
+        'î' or 'ï' or 'í' => "i",
+        'ô' or 'ö' or 'ó' or 'õ' => "o",
+        'ù' or 'û' or 'ü' or 'ú' => "u",
+        'ÿ' => "y",
+        'ñ' => "n",
+        'œ' => "oe",
+        'æ' => "ae",
+        _ => null,
+    };
 
-        void Add(string layer, string fill, string shape, params string[] types)
+    /// <summary>
+    /// Clé dérivée d'un libellé : minuscules, sans accents, tout ce qui n'est pas alphanumérique devient « - ».
+    /// Un suffixe « -2 », « -3 »… est ajouté si la clé existe déjà.
+    /// </summary>
+    public static string DeriveKey(string label, IEnumerable<string> existing)
+    {
+        var taken = existing.ToHashSet();
+        var sb = new StringBuilder();
+        foreach (var ch in label.ToLowerInvariant())
         {
-            foreach (var t in types)
-            {
-                var parts = t.Split('|');
-                m.ObjectTypes.Add(new ObjectType
-                {
-                    Key = parts[0], Label = parts[1], LayerKey = layer, ArchimateType = parts[0],
-                    Visual = new Visual { Shape = shape, Fill = fill, Stroke = "#5c5c5c", TextColor = "#000000" },
-                });
-            }
+            var folded = Fold(ch);
+            if (folded is not null) sb.Append(folded);
+            else if (sb.Length > 0 && sb[^1] != '-') sb.Append('-');
         }
-        Add("strategie", "#f5deaa", "arrondi", "Capability|Capacité", "ValueStream|Chaîne de valeur", "Resource|Ressource", "CourseOfAction|Plan d'action");
-        Add("motivation", "#ccccff", "rectangle", "Stakeholder|Partie prenante", "Driver|Moteur", "Assessment|Constat", "Goal|Objectif",
-            "Outcome|Résultat", "Principle|Principe", "Requirement|Exigence", "Constraint|Contrainte", "Meaning|Signification", "Value|Valeur");
-        Add("metier", "#ffffb5", "rectangle", "BusinessActor|Acteur", "BusinessRole|Rôle", "BusinessCollaboration|Collaboration métier",
-            "BusinessInterface|Interface métier", "BusinessProcess|Processus", "BusinessFunction|Fonction métier",
-            "BusinessInteraction|Interaction métier", "BusinessEvent|Événement métier", "BusinessService|Service métier",
-            "Contract|Contrat", "Representation|Représentation", "Product|Produit");
-        Add("fonctionnelle", "#d9e7f5", "rectangle", "Grouping|Zone / quartier", "ApplicationFunction|Bloc fonctionnel");
-        Add("applicative", "#b5ffff", "rectangle", "ApplicationComponent|Application", "ApplicationCollaboration|Collaboration applicative",
-            "ApplicationInterface|Interface applicative", "ApplicationInteraction|Interaction applicative",
-            "ApplicationProcess|Traitement applicatif", "ApplicationEvent|Événement applicatif", "ApplicationService|Service applicatif");
-        Add("donnees", "#ffe9b5", "rectangle", "BusinessObject|Objet métier", "DataObject|Objet de données");
-        Add("technique", "#c9e7b7", "rectangle", "Node|Nœud", "Device|Équipement informatique", "SystemSoftware|Logiciel système",
-            "TechnologyCollaboration|Collaboration technique", "TechnologyInterface|Interface technique", "Path|Chemin",
-            "CommunicationNetwork|Réseau", "TechnologyFunction|Fonction technique", "TechnologyProcess|Traitement technique",
-            "TechnologyInteraction|Interaction technique", "TechnologyEvent|Événement technique", "TechnologyService|Service technique",
-            "Artifact|Artefact", "Equipment|Équipement industriel (OT)", "Facility|Installation", "DistributionNetwork|Réseau de distribution",
-            "Material|Matière");
-        Add("transformation", "#ffe0e0", "rectangle", "WorkPackage|Projet", "Deliverable|Livrable", "ImplementationEvent|Jalon",
-            "Plateau|Plateau", "Gap|Écart");
-        Add("autre", "#f0f0f0", "rectangle", "Location|Lieu", "AndJunction|Jonction ET", "OrJunction|Jonction OU");
-
-        string[][] rels =
-        {
-            new[] { "Composition", "Composition", "plein" }, new[] { "Aggregation", "Agrégation", "plein" },
-            new[] { "Assignment", "Affectation", "plein" }, new[] { "Realization", "Réalisation", "pointillés" },
-            new[] { "Serving", "Sert", "plein" }, new[] { "Access", "Accès", "pointillés" },
-            new[] { "Influence", "Influence", "tirets" }, new[] { "Triggering", "Déclenche", "plein" },
-            new[] { "Flow", "Flux", "tirets" }, new[] { "Specialization", "Spécialisation", "plein" },
-            new[] { "Association", "Association", "plein" },
-        };
-        foreach (var r in rels)
-            m.RelationshipTypes.Add(new RelationshipType { Key = r[0], Label = r[1], ArchimateType = r[0], LineStyle = r[2] });
-        return m;
+        var key = sb.ToString().Trim('-');
+        if (key == "") key = "type";
+        var candidate = key;
+        for (var n = 2; taken.Contains(candidate); n++) candidate = $"{key}-{n}";
+        return candidate;
     }
 }
