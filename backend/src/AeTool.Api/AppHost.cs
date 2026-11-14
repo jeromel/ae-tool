@@ -14,6 +14,7 @@ public static class AppHost
     public static WebApplication Build(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
+        builder.AddToolEnvironment(args);
         var dataPath = builder.Configuration["DataPath"] ?? Path.Combine(AppContext.BaseDirectory, "data", "referentiel.json");
         var paths = new DataPaths(dataPath);
         builder.Services.AddSingleton(paths);

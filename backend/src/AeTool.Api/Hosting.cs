@@ -13,6 +13,20 @@ public static class Hosting
 {
     private const string TrustedProxies = "Proxy:Trusted";
 
+    /// <summary>Préfixe des variables d'environnement propres à l'outil.</summary>
+    public const string EnvironmentPrefix = "AETOOL_";
+
+    /// <summary>
+    /// Réglages par variables d'environnement préfixées (AETOOL_DataPath, AETOOL_Auth__Mode…) : un serveur se règle sans
+    /// fichier dans le dossier du programme, que chaque mise à jour remplace, et sans nom de variable trop général.
+    /// La ligne de commande garde le dernier mot.
+    /// </summary>
+    public static void AddToolEnvironment(this WebApplicationBuilder builder, string[] args)
+    {
+        builder.Configuration.AddEnvironmentVariables(EnvironmentPrefix);
+        builder.Configuration.AddCommandLine(args);
+    }
+
     /// <summary>Version livrée, lue dans l'assemblage (réglée dans Directory.Build.props).</summary>
     public static string Version { get; } =
         (typeof(Hosting).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "0.0.0").Split('+')[0];

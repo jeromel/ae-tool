@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Prépare le dossier à déposer sur un serveur : API compilée en Release, interface comprise.
 # Le résultat (livraison/ae-tool et livraison/ae-tool-<version>.tar.gz) ne contient aucune donnée.
-# Prérequis sur le serveur : le runtime ASP.NET Core 8. Voir docs/installation.md.
+# Prérequis sur le serveur : le runtime ASP.NET Core de la version majeure du SDK utilisé ici. Voir docs/installation.md.
 set -euo pipefail
 root="$(cd "$(dirname "$0")" && pwd)"
 

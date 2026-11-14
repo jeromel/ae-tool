@@ -28,6 +28,31 @@ public static class HostingTests
             Equal(HttpStatusCode.Unauthorized, server.Client.GetAsync("/api/summary").GetAwaiter().GetResult().StatusCode, "le reste exige toujours une session");
         });
 
+        Test("réglages par variables d'environnement préfixées AETOOL_ ; la ligne de commande garde le dernier mot", () =>
+        {
+            const string proxy = "AETOOL_Proxy__Trusted__0", mode = "AETOOL_Auth__Mode";
+            try
+            {
+                // Lue : une adresse de mandataire invalide donnée par l'environnement empêche de démarrer.
+                Environment.SetEnvironmentVariable(proxy, "pas-une-adresse");
+                var refused = false;
+                try { using var server = new ApiTests.Server(); }
+                catch (InvalidOperationException e) { refused = e.Message.Contains("pas-une-adresse"); }
+                True(refused, "la variable préfixée est lue");
+                Environment.SetEnvironmentVariable(proxy, null);
+
+                // Dominée : le mode donné en ligne de commande l'emporte sur celui de l'environnement.
+                Environment.SetEnvironmentVariable(mode, "local");
+                using var open = new ApiTests.Server();
+                Equal("ouvert", open.GetJson("/api/auth/session").GetProperty("mode").GetString(), "la ligne de commande l'emporte");
+            }
+            finally
+            {
+                Environment.SetEnvironmentVariable(proxy, null);
+                Environment.SetEnvironmentVariable(mode, null);
+            }
+        });
+
         Test("une écoute en HTTP joignable du réseau est repérée, pas la boucle locale ni HTTPS", () =>
         {
             True(Hosting.IsPlainHttpOnNetwork("http://0.0.0.0:5080"), "toutes les interfaces");

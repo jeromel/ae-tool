@@ -1,6 +1,6 @@
 # Prépare le dossier à déposer sur un serveur : API compilée en Release, interface comprise.
 # Le résultat (livraison\ae-tool et livraison\ae-tool-<version>.zip) ne contient aucune donnée.
-# Prérequis sur le serveur : le runtime ASP.NET Core 8 (ou le « Hosting Bundle » pour IIS). Voir docs\installation.md.
+# Prérequis sur le serveur : le runtime ASP.NET Core de la version majeure du SDK utilisé ici (le « Hosting Bundle » pour IIS). Voir docs\installation.md.
 $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
 
