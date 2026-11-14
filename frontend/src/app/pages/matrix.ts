@@ -31,8 +31,8 @@ import { MatrixView } from '../matrix-view';
 export class MatrixPage {
   private api = inject(Api);
   types = signal<any[]>([]);
-  rows = signal('Capability');
-  cols = signal('ApplicationComponent');
+  rows = signal('capacite');
+  cols = signal('application');
   nesting = signal(true);
 
   constructor() {

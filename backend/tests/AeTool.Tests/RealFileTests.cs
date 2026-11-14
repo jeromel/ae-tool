@@ -25,6 +25,11 @@ public static class RealFileTests
                 Console.WriteLine($"        anomalies : {first.Anomalies.Count}");
                 foreach (var g in first.Anomalies.GroupBy(a => a.Code)) Console.WriteLine($"          {g.Key} × {g.Count()}");
             });
+            Test("fichier réel : aucun concept sans règle de transcodification", () =>
+            {
+                Equal(0, first.Anomalies.Count(a => a.Code == "concept-non-transcode"), "anomalies concept-non-transcode");
+                Equal(0, repo.Objects.Values.Count(o => o.TypeKey == "autre"), "objets classés dans le type non classé");
+            });
             Test("rejeu du fichier réel : zéro ajout, zéro modification", () =>
             {
                 using var s = File.OpenRead(path);

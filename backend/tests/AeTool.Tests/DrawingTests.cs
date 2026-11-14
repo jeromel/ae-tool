@@ -1,5 +1,3 @@
-using System.Text.Json;
-using AeTool.Connectors;
 using AeTool.Core;
 using static AeTool.Tests.Harness;
 
@@ -10,29 +8,31 @@ public static class DrawingTests
     public static void Run()
     {
         Console.WriteLine("Rendu soigné des vues");
-        Test("chaque relation ArchiMate a un trait et une tête par défaut connus", () =>
+        Test("chaque type de relation du métamodèle a un trait et une tête connus", () =>
         {
             foreach (var type in Metamodel.Default().RelationshipTypes)
             {
-                var (line, head) = DrawingDefaults.Relation(type.ArchimateType);
-                True(new[] { "plein", "tirets", "pointillés" }.Contains(line), $"trait inconnu pour {type.Key}");
-                True(DrawingDefaults.Heads.Contains(head), $"tête inconnue pour {type.Key}");
+                True(DrawingDefaults.Lines.Contains(type.SoftLine ?? ""), $"trait inconnu pour {type.Key}");
+                True(DrawingDefaults.Heads.Contains(type.Head ?? ""), $"tête inconnue pour {type.Key}");
             }
-            Equal(("plein", "fleche"), DrawingDefaults.Relation("Flow"), "flux");
-            Equal(("tirets", "triangle"), DrawingDefaults.Relation("Realization"), "réalisation");
-            Equal(("plein", "aucune"), DrawingDefaults.Relation(null), "relation hors ArchiMate");
+            var flow = Metamodel.Default().RelType("flux")!;
+            Equal(("plein", "fleche"), (flow.SoftLine!, flow.Head!), "flux");
+            var realization = Metamodel.Default().RelType("realisation")!;
+            Equal(("tirets", "triangle"), (realization.SoftLine!, realization.Head!), "réalisation");
         });
-        Test("chaque type d'objet a un gabarit et un pictogramme par défaut", () =>
+        Test("chaque type d'objet a un gabarit et un pictogramme explicites", () =>
         {
-            foreach (var type in Metamodel.Default().ObjectTypes)
+            var m = Metamodel.Default();
+            foreach (var type in m.ObjectTypes)
             {
-                True(DrawingDefaults.Templates.Contains(DrawingDefaults.Template(type.Key)), $"gabarit inconnu pour {type.Key}");
-                True(DrawingDefaults.Glyph(type.Key).Length > 0, $"pictogramme vide pour {type.Key}");
+                True(DrawingDefaults.Templates.Contains(type.Visual.Template ?? ""), $"gabarit inconnu pour {type.Key}");
+                True(!string.IsNullOrEmpty(type.Visual.Icon), $"pictogramme vide pour {type.Key}");
             }
-            Equal("carte", DrawingDefaults.Template("ApplicationComponent"), "application");
-            Equal("rond", DrawingDefaults.Template("BusinessActor"), "acteur");
-            Equal("zone", DrawingDefaults.Template("Grouping"), "regroupement");
-            Equal("service", DrawingDefaults.Glyph("TechnologyService"), "service technique");
+            Equal("carte", m.Type("application")!.Visual.Template, "application");
+            Equal("rond", m.Type("acteur")!.Visual.Template, "acteur");
+            Equal("zone", m.Type("zone")!.Visual.Template, "regroupement");
+            Equal("service", m.Type("service-technique")!.Visual.Icon, "service technique");
+            Equal("defaut", m.Type("autre")!.Visual.Icon, "type non classé");
         });
         Test("le gabarit propre à un élément l'emporte sur celui de son type", () =>
         {

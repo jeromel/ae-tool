@@ -60,7 +60,7 @@ public static class AnalysisTests
         Test("matrice capacité × application : relation (R) et imbrication dans une vue (V)", () =>
         {
             var an = new Analyzer(Imported(out _));
-            var m = an.CrossMatrix("Capability", "ApplicationComponent", includeNesting: true);
+            var m = an.CrossMatrix("capacite", "application", includeNesting: true);
             Equal(1, m.Rows.Count); Equal(2, m.Columns.Count);
             Equal("RV", m.Cells[0][m.Columns.FindIndex(c => c.Id == "id-itsm")]);
             Equal("R", m.Cells[0][m.Columns.FindIndex(c => c.Id == "id-legacy")]);
@@ -76,7 +76,7 @@ public static class AnalysisTests
         });
         Test("qualité : complétude et orphelins par type", () =>
         {
-            var q = new Analyzer(Imported(out _)).Quality().First(t => t.TypeKey == "ApplicationComponent");
+            var q = new Analyzer(Imported(out _)).Quality().First(t => t.TypeKey == "application");
             Equal(3, q.Count); Equal(1, q.Documented); Equal(1, q.NotInDiagram); Equal(0, q.Orphans);
         });
     }

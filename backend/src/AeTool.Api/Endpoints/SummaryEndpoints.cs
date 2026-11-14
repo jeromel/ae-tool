@@ -31,6 +31,17 @@ public static class SummaryEndpoints
         }));
 
         api.MapGet("/quality", (Workspace ws) => ws.Read((_, an) => an.Quality()));
+        // Écarts au métamodèle : un résumé par code, puis les 200 premiers constats.
+        api.MapGet("/quality/conformity", (Workspace ws) => ws.Read((repo, _) =>
+        {
+            var issues = Conformity.Check(repo);
+            return new
+            {
+                Total = issues.Count,
+                Summary = issues.GroupBy(i => i.Code).Select(g => new { Code = g.Key, Severity = g.First().Severity, Count = g.Count() }).OrderByDescending(x => x.Count),
+                Issues = issues.Take(200),
+            };
+        }));
         api.MapGet("/journal", (Workspace ws, int? limit) => ws.Read((repo, _) => repo.Journal.AsEnumerable().Reverse().Take(limit ?? 200).ToList()));
     }
 }

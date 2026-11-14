@@ -46,8 +46,18 @@ public sealed class JsonFileStore : IRepositoryStore
     public Repository Load()
     {
         if (!File.Exists(_path)) return new Repository();
-        using var s = File.OpenRead(_path);
-        return JsonSerializer.Deserialize<Repository>(s) ?? new Repository();
+        Repository repository;
+        bool upgraded;
+        using (var s = File.OpenRead(_path)) repository = RepositoryUpgrader.Read(s, out upgraded);
+        if (!upgraded) return repository;
+        // Migration de format : l'original est conservé à côté avant toute réécriture.
+        var stem = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(_path))!, Path.GetFileNameWithoutExtension(_path) + ".avant-migration-v1");
+        var backup = stem + ".json";
+        // Une sauvegarde déjà présente n'est jamais écrasée.
+        if (File.Exists(backup)) backup = $"{stem}-{DateTime.UtcNow:yyyyMMddHHmmss}.json";
+        File.Copy(_path, backup);
+        Save(repository);
+        return repository;
     }
 
     public void Save(Repository repository)

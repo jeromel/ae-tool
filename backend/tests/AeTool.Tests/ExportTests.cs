@@ -27,10 +27,10 @@ public static class ExportTests
             ArchimateExchange.Import(Fixtures.Stream(ArchimateExchange.Export(repo, new[] { "id-v-bi" }).ToString()), copy);
             Equal(2, copy.Objects.Count); Equal(1, copy.Diagrams.Count);
         });
-        Test("type hors ArchiMate : exporté avec le type de repli", () =>
+        Test("type sans règle : exporté avec le concept de repli", () =>
         {
             var repo = Imported(out _);
-            repo.Metamodel.ObjectTypes.Add(new ObjectType { Key = "ZoneOT", Label = "Zone OT", ArchimateType = null });
+            repo.Metamodel.ObjectTypes.Add(new ObjectType { Key = "ZoneOT", Label = "Zone OT" });
             repo.Objects["z"] = new ArchObject { Id = "z", TypeKey = "ZoneOT", Name = "Zone 3" };
             True(ArchimateExchange.Export(repo).ToString().Contains("identifier=\"z\" xsi:type=\"Grouping\""), "type de repli attendu");
         });

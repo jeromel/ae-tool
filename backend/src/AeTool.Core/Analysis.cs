@@ -95,14 +95,18 @@ public sealed class Analyzer
     }
 
     /// <summary>
-    /// Matrice croisée entre deux types. Une cellule porte « R » si une relation directe lie les deux objets,
+    /// Matrice croisée entre deux ensembles d'objets, désignés par une clé de type ou par « role:&lt;rôle&gt; ».
+    /// Une cellule porte « R » si une relation directe lie les deux objets,
     /// « V » si l'un est imbriqué dans l'autre dans au moins une vue (lecture type POS), « RV » pour les deux.
-    /// Avec <paramref name="relationType"/> (type ArchiMate, par exemple « Flow »), seules ces relations comptent, dans leur sens.
+    /// Avec <paramref name="relation"/> (clé de type de relation ou « role:&lt;rôle&gt; », par exemple « role:flux »), seules ces relations comptent, dans leur sens.
     /// </summary>
-    public Matrix CrossMatrix(string rowType, string colType, bool includeNesting, string? relationType = null)
+    public Matrix CrossMatrix(string rowType, string colType, bool includeNesting, string? relation = null)
     {
-        var rows = _repo.ActiveObjects.Where(o => o.TypeKey == rowType).OrderBy(o => o.Name).ToList();
-        var cols = _repo.ActiveObjects.Where(o => o.TypeKey == colType).OrderBy(o => o.Name).ToList();
+        var rowKeys = TypeKeysOf(rowType);
+        var colKeys = TypeKeysOf(colType);
+        var relationKeys = relation is null ? null : RelationKeysOf(relation);
+        var rows = _repo.ActiveObjects.Where(o => rowKeys.Contains(o.TypeKey)).OrderBy(o => o.Name).ToList();
+        var cols = _repo.ActiveObjects.Where(o => colKeys.Contains(o.TypeKey)).OrderBy(o => o.Name).ToList();
         var colIndex = cols.Select((c, i) => (c.Id, i)).ToDictionary(x => x.Id, x => x.i);
         var rowIndex = rows.Select((r, i) => (r.Id, i)).ToDictionary(x => x.Id, x => x.i);
         var cells = rows.Select(_ => new string[cols.Count]).ToList();
@@ -116,11 +120,11 @@ public sealed class Analyzer
         foreach (var rel in _repo.ActiveRelationships)
         {
             // Limitée à un type de relation, la matrice se lit dans le sens de la relation : ligne = source, colonne = cible.
-            if (relationType is not null && _repo.Metamodel.RelType(rel.TypeKey)?.ArchimateType != relationType) continue;
+            if (relationKeys is not null && !relationKeys.Contains(rel.TypeKey)) continue;
             Mark(rel.SourceId, rel.TargetId, "R");
-            if (relationType is null) Mark(rel.TargetId, rel.SourceId, "R");
+            if (relationKeys is null) Mark(rel.TargetId, rel.SourceId, "R");
         }
-        if (includeNesting && relationType is null)
+        if (includeNesting && relationKeys is null)
             foreach (var (ancestor, descendant) in NestingPairs())
             {
                 Mark(ancestor, descendant, "V");
@@ -135,6 +139,12 @@ public sealed class Analyzer
             keptCols.Select(c => new MatrixHeader(cols[c].Id, cols[c].Name)).ToList(),
             keptRows.Select(r => keptCols.Select(c => cells[r][c]).ToArray()).ToList());
     }
+
+    private HashSet<string> TypeKeysOf(string spec) =>
+        Roles.FromSpec(spec) is { } role ? _repo.Metamodel.TypeKeysWith(role) : new HashSet<string> { spec };
+
+    private HashSet<string> RelationKeysOf(string spec) =>
+        Roles.FromSpec(spec) is { } role ? _repo.Metamodel.RelTypeKeysWith(role) : new HashSet<string> { spec };
 
     /// <summary>
     /// Couples (contenant, contenu) lus dans les vues. Archi n'imbrique pas toujours les nœuds dans le XML :
@@ -162,7 +172,7 @@ public sealed class Analyzer
     // ---- Projets ----
 
     public IEnumerable<ArchObject> Projects() =>
-        _repo.ActiveObjects.Where(o => o.TypeKey == _repo.Metamodel.Settings.ProjectTypeKey).OrderBy(o => o.Name);
+        _repo.ActiveObjects.Where(o => _repo.Metamodel.IsA(o.TypeKey, Roles.Project)).OrderBy(o => o.Name);
 
     /// <summary>Diagrammes rangés dans le dossier « Projets / &lt;nom du projet&gt; », sous-dossiers compris.</summary>
     public List<string> ProjectDiagramIds(ArchObject project)
@@ -188,7 +198,9 @@ public sealed class Analyzer
     /// </summary>
     public int RefreshDeducedImpacts()
     {
-        var excluded = _repo.Metamodel.Settings.ImpactExcludedTypeKeys.ToHashSet();
+        // Fond de carte et projets : leur présence dans une vue projet ne vaut pas impact.
+        var excluded = _repo.Metamodel.TypeKeysWith(Roles.Backdrop);
+        excluded.UnionWith(_repo.Metamodel.TypeKeysWith(Roles.Project));
         var existing = _repo.Impacts.ToDictionary(i => (i.ProjectId, i.ObjectId));
         var seen = new HashSet<(string, string)>();
         var created = 0;

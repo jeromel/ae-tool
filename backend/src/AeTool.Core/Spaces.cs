@@ -20,17 +20,28 @@ public sealed class SpaceReader
     private readonly Repository _repo;
     private readonly Analyzer _an;
     private readonly HashSet<string> _appTypes;
+    private readonly HashSet<string> _capabilityTypes;
+    private readonly HashSet<string> _infrastructureTypes;
+    private readonly HashSet<string> _dataTypes;
+    private readonly HashSet<string> _carrierTypes;
+    private readonly HashSet<string> _flowTypes;
 
     public SpaceReader(Repository repo, Analyzer analyzer)
     {
         _repo = repo;
         _an = analyzer;
-        _appTypes = repo.Metamodel.Settings.ApplicationTypeKeys.ToHashSet();
+        var meta = repo.Metamodel;
+        _appTypes = meta.TypeKeysWith(Roles.Application);
+        _capabilityTypes = meta.TypeKeysWith(Roles.Capability);
+        _infrastructureTypes = meta.TypeKeysWith(Roles.Infrastructure);
+        _dataTypes = meta.TypeKeysWith(Roles.Data);
+        _carrierTypes = meta.TypeKeysWith(Roles.DataCarrier);
+        _flowTypes = meta.RelTypeKeysWith(Roles.Flow);
     }
 
     private bool IsApplication(string id) => _repo.Objects.TryGetValue(id, out var o) && !o.Archived && _appTypes.Contains(o.TypeKey);
-    private bool IsCapability(string id) => _repo.Objects.TryGetValue(id, out var o) && !o.Archived && o.TypeKey == _repo.Metamodel.Settings.CapabilityTypeKey;
-    private string LayerOf(string id) => _repo.Metamodel.LayerOf(_repo.Objects[id].TypeKey);
+    private bool IsCapability(string id) => _repo.Objects.TryGetValue(id, out var o) && !o.Archived && _capabilityTypes.Contains(o.TypeKey);
+    private string TypeOf(string id) => _repo.Objects[id].TypeKey;
     private IEnumerable<string> Neighbours(string id) =>
         _an.Outgoing(id).Select(r => r.TargetId).Concat(_an.Incoming(id).Select(r => r.SourceId)).Distinct();
 
@@ -63,10 +74,10 @@ public sealed class SpaceReader
         var capabilities = _repo.ActiveObjects.Where(o => IsCapability(o.Id)).ToDictionary(o => o.Id);
         var children = new Dictionary<string, List<string>>();
         var hasParent = new HashSet<string>();
+        var decomposition = _repo.Metamodel.RelTypeKeysWith(Roles.Decomposition);
         foreach (var r in _repo.ActiveRelationships)
         {
-            var type = _repo.Metamodel.RelType(r.TypeKey)?.ArchimateType;
-            if (type is not ("Composition" or "Aggregation")) continue;
+            if (!decomposition.Contains(r.TypeKey)) continue;
             if (!capabilities.ContainsKey(r.SourceId) || !capabilities.ContainsKey(r.TargetId) || r.SourceId == r.TargetId) continue;
             if (!hasParent.Add(r.TargetId)) continue; // une capacité déjà rattachée garde son premier parent
             if (!children.TryGetValue(r.SourceId, out var list)) children[r.SourceId] = list = new List<string>();
@@ -95,9 +106,9 @@ public sealed class SpaceReader
             _repo.Assessments.TryGetValue(o.Id, out var a);
             var decision = a is null ? null : a.RetainedDecision ?? ScoringEngine.Evaluate(_repo.Metamodel.Scoring, a, _an.IsRetired(o)).ComputedDecision;
             return new ApplicationRow(o.Id, o.Name, o.Source, relations.Count,
-                relations.Count(r => _repo.Metamodel.RelType(r.TypeKey)?.ArchimateType == "Flow"),
-                neighbours.Count(n => LayerOf(n) == "technique" && _repo.Objects[n].TypeKey != "Artifact"),
-                neighbours.Count(n => LayerOf(n) == "donnees" || _repo.Objects[n].TypeKey == "Artifact"),
+                relations.Count(r => _flowTypes.Contains(r.TypeKey)),
+                neighbours.Count(n => _infrastructureTypes.Contains(TypeOf(n))),
+                neighbours.Count(n => _dataTypes.Contains(TypeOf(n)) || _carrierTypes.Contains(TypeOf(n))),
                 capabilityCount.GetValueOrDefault(o.Id), projectCount.GetValueOrDefault(o.Id), a?.Cm, decision);
         }).ToList();
     }
@@ -107,7 +118,7 @@ public sealed class SpaceReader
     {
         var settings = _repo.Metamodel.Settings;
         var flows = _repo.ActiveRelationships
-            .Where(r => _repo.Metamodel.RelType(r.TypeKey)?.ArchimateType == "Flow" && IsActive(r.SourceId) && IsActive(r.TargetId)).ToList();
+            .Where(r => _flowTypes.Contains(r.TypeKey) && IsActive(r.SourceId) && IsActive(r.TargetId)).ToList();
         var ids = flows.Select(f => f.Id).ToHashSet();
         var carried = new Dictionary<string, List<string>>();
         foreach (var r in _repo.ActiveRelationships)
@@ -127,17 +138,17 @@ public sealed class SpaceReader
 
     /// <summary>Objets de la couche données, avec les applications qui y accèdent directement ou par un artefact qui les réalise.</summary>
     public List<DataRow> Data() =>
-        _repo.ActiveObjects.Where(o => _repo.Metamodel.LayerOf(o.TypeKey) == "donnees").OrderBy(o => o.Name).Select(o =>
+        _repo.ActiveObjects.Where(o => _dataTypes.Contains(o.TypeKey)).OrderBy(o => o.Name).Select(o =>
         {
             var neighbours = Neighbours(o.Id).ToList();
-            var artifacts = neighbours.Where(n => _repo.Objects[n].TypeKey == "Artifact").ToList();
+            var artifacts = neighbours.Where(n => _carrierTypes.Contains(TypeOf(n))).ToList();
             var applications = neighbours.Concat(artifacts.SelectMany(Neighbours)).Where(IsApplication).Distinct().Count();
             return new DataRow(o.Id, o.Name, _repo.Metamodel.Type(o.TypeKey)?.Label ?? o.TypeKey, applications, artifacts.Count);
         }).ToList();
 
     /// <summary>Objets techniques, avec le nombre d'applications qu'ils portent en aval, jusqu'à trois relations de distance.</summary>
     public List<InfrastructureRow> Infrastructure() =>
-        _repo.ActiveObjects.Where(o => _repo.Metamodel.LayerOf(o.TypeKey) == "technique" && o.TypeKey != "Artifact").OrderBy(o => o.Name).Select(o =>
+        _repo.ActiveObjects.Where(o => _infrastructureTypes.Contains(o.TypeKey)).OrderBy(o => o.Name).Select(o =>
             new InfrastructureRow(o.Id, o.Name, _repo.Metamodel.Type(o.TypeKey)?.Label ?? o.TypeKey,
                 _an.Impact(o.Id, 3, "aval").Count(r => _appTypes.Contains(r.TypeKey)),
                 _an.Outgoing(o.Id).Count() + _an.Incoming(o.Id).Count())).ToList();

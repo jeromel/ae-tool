@@ -48,7 +48,7 @@ public static class UrbaTests
             Equal(0, report.Anomalies.Count(a => a.Severity == "erreur"), "erreurs");
             Equal("APP-001", repo.Objects["id-itsm"].Get(UrbaImporter.IdKey));
             Equal("ITSM", repo.Objects["id-itsm"].Get("urba:Domaine métier"));
-            Equal("SystemSoftware", repo.Objects["id-urba-app-002"].TypeKey);
+            Equal("logiciel-systeme", repo.Objects["id-urba-app-002"].TypeKey);
             Equal(2, repo.Metamodel.Scoring.Criteria.Count); Equal(3.0, repo.Metamodel.Scoring.Thresholds.Mastery);
             var an = new Analyzer(repo);
             var r = ScoringEngine.Evaluate(repo.Metamodel.Scoring, repo.Assessments["id-itsm"], an.IsRetired(repo.Objects["id-itsm"]));

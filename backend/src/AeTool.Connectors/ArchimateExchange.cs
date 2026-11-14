@@ -38,11 +38,12 @@ public static class ArchimateExchange
         repo.Language = (string?)model.Element(A + "name")?.Attribute(XNamespace.Xml + "lang") ?? repo.Language;
         repo.SchemaLocation = (string?)model.Attribute(Xsi + "schemaLocation");
 
-        var propertyKeys = ImportPropertyDefinitions(model, repo, report);
-        var seenObjects = ImportElements(model, repo, report, propertyKeys);
-        var seenRelations = ImportRelationships(model, repo, report, propertyKeys);
+        var transcoder = new Transcoder(repo.Metamodel);
+        var propertyNames = ImportPropertyDefinitions(model, report, transcoder);
+        var seenObjects = ImportElements(model, repo, report, propertyNames, transcoder);
+        var seenRelations = ImportRelationships(model, repo, report, propertyNames, transcoder);
         ImportFolders(model, repo, report);
-        var seenDiagrams = ImportDiagrams(model, repo, report, propertyKeys);
+        var seenDiagrams = ImportDiagrams(model, repo, report, propertyNames, transcoder);
 
         if (sameModel)
         {
@@ -69,10 +70,11 @@ public static class ArchimateExchange
         return n;
     }
 
-    private static Dictionary<string, string> ImportPropertyDefinitions(XElement model, Repository repo, ImportReport report)
+    private static Dictionary<string, string> ImportPropertyDefinitions(XElement model, ImportReport report, Transcoder transcoder)
     {
-        // Archi renumérote les « propid-N » à chaque export : la clé stable est le nom de la propriété.
-        var keys = new Dictionary<string, string>();
+        // Archi renumérote les « propid-N » à chaque export : la clé stable est le nom Archi de la propriété.
+        var names = new Dictionary<string, string>();
+        var marker = transcoder.Marker;
         var tally = report.For("Définitions de propriétés");
         foreach (var def in model.Element(A + "propertyDefinitions")?.Elements(A + "propertyDefinition") ?? Enumerable.Empty<XElement>())
         {
@@ -80,19 +82,14 @@ public static class ArchimateExchange
             if (string.IsNullOrEmpty(id)) { report.Error("identifiant-absent", "Définition de propriété sans identifiant."); continue; }
             var name = Text(def.Element(A + "name")) ?? "";
             if (name == "") report.Warn("propriete-sans-nom", "Définition de propriété sans nom ; importée sous la clé vide.", id);
-            if (!keys.TryAdd(id, name)) { report.Error("identifiant-duplique", "Définition de propriété en double.", id); continue; }
-            if (repo.Metamodel.Property(name) is null)
-            {
-                repo.Metamodel.PropertyDefinitions.Add(new PropertyDefinition
-                    { Key = name, Label = name, DataType = (string?)def.Attribute("type") ?? "string", Source = SourceTag });
-                tally.Added++;
-            }
-            else tally.Unchanged++;
+            if (!names.TryAdd(id, name)) { report.Error("identifiant-duplique", "Définition de propriété en double.", id); continue; }
+            if (name == marker) continue; // le marqueur de type n'est pas une propriété de l'objet
+            if (transcoder.EnsureProperty(name, (string?)def.Attribute("type"), SourceTag)) tally.Added++; else tally.Unchanged++;
         }
-        return keys;
+        return names;
     }
 
-    private static HashSet<string> ImportElements(XElement model, Repository repo, ImportReport report, Dictionary<string, string> propertyKeys)
+    private static HashSet<string> ImportElements(XElement model, Repository repo, ImportReport report, Dictionary<string, string> propertyNames, Transcoder transcoder)
     {
         var seen = new HashSet<string>();
         var tally = report.For("Objets");
@@ -101,20 +98,16 @@ public static class ArchimateExchange
             var id = (string?)el.Attribute("identifier");
             if (string.IsNullOrEmpty(id)) { report.Error("identifiant-absent", $"Élément sans identifiant : {Text(el.Element(A + "name"))}"); continue; }
             if (!seen.Add(id)) { report.Error("identifiant-duplique", "Élément en double dans le fichier ; seule la première occurrence est importée.", id); continue; }
-            var type = (string?)el.Attribute(Xsi + "type") ?? "";
-            if (repo.Metamodel.Type(type) is null)
-            {
-                report.Warn("type-inconnu", $"Type « {type} » absent du métamodèle : créé dans la couche « Autre », à paramétrer.", id);
-                repo.Metamodel.ObjectTypes.Add(new ObjectType { Key = type, Label = type, ArchimateType = type,
-                    Visual = new Visual { Shape = "rectangle", Fill = "#f0f0f0", Stroke = "#5c5c5c", TextColor = "#000000" } });
-            }
+            var concept = (string?)el.Attribute(Xsi + "type") ?? "";
+            var raw = ReadProperties(el, propertyNames, report, id);
+            repo.Objects.TryGetValue(id, out var existing);
+            var typeKey = ChooseObjectType(repo, report, transcoder, existing, concept, raw, id);
             var incoming = new ArchObject
             {
-                Id = id, TypeKey = type, Name = Text(el.Element(A + "name")) ?? "",
+                Id = id, TypeKey = typeKey, ArchimateType = concept, Name = Text(el.Element(A + "name")) ?? "",
                 Documentation = Text(el.Element(A + "documentation")),
-                Properties = ReadProperties(el, propertyKeys, report, id), Source = SourceTag,
+                Properties = transcoder.Values(raw), Source = SourceTag,
             };
-            repo.Objects.TryGetValue(id, out var existing);
             if (existing is null)
             {
                 incoming.UpdatedAt = DateTime.UtcNow;
@@ -126,10 +119,12 @@ public static class ArchimateExchange
             var local = existing.Properties.Where(p => repo.Metamodel.Property(p.Key)?.Source != SourceTag
                                                        && incoming.Properties.All(i => i.Key != p.Key)).ToList();
             incoming.Properties.AddRange(local);
-            var changed = existing.Archived || existing.TypeKey != incoming.TypeKey || existing.Name != incoming.Name
+            var changed = existing.Archived || existing.TypeKey != incoming.TypeKey || existing.ArchimateType != incoming.ArchimateType
+                          || existing.Name != incoming.Name
                           || existing.Documentation != incoming.Documentation || !Same(existing.Properties, incoming.Properties);
             if (!changed) { tally.Unchanged++; continue; }
             existing.TypeKey = incoming.TypeKey;
+            existing.ArchimateType = incoming.ArchimateType;
             existing.Name = incoming.Name;
             existing.Documentation = incoming.Documentation;
             existing.Properties = incoming.Properties;
@@ -140,7 +135,21 @@ public static class ArchimateExchange
         return seen;
     }
 
-    private static HashSet<string> ImportRelationships(XElement model, Repository repo, ImportReport report, Dictionary<string, string> propertyKeys)
+    /// <summary>
+    /// Un objet déjà présent garde son type tant que son concept Archi n'a pas changé : un retypage fait dans l'outil survit au réimport.
+    /// Sinon la matrice décide ; un concept sans règle tombe dans le type « non classé » et l'anomalie est signalée.
+    /// </summary>
+    private static string ChooseObjectType(Repository repo, ImportReport report, Transcoder transcoder, ArchObject? existing, string concept,
+        List<ArchiProperty> raw, string id)
+    {
+        if (existing is not null && existing.ArchimateType == concept && repo.Metamodel.Type(existing.TypeKey) is not null) return existing.TypeKey;
+        var choice = transcoder.ElementType(concept, raw);
+        if (choice.Mapped) return choice.TypeKey;
+        report.Warn("concept-non-transcode", $"Concept « {concept} » sans règle de transcodification : classé dans le type « {repo.Metamodel.Transcoding.UnmappedTypeKey} ».", id);
+        return transcoder.EnsureUnmappedType();
+    }
+
+    private static HashSet<string> ImportRelationships(XElement model, Repository repo, ImportReport report, Dictionary<string, string> propertyNames, Transcoder transcoder)
     {
         var seen = new HashSet<string>();
         var tally = report.For("Relations");
@@ -151,30 +160,44 @@ public static class ArchimateExchange
             var id = (string?)el.Attribute("identifier");
             if (string.IsNullOrEmpty(id)) { report.Error("identifiant-absent", "Relation sans identifiant."); continue; }
             if (!seen.Add(id)) { report.Error("identifiant-duplique", "Relation en double dans le fichier.", id); continue; }
+            var concept = (string?)el.Attribute(Xsi + "type") ?? "";
+            var raw = ReadProperties(el, propertyNames, report, id);
+            var sourceId = (string?)el.Attribute("source") ?? "";
+            var targetId = (string?)el.Attribute("target") ?? "";
+            repo.Relationships.TryGetValue(id, out var existing);
             var incoming = new Relationship
             {
-                Id = id, TypeKey = (string?)el.Attribute(Xsi + "type") ?? "",
-                SourceId = (string?)el.Attribute("source") ?? "", TargetId = (string?)el.Attribute("target") ?? "",
+                Id = id, TypeKey = ChooseRelationType(repo, report, transcoder, existing, concept, raw, sourceId, targetId, id),
+                ArchimateType = concept, SourceId = sourceId, TargetId = targetId,
                 Name = Text(el.Element(A + "name")), Documentation = Text(el.Element(A + "documentation")),
-                Properties = ReadProperties(el, propertyKeys, report, id),
+                Properties = transcoder.Values(raw),
                 AccessType = (string?)el.Attribute("accessType"), Modifier = (string?)el.Attribute("modifier"),
                 IsDirected = (bool?)el.Attribute("isDirected"), Source = SourceTag,
             };
-            if (repo.Metamodel.RelType(incoming.TypeKey) is null)
-                report.Warn("type-inconnu", $"Type de relation « {incoming.TypeKey} » absent du métamodèle.", id);
             foreach (var (end, label) in new[] { (incoming.SourceId, "source"), (incoming.TargetId, "cible") })
                 if (!repo.Objects.ContainsKey(end) && !relationIds.Contains(end))
                     report.Error("reference-cassee", $"La {label} « {end} » de la relation n'existe pas dans le fichier. Relation conservée telle quelle.", id);
             if (repo.Objects.TryGetValue(incoming.SourceId, out var s) && repo.Objects.TryGetValue(incoming.TargetId, out var t)
-                && repo.Metamodel.RelType(incoming.TypeKey) is not null
                 && repo.Metamodel.CheckRelationship(incoming.TypeKey, s.TypeKey, t.TypeKey) is string problem)
                 report.Warn("relation-non-conforme", problem, id);
 
-            if (!repo.Relationships.TryGetValue(id, out var existing)) { repo.Relationships[id] = incoming; tally.Added++; }
+            if (existing is null) { repo.Relationships[id] = incoming; tally.Added++; }
             else if (Json(existing) == Json(incoming)) tally.Unchanged++;
             else { repo.Relationships[id] = incoming; tally.Updated++; }
         }
         return seen;
+    }
+
+    /// <summary>Même règle que pour les objets : le type d'une relation déjà connue survit au réimport tant que son concept Archi ne change pas.</summary>
+    private static string ChooseRelationType(Repository repo, ImportReport report, Transcoder transcoder, Relationship? existing, string concept,
+        List<ArchiProperty> raw, string sourceId, string targetId, string id)
+    {
+        if (existing is not null && existing.ArchimateType == concept && repo.Metamodel.RelType(existing.TypeKey) is not null) return existing.TypeKey;
+        // Les extrémités qui sont elles-mêmes des relations n'ont pas de type d'objet.
+        var choice = transcoder.RelationType(concept, raw, repo.Objects.GetValueOrDefault(sourceId)?.TypeKey, repo.Objects.GetValueOrDefault(targetId)?.TypeKey);
+        if (choice.Mapped) return choice.TypeKey;
+        report.Warn("concept-non-transcode", $"Concept de relation « {concept} » sans règle de transcodification : classé dans le type « {repo.Metamodel.Transcoding.UnmappedRelationTypeKey} ».", id);
+        return transcoder.EnsureUnmappedRelationType();
     }
 
     private static void ImportFolders(XElement model, Repository repo, ImportReport report)
@@ -214,7 +237,7 @@ public static class ArchimateExchange
 
     private static int CountFolders(IEnumerable<Folder> folders) => folders.Sum(f => 1 + CountFolders(f.Children));
 
-    private static HashSet<string> ImportDiagrams(XElement model, Repository repo, ImportReport report, Dictionary<string, string> propertyKeys)
+    private static HashSet<string> ImportDiagrams(XElement model, Repository repo, ImportReport report, Dictionary<string, string> propertyNames, Transcoder transcoder)
     {
         var seen = new HashSet<string>();
         var tally = report.For("Vues");
@@ -229,7 +252,7 @@ public static class ArchimateExchange
             var diagram = new Diagram
             {
                 Id = id, Name = Text(view.Element(A + "name")) ?? "", Documentation = Text(view.Element(A + "documentation")),
-                Viewpoint = (string?)view.Attribute("viewpoint"), Properties = ReadProperties(view, propertyKeys, report, id),
+                Viewpoint = (string?)view.Attribute("viewpoint"), Properties = transcoder.Values(ReadProperties(view, propertyNames, report, id)),
                 Nodes = view.Elements(A + "node").Select(ReadNode).ToList(),
                 Connections = view.Elements(A + "connection").Select(ReadConnection).ToList(), Source = SourceTag,
             };
@@ -293,18 +316,19 @@ public static class ArchimateExchange
     private static Rgba? ReadColor(XElement? c) => c is null ? null : new Rgba
         { R = (int?)c.Attribute("r") ?? 0, G = (int?)c.Attribute("g") ?? 0, B = (int?)c.Attribute("b") ?? 0, A = (int?)c.Attribute("a") };
 
-    private static List<PropertyValue> ReadProperties(XElement owner, Dictionary<string, string> keys, ImportReport report, string ownerId)
+    /// <summary>Propriétés d'un élément Archi, sous leur nom Archi : la conversion en clés du métamodèle revient au transcodeur.</summary>
+    private static List<ArchiProperty> ReadProperties(XElement owner, Dictionary<string, string> names, ImportReport report, string ownerId)
     {
-        var list = new List<PropertyValue>();
+        var list = new List<ArchiProperty>();
         foreach (var p in owner.Element(A + "properties")?.Elements(A + "property") ?? Enumerable.Empty<XElement>())
         {
             var reference = (string?)p.Attribute("propertyDefinitionRef") ?? "";
-            if (!keys.TryGetValue(reference, out var key))
+            if (!names.TryGetValue(reference, out var name))
             {
                 report.Error("definition-absente", $"Propriété rattachée à la définition inexistante « {reference} » ; valeur ignorée.", ownerId);
                 continue;
             }
-            list.Add(new PropertyValue { Key = key, Value = Text(p.Element(A + "value")) });
+            list.Add(new ArchiProperty(name, Text(p.Element(A + "value"))));
         }
         return list;
     }
@@ -320,22 +344,25 @@ public static class ArchimateExchange
     // ------------------------------------------------------------------ Export
 
     /// <summary>
-    /// Produit un fichier réimportable dans Archi. Les objets hors ArchiMate sont exportés avec le type de repli du métamodèle ;
-    /// les impacts projet qualifiés deviennent des associations nommées.
+    /// Produit un fichier réimportable dans Archi. Chaque type de l'outil est écrit avec le concept que désigne la matrice de
+    /// transcodification ; un type sans règle prend le concept de repli, avec un marqueur pour le retrouver au réimport.
+    /// Les impacts projet qualifiés deviennent des associations nommées.
     /// </summary>
     public static XDocument Export(Repository repo, IEnumerable<string>? onlyDiagramIds = null)
     {
         var lang = repo.Language;
+        var transcoder = new Transcoder(repo.Metamodel);
         XElement Named(string tag, string? value) => new(A + tag, new XAttribute(XNamespace.Xml + "lang", lang), value ?? "");
 
         var definitions = new Dictionary<string, string>();
-        string DefinitionId(string key)
+        string DefinitionId(string archiName)
         {
-            if (!definitions.TryGetValue(key, out var id)) definitions[key] = id = $"propid-{definitions.Count + 1}";
+            if (!definitions.TryGetValue(archiName, out var id)) definitions[archiName] = id = $"propid-{definitions.Count + 1}";
             return id;
         }
-        XElement? Properties(List<PropertyValue> props) => props.Count == 0 ? null : new XElement(A + "properties",
-            props.Select(p => new XElement(A + "property", new XAttribute("propertyDefinitionRef", DefinitionId(p.Key)), Named("value", p.Value))));
+        XElement? Properties(List<ArchiProperty> props) => props.Count == 0 ? null : new XElement(A + "properties",
+            props.Select(p => new XElement(A + "property", new XAttribute("propertyDefinitionRef", DefinitionId(p.Name)), Named("value", p.Value))));
+        XElement? Plain(List<PropertyValue> props) => Properties(transcoder.ArchiProperties(props));
 
         var diagrams = repo.ActiveDiagrams.Where(d => onlyDiagramIds is null || onlyDiagramIds.Contains(d.Id)).ToList();
         HashSet<string>? scope = null;
@@ -348,22 +375,29 @@ public static class ArchimateExchange
         var objectIds = objects.Select(o => o.Id).ToHashSet();
         var relations = repo.ActiveRelationships.Where(r => scope is null || scope.Contains(r.Id)).ToList();
 
-        var elements = new XElement(A + "elements", objects.Select(o => new XElement(A + "element",
-            new XAttribute("identifier", o.Id),
-            new XAttribute(Xsi + "type", repo.Metamodel.Type(o.TypeKey)?.ArchimateType ?? repo.Metamodel.Settings.FallbackArchimateType),
-            Named("name", o.Name),
-            o.Documentation is null ? null : Named("documentation", o.Documentation),
-            Properties(o.Properties))));
+        var elements = new XElement(A + "elements", objects.Select(o =>
+        {
+            var choice = transcoder.ExportElement(o);
+            return new XElement(A + "element",
+                new XAttribute("identifier", o.Id), new XAttribute(Xsi + "type", choice.Concept),
+                Named("name", o.Name),
+                o.Documentation is null ? null : Named("documentation", o.Documentation),
+                Properties(transcoder.ArchiProperties(o.Properties, choice.Extra)));
+        }));
 
-        var relationships = new XElement(A + "relationships", relations.Select(r => new XElement(A + "relationship",
-            new XAttribute("identifier", r.Id), new XAttribute("source", r.SourceId), new XAttribute("target", r.TargetId),
-            new XAttribute(Xsi + "type", repo.Metamodel.RelType(r.TypeKey)?.ArchimateType ?? "Association"),
-            r.AccessType is null ? null : new XAttribute("accessType", r.AccessType),
-            r.Modifier is null ? null : new XAttribute("modifier", r.Modifier),
-            r.IsDirected is null ? null : new XAttribute("isDirected", r.IsDirected.Value ? "true" : "false"),
-            r.Name is null ? null : Named("name", r.Name),
-            r.Documentation is null ? null : Named("documentation", r.Documentation),
-            Properties(r.Properties))));
+        var relationships = new XElement(A + "relationships", relations.Select(r =>
+        {
+            var choice = transcoder.ExportRelation(r);
+            return new XElement(A + "relationship",
+                new XAttribute("identifier", r.Id), new XAttribute("source", r.SourceId), new XAttribute("target", r.TargetId),
+                new XAttribute(Xsi + "type", choice.Concept),
+                r.AccessType is null ? null : new XAttribute("accessType", r.AccessType),
+                r.Modifier is null ? null : new XAttribute("modifier", r.Modifier),
+                r.IsDirected is null ? null : new XAttribute("isDirected", r.IsDirected.Value ? "true" : "false"),
+                r.Name is null ? null : Named("name", r.Name),
+                r.Documentation is null ? null : Named("documentation", r.Documentation),
+                Properties(transcoder.ArchiProperties(r.Properties, choice.Extra)));
+        }));
 
         // Impacts qualifiés : association nommée projet -> objet, identifiant dérivé donc stable d'un export à l'autre.
         foreach (var impact in repo.Impacts.Where(i => i.Nature != ImpactNature.ToQualify && i.Nature != "Hors périmètre"
@@ -388,14 +422,14 @@ public static class ArchimateExchange
                 d.Viewpoint is null ? null : new XAttribute("viewpoint", d.Viewpoint),
                 Named("name", d.Name),
                 d.Documentation is null ? null : Named("documentation", d.Documentation),
-                Properties(d.Properties),
+                Plain(d.Properties),
                 d.Nodes.Select(n => WriteNode(n, lang)),
                 d.Connections.Select(WriteConnection)))));
 
         // Les définitions sont écrites après coup : seules celles réellement utilisées sont exportées.
         var propertyDefinitions = definitions.Count == 0 ? null : new XElement(A + "propertyDefinitions",
             definitions.Select(kv => new XElement(A + "propertyDefinition", new XAttribute("identifier", kv.Value),
-                new XAttribute("type", repo.Metamodel.Property(kv.Key)?.DataType ?? "string"), new XElement(A + "name", kv.Key))));
+                new XAttribute("type", transcoder.ArchiDataType(kv.Key)), new XElement(A + "name", kv.Key))));
 
         var root = new XElement(A + "model",
             new XAttribute(XNamespace.Xmlns + "xsi", Xsi.NamespaceName),
