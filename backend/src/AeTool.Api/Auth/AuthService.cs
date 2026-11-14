@@ -28,7 +28,8 @@ public sealed class WorkspaceAuditLog : IAuditLog
     private readonly Workspace _ws;
     public WorkspaceAuditLog(Workspace ws) => _ws = ws;
     public void Record(string user, string action, string? targetId = null, string? detail = null) =>
-        _ws.Write(repo => { repo.Log(user, action, targetId, detail); return 0; });
+        // Une seule ligne ajoutée au journal : un événement de compte ne réécrit pas tout le référentiel.
+        _ws.Append(new AeTool.Core.JournalEntry { At = DateTime.UtcNow, User = user, Action = action, TargetId = targetId, TargetKind = AeTool.Core.JournalKinds.Account, Detail = detail });
 }
 
 /// <summary>

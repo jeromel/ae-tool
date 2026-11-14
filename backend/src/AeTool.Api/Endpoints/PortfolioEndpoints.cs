@@ -50,8 +50,10 @@ public static class PortfolioEndpoints
             }
             input.ObjectId = id;
             ScoringEngine.Complete(repo.Metamodel.Scoring, input);
+            // L'ancienne notation est remplacée, non modifiée : on peut la comparer telle quelle.
+            var changes = ChangeSet.Between(repo.Assessments.GetValueOrDefault(id), input);
             repo.Assessments[id] = input;
-            repo.Log(User(req), "Notation modifiée", id, o.Name);
+            if (changes.Count > 0) repo.Log(User(req), "Notation modifiée", JournalKinds.Assessment, id, changes, o.Name);
             return Results.Ok(new { Assessment = input, Result = ScoringEngine.Evaluate(repo.Metamodel.Scoring, input, new Analyzer(repo).IsRetired(o)) });
         }));
     }

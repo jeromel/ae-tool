@@ -14,13 +14,13 @@ public static class ExchangeEndpoints
         api.MapPost("/import/archimate", async (Workspace ws, HttpRequest req) =>
         {
             var body = await Body(req);
-            return ws.Import(repo => ArchimateExchange.Import(body, repo, User(req)));
+            return ws.Import(repo => ArchimateExchange.Import(body, repo, User(req)), BackupReasons.ArchiImport);
         });
 
         api.MapPost("/import/urba", async (Workspace ws, HttpRequest req) =>
         {
             var body = await Body(req);
-            return ws.Import(repo => UrbaImporter.Import(body, repo, User(req)));
+            return ws.Import(repo => UrbaImporter.Import(body, repo, User(req)), BackupReasons.UrbaImport);
         });
 
         api.MapGet("/import/reports", (Workspace ws) => ws.Reports);

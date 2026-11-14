@@ -46,7 +46,7 @@ public static class UrbaImporter
         }
         ImportGrid(book, repo, report);
         ImportThresholds(book, repo, report);
-        var byUrbaId = ImportApplications(sheet, repo, report);
+        var byUrbaId = ImportApplications(sheet, repo, report, user);
         ImportEvidences(book, repo, report, byUrbaId);
         foreach (var a in repo.Assessments.Values) ScoringEngine.Complete(repo.Metamodel.Scoring, a);
         repo.Log(user, "Import urbanisation", null,
@@ -54,7 +54,7 @@ public static class UrbaImporter
         return report;
     }
 
-    private static Dictionary<string, string> ImportApplications(List<string?[]> sheet, Repository repo, ImportReport report)
+    private static Dictionary<string, string> ImportApplications(List<string?[]> sheet, Repository repo, ImportReport report, string user)
     {
         var byUrbaId = new Dictionary<string, string>();
         var headerIndex = sheet.FindIndex(r => r.Length > 1 && r[0]?.Trim() == "ID");
@@ -113,6 +113,8 @@ public static class UrbaImporter
                         Id = "id-urba-" + urbaId.ToLowerInvariant(), Name = name, Source = SourceTag,
                         TypeKey = layer.StartsWith("Applicative", StringComparison.Ordinal) ? applicationType : technicalType!,
                     };
+                    // L'application n'est pas dans le modèle Archi : un valideur doit confirmer sa création.
+                    Validation.Enter(obj, Validation.Proposed, user, DateTime.UtcNow);
                     repo.Objects[obj.Id] = obj;
                     added = true;
                     report.Notes.Add($"{urbaId} « {name} » : absent du modèle Archi, créé dans le référentiel.");

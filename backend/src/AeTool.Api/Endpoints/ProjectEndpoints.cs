@@ -55,10 +55,16 @@ public static class ProjectEndpoints
             if (!repo.Objects.ContainsKey(id) || !repo.Objects.ContainsKey(objectId)) return Results.NotFound();
             if (!ImpactNature.All.Contains(input.Nature)) return Results.BadRequest(new { error = $"Nature inconnue : {input.Nature}" });
             var impact = repo.Impacts.FirstOrDefault(i => i.ProjectId == id && i.ObjectId == objectId);
+            var (oldNature, oldComment) = (impact?.Nature, impact?.Comment);
             if (impact is null) repo.Impacts.Add(impact = new ProjectImpact { ProjectId = id, ObjectId = objectId });
             impact.Nature = input.Nature;
             impact.Comment = input.Comment;
-            repo.Log(User(req), "Impact projet qualifié", id, $"{repo.Objects[objectId].Name} : {input.Nature}");
+            var changes = new List<FieldChange>();
+            if (oldNature != input.Nature) changes.Add(new FieldChange("Nature de l'impact", oldNature, input.Nature));
+            if (!string.IsNullOrWhiteSpace(oldComment) || !string.IsNullOrWhiteSpace(input.Comment))
+                if ((oldComment ?? "").Trim() != (input.Comment ?? "").Trim()) changes.Add(new FieldChange("Commentaire de l'impact", oldComment, input.Comment));
+            if (changes.Count > 0)
+                repo.Log(User(req), "Impact projet qualifié", JournalKinds.Impact, id, changes, $"{repo.Objects[objectId].Name} : {input.Nature}");
             return Results.Ok(impact);
         }));
     }

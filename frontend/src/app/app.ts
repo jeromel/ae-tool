@@ -1,6 +1,6 @@
-import { Component, inject, signal } from '@angular/core';
-import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { Brief } from './api';
+import { Component, effect, inject, signal, untracked } from '@angular/core';
+import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { Api, Brief } from './api';
 import { Session } from './session';
 import { ObjectSearch } from './object-search';
 import { readPref, writePref } from './prefs';
@@ -13,6 +13,9 @@ import { readPref, writePref } from './prefs';
   selector: 'app-root',
   imports: [RouterOutlet, RouterLink, RouterLinkActive, ObjectSearch],
   host: { '[class.nav-closed]': 'closed()' },
+  styles: `
+    .count { display: inline-block; margin-left: 8px; min-width: 18px; padding: 0 6px; border-radius: 9px; background: var(--signal); color: #fff; font-size: 11.5px; font-weight: 700; text-align: center; line-height: 18px; }
+  `,
   template: `
     @if (session.user()) {
     <nav class="side" aria-label="Navigation principale">
@@ -38,7 +41,7 @@ import { readPref, writePref } from './prefs';
 
         <div class="group">Tenir à jour</div>
         <a routerLink="/qualite" routerLinkActive="on">Qualité du référentiel</a>
-        @if (session.can('valideur')) { <a routerLink="/validations" routerLinkActive="on">Validations</a> }
+        @if (session.can('valideur')) { <a routerLink="/validations" routerLinkActive="on">Validations@if (toValidate() > 0) { <span class="count" aria-label="objets à valider">{{ toValidate() }}</span> }</a> }
         <a routerLink="/vues" routerLinkActive="on">Vues Archi</a>
         @if (session.can('administrateur')) {
           <a routerLink="/imports" routerLinkActive="on">Imports et exports</a>
@@ -76,9 +79,32 @@ import { readPref, writePref } from './prefs';
 })
 export class App {
   private router = inject(Router);
+  private api = inject(Api);
   session = inject(Session);
+  /** Objets proposés et en attente de validation, affichés à côté de « Validations ». Relu à chaque navigation. */
+  toValidate = signal(0);
   /** Menu replié : la place gagnée va aux vues et aux tableaux. */
   closed = signal(readPref('menu.replie', false));
+
+  constructor() {
+    // Au démarrage la session arrive après la première navigation : on relit le compteur dès qu'un utilisateur est connu.
+    effect(() => {
+      this.session.user();
+      untracked(() => this.refreshCount());
+    });
+    this.router.events.subscribe((e) => {
+      if (e instanceof NavigationEnd) this.refreshCount();
+    });
+  }
+
+  private async refreshCount(): Promise<void> {
+    if (!this.session.can('valideur')) return;
+    try {
+      this.toValidate.set((await this.api.get('/summary')).toValidate ?? 0);
+    } catch {
+      /* le compteur est un confort : une erreur ne doit rien bloquer */
+    }
+  }
 
   toggle(): void {
     this.closed.update((c) => !c);

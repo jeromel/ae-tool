@@ -27,6 +27,7 @@ public static class SummaryEndpoints
                     .Select(g => new { Key = g.Key, Label = repo.Metamodel.Type(g.Key)?.Label ?? g.Key, Count = g.Count() })
                     .OrderByDescending(t => t.Count),
             }),
+            ToValidate = repo.ActiveObjects.Count(o => o.ValidationStatus == Validation.Proposed),
             Journal = repo.Journal.AsEnumerable().Reverse().Take(8),
         }));
 
@@ -42,6 +43,17 @@ public static class SummaryEndpoints
                 Issues = issues.Take(200),
             };
         }));
-        api.MapGet("/journal", (Workspace ws, int? limit) => ws.Read((repo, _) => repo.Journal.AsEnumerable().Reverse().Take(limit ?? 200).ToList()));
+        // Journal filtrable et paginé (valideurs et administrateurs).
+        api.MapGet("/journal", (Workspace ws, string? user, string? kind, string? q, DateTime? from, DateTime? to, int? offset, int? limit) => ws.Read((repo, _) =>
+        {
+            var found = JournalSearch.Apply(repo.Journal, new JournalFilter(user, kind, q, from, to)).ToList();
+            var skip = Math.Max(offset ?? 0, 0);
+            var take = Math.Clamp(limit ?? 50, 1, 500);
+            return new
+            {
+                Total = found.Count, Offset = skip, Limit = take, Items = found.Skip(skip).Take(take),
+                Users = repo.Journal.Select(e => e.User).Distinct().Order().ToList(), Kinds = JournalKinds.All,
+            };
+        }));
     }
 }

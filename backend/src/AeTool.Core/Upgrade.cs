@@ -10,17 +10,55 @@ namespace AeTool.Core;
 /// </summary>
 public static class RepositoryUpgrader
 {
-    public static Repository Read(Stream json, out bool upgraded)
+    public static Repository Read(Stream json, out bool upgraded) => Read(json, out upgraded, out _);
+
+    /// <summary><paramref name="fromVersion"/> : version trouvée dans le fichier, avant migration (sert à nommer la copie de l'original).</summary>
+    public static Repository Read(Stream json, out bool upgraded, out int fromVersion)
     {
         var root = JsonNode.Parse(json) as JsonObject ?? throw new JsonException("Le référentiel n'est pas un objet JSON.");
-        var version = root["SchemaVersion"]?.GetValue<int>() ?? 1;
+        var version = fromVersion = root["SchemaVersion"]?.GetValue<int>() ?? 1;
         upgraded = version < Repository.CurrentSchemaVersion;
         if (version < 2) MigrateToV2(root);
+        if (version < 3) MigrateToV3(root);
         return root.Deserialize<Repository>() ?? new Repository();
     }
 
     /// <summary>Indique si un métamodèle exporté est au format 1 (sans matrice de transcodification).</summary>
     public static bool IsV1Metamodel(JsonNode metamodel) => metamodel is JsonObject o && o["Transcoding"] is null;
+
+    // ------------------------------------------------------------ 2 -> 3
+
+    /// <summary>
+    /// Avant le circuit de validation, tout objet entrait en « Brouillon ». Le modèle Archi étant la référence de l'architecte,
+    /// ses objets passent à « Validé » ; ceux que la reprise du classeur d'urbanisation a créés passent à « Proposé ».
+    /// Seul l'état « Brouillon » est touché : un état déjà posé à la main n'est jamais écrasé.
+    /// </summary>
+    private static void MigrateToV3(JsonObject root)
+    {
+        var now = DateTime.UtcNow;
+        if (root["Objects"] is JsonObject all)
+            foreach (var (_, item) in all)
+            {
+                if (item is not JsonObject o || o["ValidationStatus"]?.GetValue<string>() is not (null or Validation.Draft)) continue;
+                switch (o["Source"]?.GetValue<string>())
+                {
+                    case "archi":
+                        o["ValidationStatus"] = Validation.Validated;
+                        o["ValidatedBy"] = MigrationAuthor;
+                        o["ValidatedAt"] = now;
+                        break;
+                    case "urba":
+                        o["ValidationStatus"] = Validation.Proposed;
+                        o["ProposedBy"] = MigrationAuthor;
+                        o["ProposedAt"] = now;
+                        break;
+                }
+            }
+        root["SchemaVersion"] = 3;
+    }
+
+    /// <summary>Auteur porté sur les états posés par la migration : ils ne viennent d'aucune personne.</summary>
+    public const string MigrationAuthor = "migration";
 
     // ------------------------------------------------------------ 1 -> 2
 

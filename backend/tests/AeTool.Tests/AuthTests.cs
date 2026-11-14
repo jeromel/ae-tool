@@ -535,7 +535,7 @@ public static class AuthTests
             var admin = BootstrapAdmin(server);
             var contributor = UserWithRole(server, admin, "paul", Roles.Contributor);
             Equal(HttpStatusCode.OK, contributor.Post("/api/objects", new { name = "Objet tracé", typeKey = FirstTypeKey(admin) }).StatusCode, "création");
-            var entry = Browser.Json(admin.Get("/api/journal?limit=20")).EnumerateArray().First(e => e.GetProperty("action").GetString() == "Objet créé");
+            var entry = Browser.Json(admin.Get("/api/journal?limit=20")).GetProperty("items").EnumerateArray().First(e => e.GetProperty("action").GetString() == "Objet créé");
             Equal("paul", entry.GetProperty("user").GetString(), "auteur");
         });
 
@@ -548,7 +548,7 @@ public static class AuthTests
             True(session.GetProperty("authenticated").GetBoolean(), "authentifié d'office");
             Equal("administrateur", session.GetProperty("user").GetProperty("role").GetString(), "rôle");
             Equal(HttpStatusCode.OK, browser.Post("/api/objects", new { name = "Objet ouvert", typeKey = FirstTypeKey(browser) }, csrf: false).StatusCode, "écriture sans jeton");
-            var entry = Browser.Json(browser.Get("/api/journal?limit=5")).EnumerateArray().First(e => e.GetProperty("action").GetString() == "Objet créé");
+            var entry = Browser.Json(browser.Get("/api/journal?limit=5")).GetProperty("items").EnumerateArray().First(e => e.GetProperty("action").GetString() == "Objet créé");
             Equal("anonyme", entry.GetProperty("user").GetString(), "auteur");
             Equal(HttpStatusCode.BadRequest, browser.Post("/api/users", new { login = "abc", name = "A", role = "lecteur" }).StatusCode, "pas de gestion de comptes en mode ouvert");
         });

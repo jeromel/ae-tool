@@ -404,6 +404,8 @@ public static class Reconciler
         IReadOnlyList<SourceRecord> records, ApplyRequest request, string user)
     {
         var run = new ApplyRun(repo, profile, report, records, user);
+        // Copie de l'état avant : l'historique de chaque objet touché se déduit de la comparaison à la fin.
+        var before = repo.Objects.ToDictionary(kv => kv.Key, kv => ChangeSet.Capture(kv.Value));
         run.EnsureProperties();
         foreach (var d in request.Decisions) run.Decide(d);
         if (request.AcceptProposals)
@@ -411,11 +413,24 @@ public static class Reconciler
                 run.Link(line.ExternalId, line.ObjectId);
         if (request.SyncLinked) run.Sync();
         var r = run.Result;
+        LogObjectChanges(repo, profile, before, user);
         if (r.Changed)
             repo.Log(user, "Rapprochement avec une source externe", null,
                 $"{profile.Label} ({profile.Key}) : {r.Linked} lié(s), {r.Created} créé(s), {r.Updated} mis à jour, {r.Ignored} ignoré(s), {r.Unlinked} délié(s)"
                 + (r.Messages.Count > 0 ? $", {r.Messages.Count} décision(s) refusée(s)" : ""));
         return r;
+    }
+
+    /// <summary>Une entrée de journal par objet créé ou modifié par le rapprochement, avec l'avant/après.</summary>
+    private static void LogObjectChanges(Repository repo, SourceProfile profile, Dictionary<string, ObjectState> before, string user)
+    {
+        foreach (var (id, o) in repo.Objects)
+        {
+            var existed = before.TryGetValue(id, out var old);
+            var changes = ChangeSet.Between(repo.Metamodel, old, ChangeSet.Capture(o));
+            if (changes.Count == 0) continue;
+            repo.Log(user, existed ? "Objet modifié par rapprochement" : "Objet créé par rapprochement", JournalKinds.Object, id, changes, $"{o.Name} (source {profile.Key})");
+        }
     }
 
     private sealed class ApplyRun

@@ -104,6 +104,8 @@ public sealed class MetamodelSettings
     /// <summary>Propriétés d'une relation de flux affichées sur sa pastille : protocole et chiffrement.</summary>
     public string FlowProtocolKey { get; set; } = "connect.protocol";
     public string FlowEncryptionKey { get; set; } = "security.encryption";
+    /// <summary>État des objets qui entrent par un import Archi : le modèle Archi est la référence de l'architecte, donc « Validé » par défaut.</summary>
+    public string ArchiImportStatus { get; set; } = Validation.Validated;
 }
 
 public sealed class Metamodel

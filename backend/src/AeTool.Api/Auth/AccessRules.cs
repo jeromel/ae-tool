@@ -19,6 +19,8 @@ public static class AccessRules
         if (IsUnder(p, "/api/users") || IsUnder(p, "/api/admin") || IsUnder(p, "/api/sources")) return Roles.Administrator;
         // L'export JSON contient tout l'état du référentiel, journal compris.
         if (read && p == "/api/export/json") return Roles.Administrator;
+        // Le journal dit qui a fait quoi : il se consulte à partir du rôle valideur.
+        if (read && IsUnder(p, "/api/journal")) return Roles.Validator;
         if (read) return Roles.Reader;
 
         if (IsUnder(p, "/api/objects") || IsUnder(p, "/api/relationships") || IsUnder(p, "/api/projects") || IsUnder(p, "/api/portfolio"))

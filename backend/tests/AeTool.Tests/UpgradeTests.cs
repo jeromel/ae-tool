@@ -1,7 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using AeTool.Api;
+using AeTool.Api.Storage;
 using AeTool.Core;
 using static AeTool.Tests.Harness;
 
@@ -53,7 +53,7 @@ public static class UpgradeTests
         {
             var repo = Read(V1, out var upgraded);
             True(upgraded, "la migration doit être signalée");
-            Equal(2, repo.SchemaVersion, "version");
+            Equal(Repository.CurrentSchemaVersion, repo.SchemaVersion, "version");
             Equal("application", repo.Objects["o1"].TypeKey, "type de l'application");
             Equal("ApplicationComponent", repo.Objects["o1"].ArchimateType, "concept de l'application");
             Equal("capacite", repo.Objects["o2"].TypeKey, "type de la capacité");
@@ -108,7 +108,7 @@ public static class UpgradeTests
                 var repo = new JsonFileStore(path).Load();
                 Equal("application", repo.Objects["o1"].TypeKey, "type migré");
                 Equal(V1, File.ReadAllText(Path.Combine(dir, "referentiel.avant-migration-v1.json")), "copie de l'original");
-                Equal(2, JsonNode.Parse(File.ReadAllText(path))!["SchemaVersion"]!.GetValue<int>(), "version écrite");
+                Equal(Repository.CurrentSchemaVersion, JsonNode.Parse(File.ReadAllText(path))!["SchemaVersion"]!.GetValue<int>(), "version écrite");
                 new JsonFileStore(path).Load();
                 Equal(1, Directory.GetFiles(dir, "*avant-migration*").Length, "aucune seconde copie");
             }

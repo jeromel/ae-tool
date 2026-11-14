@@ -40,7 +40,7 @@ public static class ArchimateExchange
 
         var transcoder = new Transcoder(repo.Metamodel);
         var propertyNames = ImportPropertyDefinitions(model, report, transcoder);
-        var seenObjects = ImportElements(model, repo, report, propertyNames, transcoder);
+        var seenObjects = ImportElements(model, repo, report, propertyNames, transcoder, user);
         var seenRelations = ImportRelationships(model, repo, report, propertyNames, transcoder);
         ImportFolders(model, repo, report);
         var seenDiagrams = ImportDiagrams(model, repo, report, propertyNames, transcoder);
@@ -89,7 +89,7 @@ public static class ArchimateExchange
         return names;
     }
 
-    private static HashSet<string> ImportElements(XElement model, Repository repo, ImportReport report, Dictionary<string, string> propertyNames, Transcoder transcoder)
+    private static HashSet<string> ImportElements(XElement model, Repository repo, ImportReport report, Dictionary<string, string> propertyNames, Transcoder transcoder, string user)
     {
         var seen = new HashSet<string>();
         var tally = report.For("Objets");
@@ -111,6 +111,7 @@ public static class ArchimateExchange
             if (existing is null)
             {
                 incoming.UpdatedAt = DateTime.UtcNow;
+                Validation.Enter(incoming, Validation.ArchiImportStatus(repo.Metamodel), user, incoming.UpdatedAt);
                 repo.Objects[id] = incoming;
                 tally.Added++;
                 continue;
