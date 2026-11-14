@@ -1,4 +1,5 @@
 using AeTool.Api.Endpoints;
+using AeTool.Api.Sources;
 
 namespace AeTool.Api;
 
@@ -16,6 +17,7 @@ public static class AppHost
         builder.Services.AddSingleton(paths);
         builder.Services.AddSingleton<IRepositoryStore>(new JsonFileStore(paths.RepositoryFile));
         builder.Services.AddSingleton<Workspace>();
+        builder.Services.AddSources(paths);
         builder.WebHost.ConfigureKestrel(k => k.Limits.MaxRequestBodySize = 100 * 1024 * 1024);
 
         var app = builder.Build();
@@ -33,6 +35,7 @@ public static class AppHost
         ProjectEndpoints.Map(api);
         PortfolioEndpoints.Map(api);
         ExchangeEndpoints.Map(api);
+        SourceEndpoints.Map(api);
         if (app.Environment.IsDevelopment()) AdminEndpoints.MapDevelopment(api);
 
         app.MapFallbackToFile("index.html");
