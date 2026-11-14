@@ -19,11 +19,16 @@ import { MetaStore } from './store';
           <label>Propriété du chiffrement d'un flux
             <input type="text" [value]="draft().flowEncryptionKey" (input)="set('flowEncryptionKey', $any($event.target).value)" />
             <span class="muted small">Clé de propriété qui dit si le flux est chiffré (cadenas sur les vues).</span></label>
+          <label>État des objets importés d'Archi
+            <select (change)="set('archiImportStatus', $any($event.target).value)">
+              @for (s of statuses; track s) { <option [value]="s" [selected]="draft().archiImportStatus === s">{{ s }}</option> }
+            </select>
+            <span class="muted small">« Validé » si le modèle Archi fait référence. « Proposé » pour qu'un valideur relise chaque nouvel objet importé. Ne change rien aux objets déjà présents.</span></label>
         </div>
         <div class="tools" style="margin-top: 12px">
           <button type="button" (click)="save()" [disabled]="!dirty() || !valid()">Enregistrer</button>
           @if (dirty()) { <span class="chip warn">Modifications non enregistrées</span> }
-          @if (!valid()) { <span class="chip bad">Les trois réglages sont obligatoires</span> }
+          @if (!valid()) { <span class="chip bad">Tous les réglages sont obligatoires</span> }
         </div>
       </div>
       <div class="card">
@@ -46,6 +51,7 @@ export class SettingsTab {
   private readonly api = inject(Api);
   protected readonly draft = signal<any>({ ...this.store.m().settings });
   protected readonly dirty = computed(() => JSON.stringify(this.draft()) !== JSON.stringify(this.store.m().settings));
+  protected readonly statuses = ['Brouillon', 'Proposé', 'Validé'];
   protected readonly valid = computed(() => Object.values(this.draft()).every((v) => String(v ?? '').trim() !== ''));
 
   protected set(field: string, value: string): void {

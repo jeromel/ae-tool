@@ -25,8 +25,8 @@ public static class StorageTests
         public string Journal => System.IO.Path.Combine(Path, "journal.jsonl");
         public string Backups => System.IO.Path.Combine(Path, "sauvegardes");
         public Dir() => Directory.CreateDirectory(Path);
-        public JsonFileStore Store(int keep = 40) => new(Repository, keep);
-        public Workspace Workspace(Clock clock, int keep = 40) => new(Store(keep), clock);
+        public JsonFileStore Store(int keep = 40, int daily = 30) => new(Repository, keep, daily);
+        public Workspace Workspace(Clock clock, int keep = 40, int daily = 30) => new(Store(keep, daily), clock);
         public string[] JournalLines() => File.Exists(Journal) ? File.ReadAllLines(Journal).Where(l => l.Length > 0).ToArray() : Array.Empty<string>();
         public string[] BackupNames() => Directory.Exists(Backups) ? Directory.GetFiles(Backups).Select(f => System.IO.Path.GetFileName(f)).Order().ToArray() : Array.Empty<string>();
         public void Dispose() { try { Directory.Delete(Path, recursive: true); } catch (IOException) { /* sans conséquence */ } }
@@ -234,6 +234,27 @@ public static class StorageTests
             var kept = ws.Backups();
             Equal(3, kept.Count, "conservées");
             Equal("090600,090500,090400", string.Join(",", kept.Select(b => b.At.ToString("HHmmss"))), "les trois plus récentes, la plus récente d'abord");
+        });
+
+        Test("rotation : les sauvegardes quotidiennes ont leur propre quota, une série d'opérations ne les évince pas", () =>
+        {
+            using var d = new Dir();
+            var clock = new Clock();
+            var ws = d.Workspace(clock, keep: 2, daily: 2);
+            for (var day = 0; day < 3; day++)
+            {
+                AddObject(ws, "o" + day, "Objet " + day);          // première écriture du jour : sauvegarde quotidienne
+                for (var i = 0; i < 3; i++)
+                {
+                    clock.Now = clock.Now.AddMinutes(1);
+                    ws.Backup("manuelle", "ann");
+                }
+                clock.Now = clock.Now.AddDays(1);
+            }
+            var kept = ws.Backups();
+            Equal(2, kept.Count(b => b.Reason == "auto"), "deux quotidiennes gardées malgré neuf sauvegardes manuelles");
+            Equal(2, kept.Count(b => b.Reason != "auto"), "deux manuelles gardées");
+            Equal(2, kept.Where(b => b.Reason == "auto").Select(b => b.At.Date).Distinct().Count(), "les deux derniers jours");
         });
 
         Test("restauration : l'état d'origine revient, une sauvegarde de précaution est prise, le journal n'est pas rembobiné", () =>

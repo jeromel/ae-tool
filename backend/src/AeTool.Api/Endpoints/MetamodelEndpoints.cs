@@ -328,13 +328,16 @@ public static class MetamodelEndpoints
             return Results.Ok(grid);
         }));
 
-        api.MapPut("/metamodel/settings", (Workspace ws, MetamodelSettings settings, HttpRequest req) => ws.Write(repo =>
-        {
-            repo.Metamodel.Settings = settings;
-            new Analyzer(repo).RefreshDeducedImpacts();
-            repo.Log(User(req), "Métamodèle : réglages modifiés");
-            return settings;
-        }));
+        api.MapPut("/metamodel/settings", (Workspace ws, MetamodelSettings settings, HttpRequest req) =>
+            !Validation.IsStatus(settings.ArchiImportStatus)
+                ? Results.BadRequest(new { error = "L'état des objets importés d'Archi doit être Brouillon, Proposé ou Validé." })
+                : Results.Ok(ws.Write(repo =>
+                {
+                    repo.Metamodel.Settings = settings;
+                    new Analyzer(repo).RefreshDeducedImpacts();
+                    repo.Log(User(req), "Métamodèle : réglages modifiés");
+                    return settings;
+                })));
 
         api.MapGet("/metamodel/export", (Workspace ws) => ws.Read((repo, _) =>
             Results.File(JsonSerializer.SerializeToUtf8Bytes(repo.Metamodel, new JsonSerializerOptions { WriteIndented = true }),

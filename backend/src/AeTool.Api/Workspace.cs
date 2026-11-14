@@ -31,7 +31,7 @@ public sealed class DataPaths
 /// <summary>Motifs des sauvegardes d'avant opération risquée (ils font le nom du fichier).</summary>
 public static class BackupReasons
 {
-    public const string Daily = "auto";
+    public const string Daily = BackupStore.DailyReason;
     public const string Manual = "manuelle";
     public const string ArchiImport = "import-archi";
     public const string UrbaImport = "import-urbanisation";

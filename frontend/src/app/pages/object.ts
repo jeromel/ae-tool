@@ -5,7 +5,7 @@ import { Session } from '../session';
 import { ObjectForm } from './object-form';
 import { ObjectRelations } from './object-relations';
 import { ObjectValidation } from '../object-validation';
-import { ObjectHistory } from '../object-history';
+import { HistoryRefresh, ObjectHistory } from '../object-history';
 
 /** Fiche d'un objet : propriétés, relations, vues, projets, analyse d'impact et visuel propre à l'élément. */
 @Component({
@@ -92,7 +92,7 @@ import { ObjectHistory } from '../object-history';
       </div>
       @if (meta(); as m) {
         <app-object-relations [objectId]="d.brief.id" [objectName]="d.brief.name" [objectTypeKey]="d.brief.typeKey" [archived]="d.object.archived"
-          [outgoing]="d.outgoing" [incoming]="d.incoming" [meta]="m" (changed)="load()" />
+          [outgoing]="d.outgoing" [incoming]="d.incoming" [meta]="m" (changed)="changed()" />
       }
       <app-object-history [objectId]="d.brief.id" />
       <div class="card">
@@ -134,6 +134,7 @@ export class ObjectPage {
   private api = inject(Api);
   private router = inject(Router);
   private session = inject(Session);
+  private changes = inject(HistoryRefresh);
   id = input.required<string>();
   d = signal<any>(null);
   meta = signal<any>(null);
@@ -159,6 +160,12 @@ export class ObjectPage {
   saved(): void {
     this.editing.set(false);
     this.say('Modifications enregistrées.');
+    this.changed();
+  }
+
+  /** Après une écriture faite depuis la fiche : elle se relit, et prévient le bandeau de validation et l'historique. */
+  changed(): void {
+    this.changes.bump();
     this.load();
   }
 
@@ -193,11 +200,11 @@ export class ObjectPage {
   async setVisual(change: Record<string, string>): Promise<void> {
     const current = this.d().object.visualOverride ?? {};
     await this.api.put(`/objects/${this.id()}`, { visualOverride: { ...current, ...change } });
-    this.load();
+    this.changed();
   }
 
   async resetVisual(): Promise<void> {
     await this.api.put(`/objects/${this.id()}`, { clearVisualOverride: true });
-    this.load();
+    this.changed();
   }
 }

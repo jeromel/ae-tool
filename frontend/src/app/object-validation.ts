@@ -93,8 +93,11 @@ export class ObjectValidation {
   comment = signal('');
 
   constructor() {
+    // Relu au changement d'objet, et quand la fiche signale une modification : un objet validé que l'on modifie
+    // sur le fond repasse à « proposé », le bandeau doit le montrer sans recharger la page.
     effect(() => {
       this.objectId();
+      this.history.tick();
       untracked(() => this.load());
     });
   }
@@ -136,7 +139,7 @@ export class ObjectValidation {
     this.error.set('');
     try {
       await this.api.post(path, body);
-      await this.load();
+      // Le signal partagé fait relire ce bandeau et l'historique ; la fiche, prévenue, relit le reste.
       this.history.bump();
       this.changed.emit();
     } catch (e) {

@@ -16,15 +16,20 @@ public sealed class BackupStore
 {
     public const string FolderName = "sauvegardes";
     public const int DefaultToKeep = 40;
+    public const int DefaultDailyToKeep = 30;
+    /// <summary>Motif de la sauvegarde automatique prise à la première écriture de chaque jour.</summary>
+    public const string DailyReason = "auto";
     private static readonly Regex NamePattern = new(@"^referentiel-(\d{8})-(\d{6})-([a-z0-9-]+)\.json\.gz$", RegexOptions.Compiled);
 
     private readonly string _folder;
     private readonly int _toKeep;
+    private readonly int _dailyToKeep;
 
-    public BackupStore(string folder, int toKeep)
+    public BackupStore(string folder, int toKeep, int dailyToKeep = DefaultDailyToKeep)
     {
         _folder = folder;
         _toKeep = toKeep > 0 ? toKeep : DefaultToKeep;
+        _dailyToKeep = dailyToKeep > 0 ? dailyToKeep : DefaultDailyToKeep;
     }
 
     public BackupInfo Create(Repository repository, string reason, DateTime now)
@@ -75,10 +80,18 @@ public sealed class BackupStore
         return new BackupInfo(name, m.Groups[3].Value, at, new FileInfo(path).Length);
     }
 
-    /// <summary>Conserve les plus récentes, supprime les autres. Ce sont des copies : la règle de non-suppression porte sur les données métier.</summary>
+    /// <summary>
+    /// Conserve les plus récentes, supprime les autres, avec deux quotas distincts : les sauvegardes quotidiennes d'une part,
+    /// celles d'avant opération et manuelles d'autre part. Une série d'imports ne peut donc pas évincer l'historique quotidien.
+    /// Ce sont des copies : la règle de non-suppression porte sur les données métier.
+    /// </summary>
     private void Rotate()
     {
-        foreach (var old in List().Skip(_toKeep))
-            File.Delete(Path.Combine(_folder, old.Name));
+        var all = List();
+        var expired = all.Where(IsDaily).Skip(_dailyToKeep).Concat(all.Where(b => !IsDaily(b)).Skip(_toKeep));
+        foreach (var old in expired) File.Delete(Path.Combine(_folder, old.Name));
     }
+
+    /// <summary>Deux sauvegardes quotidiennes de la même seconde portent un numéro à la suite du motif (« auto-2 »).</summary>
+    private static bool IsDaily(BackupInfo b) => b.Reason == DailyReason || b.Reason.StartsWith(DailyReason + "-", StringComparison.Ordinal);
 }

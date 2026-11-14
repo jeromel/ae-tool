@@ -18,7 +18,8 @@ public static class AppHost
         var paths = new DataPaths(dataPath);
         builder.Services.AddSingleton(paths);
         builder.Services.AddSingleton<IRepositoryStore>(new JsonFileStore(paths.RepositoryFile,
-            builder.Configuration.GetValue("Storage:BackupsToKeep", BackupStore.DefaultToKeep)));
+            builder.Configuration.GetValue("Storage:BackupsToKeep", BackupStore.DefaultToKeep),
+            builder.Configuration.GetValue("Storage:DailyBackupsToKeep", BackupStore.DefaultDailyToKeep)));
         builder.Services.AddSingleton<Workspace>();
         builder.Services.AddKeyStorage(paths);
         builder.AddAeAuthentication(paths);

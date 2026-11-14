@@ -18,6 +18,10 @@ import { Session } from '../session';
           <option value="">Tous les types</option>
           @for (t of types(); track t.key) { <option [value]="t.key" [selected]="type() === t.key">{{ t.label }}</option> }
         </select>
+        <select aria-label="État de validation" (change)="status.set($any($event.target).value); load()">
+          <option value="">Tous les états</option>
+          @for (s of statuses; track s) { <option [value]="s" [selected]="status() === s">{{ s }}</option> }
+        </select>
         <input type="search" placeholder="Nom ou valeur de propriété" [value]="q()" (input)="q.set($any($event.target).value); load()" />
         <span class="muted">{{ total() }} objet(s)@if (total() > items().length) {, {{ items().length }} affichés}</span>
         <span class="right tools-right">
@@ -31,7 +35,7 @@ import { Session } from '../session';
           @for (o of items(); track o.id) {
             <tr class="click" (click)="open(o.id)">
               <td><span class="swatch" [style.background]="fills()[o.typeKey]"></span><a [routerLink]="['/objets', o.id]">{{ o.name || '(sans nom)' }}</a></td>
-              <td>{{ o.typeLabel }}</td><td>{{ o.layerLabel }}</td><td>{{ sources[o.source] ?? o.source }}</td><td><span class="chip" [class.ok]="o.status === 'Validé'">{{ o.status }}</span></td>
+              <td>{{ o.typeLabel }}</td><td>{{ o.layerLabel }}</td><td>{{ sources[o.source] ?? o.source }}</td><td><span class="chip" [class.ok]="o.status === 'Validé'" [class.warn]="o.status === 'Proposé'">{{ o.status }}</span></td>
             </tr>
           }
         </table>
@@ -47,10 +51,14 @@ export class ObjectsPage {
   couche = input<string>();
   /** Texte cherché, transmis par la recherche du menu. */
   rechercheInitiale = input<string>(undefined, { alias: 'q' });
+  /** État de validation demandé par l'adresse (« ?etat=Proposé »), pour un lien direct vers ce qui attend. */
+  etat = input<string>();
   meta = signal<any>(null);
   layer = signal('');
   type = signal('');
   q = signal('');
+  status = signal('');
+  statuses = ['Brouillon', 'Proposé', 'Validé'];
   items = signal<Brief[]>([]);
   total = signal(0);
   sources = SOURCE_LABELS;
@@ -64,6 +72,7 @@ export class ObjectsPage {
     effect(() => {
       this.layer.set(this.couche() ?? '');
       this.q.set(this.rechercheInitiale() ?? '');
+      this.status.set(this.etat() ?? '');
       this.load();
     });
   }
@@ -80,7 +89,7 @@ export class ObjectsPage {
   }
 
   load(): void {
-    const p = new URLSearchParams({ layer: this.layer(), type: this.type(), q: this.q() });
+    const p = new URLSearchParams({ layer: this.layer(), type: this.type(), q: this.q(), status: this.status() });
     this.api.get(`/objects?${p}`).then((d) => {
       this.items.set(d.items);
       this.total.set(d.total);

@@ -51,7 +51,10 @@ export class FieldChanges {
   changes = input.required<FieldChange[]>();
 }
 
-/** Signal partagé : la bannière de validation le déclenche pour que l'historique se relise après une transition. */
+/**
+ * Signal partagé de la fiche d'objet : « l'objet vient de changer ». Déclenché après une transition de validation ou un
+ * enregistrement ; le bandeau de validation et l'historique se relisent alors.
+ */
 @Injectable({ providedIn: 'root' })
 export class HistoryRefresh {
   readonly tick = signal(0);
@@ -111,7 +114,7 @@ export class ObjectHistory {
   limit = signal(PAGE);
 
   constructor() {
-    // Relue quand on change d'objet, ou quand une transition de validation vient d'avoir lieu.
+    // Relue quand on change d'objet, ou quand l'objet vient d'être modifié.
     effect(() => {
       this.objectId();
       this.refresh.tick();

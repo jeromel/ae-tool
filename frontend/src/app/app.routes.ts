@@ -4,27 +4,17 @@ import { Role, Session } from './session';
 import { LoginPage } from './pages/login';
 import { SetupPage } from './pages/setup';
 import { AccountPage } from './pages/account';
-import { UsersPage } from './pages/users';
 import { HomePage } from './pages/home';
 import { PortfolioPage } from './pages/portfolio';
-import { AssessmentPage } from './pages/assessment';
 import { ObjectsPage } from './pages/objects';
 import { ObjectPage } from './pages/object';
 import { ViewsPage } from './pages/views';
 import { ProjectsPage } from './pages/projects';
 import { ProjectPage } from './pages/project';
-import { MatrixPage } from './pages/matrix';
-import { MetamodelPage } from './pages/metamodel';
-import { ImportsPage } from './pages/imports';
 import { CapabilitiesPage } from './pages/capabilities';
 import { ListSpacePage } from './pages/list-space';
 import { ImpactPage } from './pages/impact';
 import { QualityPage } from './pages/quality';
-import { ObjectNewPage } from './pages/object-new';
-import { ValidationPage } from './pages/validation';
-import { JournalPage } from './pages/journal';
-import { BackupsPage } from './pages/backups';
-import { SourcesPage } from './pages/sources';
 import { APPLICATIONS, DATA, FLOWS, INFRASTRUCTURE } from './spaces.config';
 
 /** Toute route exige une session ; sinon connexion, ou premier lancement tant qu'aucun compte n'existe. */
@@ -57,6 +47,10 @@ const guest = (page: 'connexion' | 'premier-lancement'): CanActivateFn => () => 
   return true;
 };
 
+/**
+ * Les espaces de lecture sont chargés d'emblée. Les pages d'administration et de saisie, moins fréquentées, ne le sont
+ * qu'à leur première ouverture : le premier affichage reste rapide quand l'outil grossit.
+ */
 const protectedRoutes: Routes = [
   { path: '', component: HomePage },
   // Comprendre : un espace par couche du système d'information.
@@ -67,30 +61,30 @@ const protectedRoutes: Routes = [
   { path: 'infrastructure', component: ListSpacePage, data: { config: INFRASTRUCTURE } },
   // Décider.
   { path: 'portefeuille', component: PortfolioPage },
-  { path: 'portefeuille/:id', component: AssessmentPage },
+  { path: 'portefeuille/:id', loadComponent: () => import('./pages/assessment').then((m) => m.AssessmentPage) },
   { path: 'projets', component: ProjectsPage },
   { path: 'projets/:id', component: ProjectPage },
   { path: 'impact', component: ImpactPage },
   // Tenir à jour.
   { path: 'qualite', component: QualityPage },
-  { path: 'validations', component: ValidationPage, canActivate: [requires('valideur')] },
+  { path: 'validations', loadComponent: () => import('./pages/validation').then((m) => m.ValidationPage), canActivate: [requires('valideur')] },
   { path: 'vues', component: ViewsPage },
   { path: 'vues/:id', component: ViewsPage },
-  { path: 'imports', component: ImportsPage, canActivate: [requires('administrateur')] },
-  { path: 'sources', component: SourcesPage, canActivate: [requires('administrateur')] },
-  { path: 'sources/:key', component: SourcesPage, canActivate: [requires('administrateur')] },
+  { path: 'imports', loadComponent: () => import('./pages/imports').then((m) => m.ImportsPage), canActivate: [requires('administrateur')] },
+  { path: 'sources', loadComponent: () => import('./pages/sources').then((m) => m.SourcesPage), canActivate: [requires('administrateur')] },
+  { path: 'sources/:key', loadComponent: () => import('./pages/sources').then((m) => m.SourcesPage), canActivate: [requires('administrateur')] },
   // Administrer.
-  { path: 'metamodele', component: MetamodelPage, canActivate: [requires('administrateur')] },
-  { path: 'metamodele/:onglet', component: MetamodelPage, canActivate: [requires('administrateur')] },
-  { path: 'utilisateurs', component: UsersPage, canActivate: [requires('administrateur')] },
-  { path: 'journal', component: JournalPage, canActivate: [requires('valideur')] },
-  { path: 'sauvegardes', component: BackupsPage, canActivate: [requires('administrateur')] },
+  { path: 'metamodele', loadComponent: () => import('./pages/metamodel').then((m) => m.MetamodelPage), canActivate: [requires('administrateur')] },
+  { path: 'metamodele/:onglet', loadComponent: () => import('./pages/metamodel').then((m) => m.MetamodelPage), canActivate: [requires('administrateur')] },
+  { path: 'utilisateurs', loadComponent: () => import('./pages/users').then((m) => m.UsersPage), canActivate: [requires('administrateur')] },
+  { path: 'journal', loadComponent: () => import('./pages/journal').then((m) => m.JournalPage), canActivate: [requires('valideur')] },
+  { path: 'sauvegardes', loadComponent: () => import('./pages/backups').then((m) => m.BackupsPage), canActivate: [requires('administrateur')] },
   { path: 'compte', component: AccountPage },
   // Hors menu : atteints par la recherche, par une fiche ou par un lien.
   { path: 'referentiel', component: ObjectsPage },
-  { path: 'objets/nouveau', component: ObjectNewPage, canActivate: [requires('contributeur')] },
+  { path: 'objets/nouveau', loadComponent: () => import('./pages/object-new').then((m) => m.ObjectNewPage), canActivate: [requires('contributeur')] },
   { path: 'objets/:id', component: ObjectPage },
-  { path: 'matrices', component: MatrixPage },
+  { path: 'matrices', loadComponent: () => import('./pages/matrix').then((m) => m.MatrixPage) },
   { path: '**', redirectTo: '' },
 ];
 

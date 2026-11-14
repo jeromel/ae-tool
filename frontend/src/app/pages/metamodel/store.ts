@@ -1,5 +1,5 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { Api } from '../../api';
+import { Api, ApiError } from '../../api';
 
 export interface Usage {
   objectTypes: Record<string, number>;
@@ -10,6 +10,12 @@ export interface Usage {
 /** Retire les accents et la casse : sert à la recherche et à la dérivation d'une clé de couche. */
 export function plain(text: string): string {
   return text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+}
+
+/** Message d'une erreur du serveur, suivi de son détail quand il en donne (règles de la matrice en défaut, par exemple). */
+function detailed(e: unknown): string {
+  const problems = e instanceof ApiError ? e.problems : [];
+  return [(e as Error).message, ...problems].join(' ');
 }
 
 /**
@@ -47,7 +53,7 @@ export class MetaStore {
       this.usage.set(usage);
       this.version.update((v) => v + 1);
     } catch (e) {
-      this.error.set((e as Error).message);
+      this.error.set(detailed(e));
     }
   }
 
@@ -63,28 +69,14 @@ export class MetaStore {
       this.flash();
       return true;
     } catch (e) {
-      this.error.set((e as Error).message);
+      this.error.set(detailed(e));
       return false;
     }
   }
 
-  /**
-   * Suppression (DELETE). Le service `Api` n'a pas de méthode pour cela et n'est pas dans le périmètre du lot :
-   * même contrat que lui (jeton CSRF, message du serveur, session expirée), à reprendre dans `Api` à l'intégration.
-   */
-  async remove(path: string): Promise<void> {
-    const headers: Record<string, string> = {};
-    if (this.api.csrfToken) headers['X-CSRF-TOKEN'] = this.api.csrfToken;
-    const response = await fetch(this.api.url(path), { method: 'DELETE', headers });
-    if (response.ok) return;
-    let message = response.status === 403 ? 'Votre rôle ne permet pas cette action.' : `Erreur ${response.status}`;
-    try {
-      message = (await response.json()).error ?? message;
-    } catch {
-      /* réponse sans corps JSON */
-    }
-    if (response.status === 401) this.api.onUnauthorized?.();
-    throw new Error(message);
+  /** Suppression par l'API ; le refus du serveur (409 si l'élément est utilisé) arrive sous forme d'erreur. */
+  remove(path: string): Promise<void> {
+    return this.api.delete<void>(path);
   }
 
   flash(): void {

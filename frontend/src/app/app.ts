@@ -67,7 +67,7 @@ import { readPref, writePref } from './prefs';
             }
           </div>
         }
-        <div class="foot">Prototype lot 1</div>
+        <div class="foot">@if (version()) { Version {{ version() }} }</div>
       }
     </nav>
     }
@@ -83,6 +83,8 @@ export class App {
   session = inject(Session);
   /** Objets proposés et en attente de validation, affichés à côté de « Validations ». Relu à chaque navigation. */
   toValidate = signal(0);
+  /** Version livrée, lue auprès du serveur : utile au support (« quelle version avez-vous ? »). */
+  version = signal('');
   /** Menu replié : la place gagnée va aux vues et aux tableaux. */
   closed = signal(readPref('menu.replie', false));
 
@@ -95,10 +97,12 @@ export class App {
     this.router.events.subscribe((e) => {
       if (e instanceof NavigationEnd) this.refreshCount();
     });
+    this.api.get('/health').then((h) => this.version.set(h.version)).catch(() => undefined);
   }
 
   private async refreshCount(): Promise<void> {
-    if (!this.session.can('valideur')) return;
+    // Tant que le mot de passe temporaire n'est pas changé, le serveur refuse tout sauf la page du compte.
+    if (!this.session.can('valideur') || this.session.user()?.mustChangePassword) return;
     try {
       this.toValidate.set((await this.api.get('/summary')).toValidate ?? 0);
     } catch {

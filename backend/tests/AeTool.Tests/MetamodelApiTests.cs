@@ -42,6 +42,18 @@ public static class MetamodelApiTests
             var usage = server.GetJson("/api/metamodel/usage");
             True(usage.GetProperty("objectTypes").ValueKind == JsonValueKind.Object, "usage");
         });
+        Test("réglages : l'état des objets importés d'Archi est contrôlé, puis appliqué aux nouveaux objets seulement", () =>
+        {
+            using var server = new ApiTests.Server();
+            var settings = JsonNode.Parse(server.GetJson("/api/metamodel").GetProperty("settings").GetRawText())!.AsObject();
+            Equal("Validé", settings["archiImportStatus"]!.GetValue<string>(), "état par défaut");
+            settings["archiImportStatus"] = "Approuvé";
+            Equal(HttpStatusCode.BadRequest, Send(server, HttpMethod.Put, "/api/metamodel/settings", settings).Status, "état inconnu refusé");
+            settings["archiImportStatus"] = "Proposé";
+            Equal(HttpStatusCode.OK, Send(server, HttpMethod.Put, "/api/metamodel/settings", settings).Status, "état accepté");
+            server.Client.PostAsync("/api/import/archimate", new StringContent(Fixtures.Model())).GetAwaiter().GetResult().EnsureSuccessStatusCode();
+            Equal("Proposé", server.GetJson("/api/objects/id-srv").GetProperty("object").GetProperty("validationStatus").GetString(), "objet importé à relire");
+        });
         Test("suppression d'un type utilisé : refusée avec l'effectif, puis fusion qui redirige objets, règles, couples et propriétés", () =>
         {
             using var server = Loaded();

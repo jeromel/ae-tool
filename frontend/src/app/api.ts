@@ -55,7 +55,9 @@ export class Api {
       try {
         const body = await response.json();
         message = body.error ?? message;
-        problems = Array.isArray(body.problems) ? body.problems : [];
+        // Deux noms selon les routes : « problems » (valeurs de propriétés) et « errors » (matrice de transcodification).
+        const details = body.problems ?? body.errors;
+        problems = Array.isArray(details) ? details : [];
       } catch {
         /* réponse sans corps JSON */
       }

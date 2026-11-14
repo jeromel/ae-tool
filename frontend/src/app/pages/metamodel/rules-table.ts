@@ -36,7 +36,7 @@ import { RuleKind, TranscodingDraft } from './transcoding-draft';
           </tr>
           @for (g of groups(); track g.type.key) {
             <tr class="typehead">
-              <td colspan="5"><b>{{ g.type.label }}</b>&ensp;<span class="muted small">{{ g.type.key }} · {{ count(g.type.key) }} {{ kind() === 'elements' ? 'objet(s)' : 'relation(s)' }}</span></td>
+              <td colspan="5"><b>{{ g.type.label }}</b><span class="muted small" style="margin-left: 8px">{{ g.type.key }} · {{ count(g.type.key) }} {{ kind() === 'elements' ? 'objet(s)' : 'relation(s)' }}</span></td>
               <td class="actions"><button type="button" class="ghost" (click)="draft.add(kind(), g.type.key)" [attr.aria-label]="'Ajouter une règle pour ' + g.type.label">Ajouter une règle</button></td>
             </tr>
             @for (x of g.rules; track x.i) {

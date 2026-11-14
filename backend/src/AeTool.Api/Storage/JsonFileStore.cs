@@ -42,12 +42,12 @@ public sealed class JsonFileStore : IRepositoryStore
     // Vrai tant que le fichier du journal ne contient pas tout ce qui est en mémoire (ancien référentiel qui portait son journal).
     private bool _journalNeedsRewrite;
 
-    public JsonFileStore(string path, int backupsToKeep = BackupStore.DefaultToKeep)
+    public JsonFileStore(string path, int backupsToKeep = BackupStore.DefaultToKeep, int dailyBackupsToKeep = BackupStore.DefaultDailyToKeep)
     {
         _path = Path.GetFullPath(path);
         var dir = Path.GetDirectoryName(_path)!;
         _journal = new JournalFile(Path.Combine(dir, JournalFile.FileName));
-        _backups = new BackupStore(Path.Combine(dir, BackupStore.FolderName), backupsToKeep);
+        _backups = new BackupStore(Path.Combine(dir, BackupStore.FolderName), backupsToKeep, dailyBackupsToKeep);
     }
 
     public Repository Load()
