@@ -7,6 +7,9 @@ export DOTNET_CLI_TELEMETRY_OPTOUT=1 DOTNET_NOLOGO=1
 rm -rf backend/src/AeTool.Api/wwwroot
 mkdir -p backend/src/AeTool.Api/wwwroot
 cp -r frontend/dist/frontend/browser/. backend/src/AeTool.Api/wwwroot/
+# Témoin de version : lancer.sh reconstruit l'interface quand il ne correspond plus à la version du code.
+version="$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' backend/Directory.Build.props)"
+printf '%s\n' "$version" > backend/src/AeTool.Api/wwwroot/version.txt
 # Le cadre cible suit le SDK retenu (voir backend/Cadre.props) : SDK 8 donne net8.0, SDK 10 donne net10.0, etc.
 sdk="$(dotnet --version)"
 echo "SDK .NET utilisé : $sdk"

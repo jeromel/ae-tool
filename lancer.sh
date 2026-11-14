@@ -15,7 +15,10 @@ if [ ! -f "$fichier" ]; then
   if [ -n "$ancien" ]; then cp "$ancien" "$fichier"; echo "Données reprises de $ancien"; fi
 fi
 
-if [ "${CONSTRUIRE:-0}" = "1" ] || [ ! -f "$root/backend/src/AeTool.Api/wwwroot/index.html" ]; then "$root/build.sh"; fi
+# L'interface compilée porte un témoin de version : absente ou d'une autre version que le code, elle est reconstruite.
+version="$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' "$root/backend/Directory.Build.props")"
+temoin="$root/backend/src/AeTool.Api/wwwroot/version.txt"
+if [ "${CONSTRUIRE:-0}" = "1" ] || [ ! -f "$temoin" ] || [ "$(cat "$temoin")" != "$version" ]; then "$root/build.sh"; fi
 
 echo "Données : $donnees"
 echo "Adresse : http://localhost:$port  (Ctrl+C pour arrêter)"

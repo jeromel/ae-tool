@@ -1,4 +1,4 @@
-# Construction complète sous Windows : interface, API, tests.
+﻿# Construction complète sous Windows : interface, API, tests.
 # Prérequis : un SDK .NET (8 ou plus récent ; 10 recommandé) et Node.js 22.22.3 ou plus récent (voir README).
 $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
@@ -13,6 +13,9 @@ Pop-Location
 $www = "$root\backend\src\AeTool.Api\wwwroot"
 if (Test-Path $www) { Remove-Item $www -Recurse -Force }
 Copy-Item "$root\frontend\dist\frontend\browser" $www -Recurse
+# Témoin de version : lancer.ps1 reconstruit l'interface quand il ne correspond plus à la version du code.
+$version = [regex]::Match((Get-Content "$root\backend\Directory.Build.props" -Raw), '<Version>([^<]+)</Version>').Groups[1].Value
+Set-Content -Path "$www\version.txt" -Value $version -Encoding ascii
 
 Push-Location "$root\backend"
 # Le cadre cible suit le SDK retenu (voir backend\Cadre.props) : SDK 8 donne net8.0, SDK 10 donne net10.0, etc.
@@ -28,4 +31,4 @@ dotnet run --project tests\AeTool.Tests
 if ($LASTEXITCODE) { throw "des tests échouent" }
 Pop-Location
 
-Write-Host "Construction terminée. Lancer : dotnet run --project backend\src\AeTool.Api"
+Write-Host "Construction terminée (version $version). Lancer : .\lancer.ps1"

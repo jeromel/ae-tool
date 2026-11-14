@@ -1,6 +1,6 @@
-# Lance l'outil sur ce poste. Les données sont rangées dans le dossier « donnees », à côté du code,
+﻿# Lance l'outil sur ce poste. Les données sont rangées dans le dossier « donnees », à côté du code,
 # et non dans le dossier de compilation : un nettoyage ou une recompilation ne les efface pas.
-# Usage : .\lancer.ps1            (construit si nécessaire, puis lance sur http://localhost:5080)
+# Usage : .\lancer.ps1              (construit si nécessaire, puis lance sur http://localhost:5080)
 #         .\lancer.ps1 -Construire  (force une construction complète avant de lancer)
 #         .\lancer.ps1 -Port 5090
 param([int]$Port = 5080, [switch]$Construire)
@@ -21,8 +21,11 @@ if (-not (Test-Path $fichier)) {
     }
 }
 
-$www = "$root\backend\src\AeTool.Api\wwwroot\index.html"
-if ($Construire -or -not (Test-Path $www)) { & "$root\build.ps1" }
+# L'interface compilée porte un témoin de version : absente ou d'une autre version que le code, elle est reconstruite.
+$version = [regex]::Match((Get-Content "$root\backend\Directory.Build.props" -Raw), '<Version>([^<]+)</Version>').Groups[1].Value
+$temoin = "$root\backend\src\AeTool.Api\wwwroot\version.txt"
+$aJour = (Test-Path $temoin) -and ("$(Get-Content $temoin -Raw)".Trim() -eq $version)
+if ($Construire -or -not $aJour) { & "$root\build.ps1" }
 
 Write-Host "Données : $donnees"
 Write-Host "Adresse : http://localhost:$Port  (Ctrl+C pour arrêter)"

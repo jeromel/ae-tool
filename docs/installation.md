@@ -27,6 +27,7 @@ script font foi. Pour forcer le SDK 8 s'il est installé : dans `global.json`, r
 ./lancer.sh           # Linux, macOS, Git Bash
 ```
 
+Le script reconstruit l'outil de lui-même quand la version du code change (`-Construire` pour le forcer).
 Les données vont dans le dossier `donnees`, à côté du code, jamais dans le dossier de compilation. Si une version
 antérieure avait rangé un référentiel dans le dossier de compilation, il est repris automatiquement au premier lancement.
 L'ancien format est migré à la première lecture ; l'original est conservé à côté (`referentiel.avant-migration-v1.json`).
@@ -85,6 +86,9 @@ WantedBy=multi-user.target
 Le mandataire (nginx, Apache, HAProxy) porte HTTPS et transmet à `127.0.0.1:5080` avec les en-têtes `X-Forwarded-For` et
 `X-Forwarded-Proto`. **Déclarer son adresse dans `AETOOL_Proxy__Trusted__0`** : sans cela l'outil ignore ces en-têtes,
 ne sait pas que la connexion d'origine est chiffrée, et le cookie de session n'est pas marqué « Secure ».
+
+Sous Linux, l'avertissement de démarrage « No XML encryptor configured » est attendu : les clés de l'application ne sont
+pas chiffrées par le système comme sous Windows, elles sont protégées par les droits du dossier de données.
 
 ## Réglages
 
