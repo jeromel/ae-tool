@@ -4,11 +4,10 @@ namespace AeTool.Api;
 public static class Http
 {
     /// <summary>
-    /// Identité de l'auteur de la requête, portée au journal. Tant que l'authentification n'est pas branchée,
-    /// elle vient de l'en-tête X-User ; c'est le seul endroit à modifier quand elle le sera.
+    /// Identifiant de l'utilisateur authentifié, porté au journal. En mode ouvert (développement), c'est « anonyme ».
     /// </summary>
     public static string User(HttpRequest request) =>
-        request.Headers.TryGetValue("X-User", out var u) && !string.IsNullOrWhiteSpace(u) ? u.ToString() : "anonyme";
+        request.HttpContext.User.Identity is { IsAuthenticated: true, Name: { Length: > 0 } name } ? name : "anonyme";
 
     public static async Task<MemoryStream> Body(HttpRequest request)
     {

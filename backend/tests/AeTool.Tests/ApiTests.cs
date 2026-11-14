@@ -16,19 +16,34 @@ public static class ApiTests
     public sealed class Server : IDisposable
     {
         private readonly WebApplication _app;
+        private readonly List<HttpClient> _clients = new();
         public HttpClient Client { get; }
         public string DataDirectory { get; }
+        public Uri BaseAddress { get; }
 
+        /// <summary>
+        /// Par défaut : environnement Development et mode ouvert (aucune connexion), pour les tests qui ne portent pas sur les comptes.
+        /// Les paramètres supplémentaires s'appliquent après et l'emportent, par exemple <c>--Auth:Mode=local</c>.
+        /// </summary>
         public Server(params string[] extraArgs)
         {
             DataDirectory = Path.Combine(Path.GetTempPath(), "ae-tests-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(DataDirectory);
             var args = new List<string> { "--urls", "http://127.0.0.1:0", "--DataPath", Path.Combine(DataDirectory, "referentiel.json"),
-                "--Logging:LogLevel:Default", "Error" };
+                "--Logging:LogLevel:Default", "Error", "--environment", "Development", "--Auth:Mode=ouvert" };
             args.AddRange(extraArgs);
             _app = AppHost.Build(args.ToArray());
             _app.StartAsync().GetAwaiter().GetResult();
-            Client = new HttpClient { BaseAddress = new Uri(_app.Urls.First()) };
+            BaseAddress = new Uri(_app.Urls.First());
+            Client = NewClient();
+        }
+
+        /// <summary>Nouveau client HTTP qui garde ses cookies, comme un navigateur. Plusieurs clients = plusieurs utilisateurs simultanés.</summary>
+        public HttpClient NewClient(bool followRedirects = true)
+        {
+            var client = new HttpClient(new HttpClientHandler { UseCookies = true, AllowAutoRedirect = followRedirects }) { BaseAddress = BaseAddress };
+            _clients.Add(client);
+            return client;
         }
 
         public JsonElement GetJson(string path)
@@ -40,7 +55,7 @@ public static class ApiTests
 
         public void Dispose()
         {
-            Client.Dispose();
+            foreach (var client in _clients) client.Dispose();
             _app.StopAsync().GetAwaiter().GetResult();
             _app.DisposeAsync().AsTask().GetAwaiter().GetResult();
             try { Directory.Delete(DataDirectory, recursive: true); } catch (IOException) { /* fichier encore tenu : sans conséquence pour le test */ }

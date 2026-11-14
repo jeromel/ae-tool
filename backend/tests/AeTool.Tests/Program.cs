@@ -11,6 +11,8 @@ ImportTests.Run();
 ExportTests.Run();
 AnalysisTests.Run();
 UrbaTests.Run();
+AccessRulesTests.Run();
+AuthTests.Run();
 ApiTests.Run();
 RealFileTests.Run(args);
 return Harness.Finish();

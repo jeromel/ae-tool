@@ -1,3 +1,4 @@
+using AeTool.Api.Auth;
 using AeTool.Api.Endpoints;
 
 namespace AeTool.Api;
@@ -16,14 +17,19 @@ public static class AppHost
         builder.Services.AddSingleton(paths);
         builder.Services.AddSingleton<IRepositoryStore>(new JsonFileStore(paths.RepositoryFile));
         builder.Services.AddSingleton<Workspace>();
+        builder.AddAeAuthentication(paths);
         builder.WebHost.ConfigureKestrel(k => k.Limits.MaxRequestBodySize = 100 * 1024 * 1024);
 
         var app = builder.Build();
+        // Avant les fichiers statiques : les en-têtes de sécurité couvrent aussi l'interface ; les habilitations ne visent que /api.
+        app.UseAeAuthentication();
         app.UseDefaultFiles();
         app.UseStaticFiles();
 
         // Tout ce que fait l'interface passe par les routes de /api, regroupées par domaine dans Endpoints/.
         var api = app.MapGroup("/api");
+        AuthEndpoints.Map(api);
+        UserEndpoints.Map(api);
         SummaryEndpoints.Map(api);
         MetamodelEndpoints.Map(api);
         ObjectEndpoints.Map(api);
