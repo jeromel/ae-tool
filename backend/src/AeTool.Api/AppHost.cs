@@ -40,6 +40,7 @@ public static class AppHost
         SummaryEndpoints.Map(api);
         MetamodelEndpoints.Map(api);
         ObjectEndpoints.Map(api);
+        EditingEndpoints.Map(api);
         ViewEndpoints.Map(api);
         AnalysisEndpoints.Map(api);
         SpaceEndpoints.Map(api);

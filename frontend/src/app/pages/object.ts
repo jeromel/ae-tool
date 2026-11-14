@@ -1,12 +1,15 @@
-import { Component, effect, inject, input, signal } from '@angular/core';
+import { Component, computed, effect, inject, input, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { Api, SOURCE_LABELS } from '../api';
+import { Session } from '../session';
+import { ObjectForm } from './object-form';
+import { ObjectRelations } from './object-relations';
 import { ObjectValidation } from '../object-validation';
 import { ObjectHistory } from '../object-history';
 
 /** Fiche d'un objet : propriétés, relations, vues, projets, analyse d'impact et visuel propre à l'élément. */
 @Component({
-  imports: [RouterLink, ObjectValidation, ObjectHistory],
+  imports: [RouterLink, ObjectValidation, ObjectHistory, ObjectForm, ObjectRelations],
   template: `
     @if (d(); as d) {
       <a routerLink="/referentiel">← Tous les objets</a>
@@ -19,15 +22,44 @@ import { ObjectHistory } from '../object-history';
         <a routerLink="/impact" [queryParams]="{ objet: d.brief.id }">Analyser l'impact</a>
       </p>
       <app-object-validation [objectId]="d.brief.id" (changed)="load()" />
+      @if (notice()) { <div class="note" role="status">{{ notice() }}</div> }
       <div class="row">
         <div class="card">
-          <h2>Description et propriétés</h2>
-          @if (d.object.documentation) { <p style="white-space: pre-wrap">{{ d.object.documentation }}</p> }
-          <dl class="kv">
-            @for (p of d.properties; track $index) { <dt>{{ p.label }}</dt><dd>{{ p.value }}</dd> }
-            <dt>Identifiant</dt><dd class="small muted">{{ d.brief.id }}</dd>
-            @for (f of d.folders; track f) { <dt>Dossier</dt><dd>{{ f }}</dd> }
-          </dl>
+          <div class="tools">
+            <h2 style="margin: 0">Description et propriétés</h2>
+            @if (canEdit() && !editing() && !confirmArchive()) {
+              <span class="right head-actions">
+                <button type="button" (click)="editing.set(true)">Modifier</button>
+                @if (d.object.source !== 'archi') { <button type="button" class="ghost" (click)="confirmArchive.set(true)">Archiver</button> }
+              </span>
+            }
+          </div>
+          @if (confirmArchive()) {
+            <div class="note" role="alert">
+              Archiver cet objet ? Il ne sera plus proposé dans les listes ni dans les analyses, mais ses données restent conservées.
+              <div class="confirm"><button type="button" (click)="archive()">Archiver l'objet</button> <button type="button" class="ghost" (click)="confirmArchive.set(false)">Annuler</button></div>
+            </div>
+          }
+          @if (editing() && meta(); as m) {
+            @if (d.object.source === 'archi') {
+              <p class="note">Cet objet est maîtrisé dans Archi : son nom, sa description et les propriétés issues d'Archi s'y modifient, sinon le prochain import les écraserait. Son type, son responsable et les propriétés propres à l'outil restent modifiables ici.</p>
+            }
+            <app-object-form [meta]="m" [object]="d.object" (saved)="saved()" (cancelled)="editing.set(false)" />
+          } @else {
+            @if (d.missingRequired.length) {
+              <p class="note warn-note">
+                Propriété(s) obligatoire(s) à renseigner :
+                @for (p of d.missingRequired; track p.key) { <span class="chip warn">{{ p.label }}</span> }
+              </p>
+            }
+            @if (d.object.documentation) { <p style="white-space: pre-wrap">{{ d.object.documentation }}</p> }
+            <dl class="kv">
+              @if (d.object.owner) { <dt>Responsable</dt><dd>{{ d.object.owner }}</dd> }
+              @for (p of d.properties; track $index) { <dt>{{ p.label }}</dt><dd>{{ p.value }}</dd> }
+              <dt>Identifiant</dt><dd class="small muted">{{ d.brief.id }}</dd>
+              @for (f of d.folders; track f) { <dt>Dossier</dt><dd>{{ f }}</dd> }
+            </dl>
+          }
         </div>
         <div class="card" style="max-width: 380px">
           <h2>Visuel de cet élément</h2>
@@ -58,28 +90,10 @@ import { ObjectHistory } from '../object-history';
           }
         </div>
       </div>
-      <div class="row">
-        <div class="card">
-          <h2>Relations sortantes ({{ d.outgoing.length }})</h2>
-          <table>
-            @for (r of d.outgoing; track r.id) {
-              <tr><td class="muted" style="width: 130px">{{ r.typeLabel }} →</td>
-                <td><a [routerLink]="['/objets', r.other.id]">{{ r.other.name }}</a> <span class="muted small">{{ r.other.typeLabel }}</span>
-                  @if (r.name) { <div class="small muted">{{ r.name }}</div> }</td></tr>
-            } @empty { <tr><td class="muted">Aucune.</td></tr> }
-          </table>
-        </div>
-        <div class="card">
-          <h2>Relations entrantes ({{ d.incoming.length }})</h2>
-          <table>
-            @for (r of d.incoming; track r.id) {
-              <tr><td><a [routerLink]="['/objets', r.other.id]">{{ r.other.name }}</a> <span class="muted small">{{ r.other.typeLabel }}</span>
-                  @if (r.name) { <div class="small muted">{{ r.name }}</div> }</td>
-                <td class="muted" style="width: 130px">→ {{ r.typeLabel }}</td></tr>
-            } @empty { <tr><td class="muted">Aucune.</td></tr> }
-          </table>
-        </div>
-      </div>
+      @if (meta(); as m) {
+        <app-object-relations [objectId]="d.brief.id" [objectName]="d.brief.name" [objectTypeKey]="d.brief.typeKey" [archived]="d.object.archived"
+          [outgoing]="d.outgoing" [incoming]="d.incoming" [meta]="m" (changed)="load()" />
+      }
       <app-object-history [objectId]="d.brief.id" />
       <div class="card">
         <div class="tools">
@@ -109,22 +123,58 @@ import { ObjectHistory } from '../object-history';
       </div>
     }
   `,
+  styles: `
+    .row { align-items: flex-start; }
+    .head-actions { display: flex; gap: 8px; }
+    .confirm { display: flex; gap: 8px; margin-top: 8px; }
+    .warn-note { background: #fbe9cc; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  `,
 })
 export class ObjectPage {
   private api = inject(Api);
   private router = inject(Router);
+  private session = inject(Session);
   id = input.required<string>();
   d = signal<any>(null);
+  meta = signal<any>(null);
+  editing = signal(false);
+  confirmArchive = signal(false);
+  notice = signal('');
+  canEdit = computed(() => this.session.can('contributeur') && !this.d()?.object.archived);
   impact = signal<any[]>([]);
   depth = signal(2);
   sources = SOURCE_LABELS;
   shapes = ['rectangle', 'arrondi', 'ellipse'];
 
   constructor() {
+    this.api.get('/metamodel').then((m) => this.meta.set(m));
     effect(() => {
       this.id();
+      this.editing.set(false);
+      this.confirmArchive.set(false);
       this.load();
     });
+  }
+
+  saved(): void {
+    this.editing.set(false);
+    this.say('Modifications enregistrées.');
+    this.load();
+  }
+
+  async archive(): Promise<void> {
+    try {
+      await this.api.delete(`/objects/${this.id()}`);
+      this.router.navigate(['/referentiel']);
+    } catch (e) {
+      this.confirmArchive.set(false);
+      this.say(e instanceof Error ? e.message : 'L\'archivage a échoué.');
+    }
+  }
+
+  private say(message: string): void {
+    this.notice.set(message);
+    setTimeout(() => this.notice.set(''), 5000);
   }
 
   load(): void {

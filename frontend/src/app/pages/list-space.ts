@@ -3,6 +3,7 @@ import { Router, RouterLink } from '@angular/router';
 import { Api } from '../api';
 import { MatrixView } from '../matrix-view';
 import { QuestionBar } from '../questions';
+import { Session } from '../session';
 import { SpaceConfig } from '../spaces.config';
 
 /**
@@ -27,6 +28,9 @@ import { SpaceConfig } from '../spaces.config';
           </div>
         }
         <span class="muted right">{{ shown().length }} sur {{ rows().length }} {{ c.noun }}</span>
+        @if (c.createRole && createType() && session.can('contributeur')) {
+          <a class="btn" routerLink="/objets/nouveau" [queryParams]="{ type: createType() }">{{ c.createLabel ?? 'Nouvel objet' }}</a>
+        }
       </div>
       @if (mode() === 'matrice' && c.matrix) {
         <app-matrix-view [rows]="c.matrix.rows" [cols]="c.matrix.cols" [relation]="c.matrix.relation ?? ''" above="370px" />
@@ -73,6 +77,7 @@ import { SpaceConfig } from '../spaces.config';
 export class ListSpacePage {
   private api = inject(Api);
   private router = inject(Router);
+  session = inject(Session);
   config = input.required<SpaceConfig>();
   /** Question présélectionnée par l'adresse (?question=…), pour arriver depuis l'accueil ou un lien partagé. */
   question = input<string>();
@@ -83,6 +88,8 @@ export class ListSpacePage {
   mode = signal<'liste' | 'matrice'>('liste');
   sortKey = signal('');
   descending = signal(true);
+  /** Clé du premier type portant le rôle de l'espace, lue dans le métamodèle ; vide tant qu'elle n'est pas connue. */
+  createType = signal('');
 
   private current = computed(() => this.config().questions.find((q) => q.key === this.selected()));
 
@@ -105,6 +112,11 @@ export class ListSpacePage {
       this.api.get(c.endpoint).then((rows) => this.rows.set(rows));
     });
     effect(() => {
+      const role = this.config().createRole;
+      this.createType.set('');
+      if (role) this.api.get('/metamodel').then((m) => this.createType.set(firstTypeWith(m, role)));
+    });
+    effect(() => {
       const c = this.config();
       const wanted = c.questions.find((q) => q.key === this.question()) ?? c.questions[0];
       this.selected.set(wanted.key);
@@ -124,6 +136,12 @@ export class ListSpacePage {
       this.descending.set(true);
     }
   }
+}
+
+/** Premier type actif portant le rôle (à défaut, un type archivé), comme `Metamodel.FirstTypeWith` côté serveur. */
+function firstTypeWith(meta: any, role: string): string {
+  const types = (meta.objectTypes as any[]).filter((t) => t.roles.includes(role));
+  return (types.find((t) => !t.archived) ?? types[0])?.key ?? '';
 }
 
 function compare(a: unknown, b: unknown): number {

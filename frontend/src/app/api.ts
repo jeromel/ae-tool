@@ -3,6 +3,13 @@ import { Injectable } from '@angular/core';
 /** Message affiché quand le serveur refuse une action faute de rôle suffisant. */
 const DENIED = 'Votre rôle ne permet pas cette action.';
 
+/** Erreur renvoyée par le serveur : le message, et la liste des problèmes quand le serveur en détaille (valeurs de propriétés invalides). */
+export class ApiError extends Error {
+  constructor(message: string, readonly problems: string[] = []) {
+    super(message);
+  }
+}
+
 /** Accès à l'API REST. Volontairement basé sur fetch : aucune bibliothèque tierce. */
 @Injectable({ providedIn: 'root' })
 export class Api {
@@ -18,6 +25,10 @@ export class Api {
 
   put<T = any>(path: string, body: unknown): Promise<T> {
     return this.send<T>('PUT', path, JSON.stringify(body), 'application/json');
+  }
+
+  delete<T = any>(path: string): Promise<T> {
+    return this.send<T>('DELETE', path);
   }
 
   post<T = any>(path: string, body: unknown): Promise<T> {
@@ -40,14 +51,17 @@ export class Api {
     const response = await fetch(this.base + path, { method, body, headers });
     if (!response.ok) {
       let message = response.status === 403 ? DENIED : `Erreur ${response.status}`;
+      let problems: string[] = [];
       try {
-        message = (await response.json()).error ?? message;
+        const body = await response.json();
+        message = body.error ?? message;
+        problems = Array.isArray(body.problems) ? body.problems : [];
       } catch {
         /* réponse sans corps JSON */
       }
       // Un 401 sur la connexion elle-même est un échec d'identifiants, pas une session expirée.
       if (response.status === 401 && !path.startsWith('/auth/')) this.onUnauthorized?.();
-      throw new Error(message);
+      throw new ApiError(message, problems);
     }
     return response.status === 204 ? (undefined as T) : response.json();
   }
