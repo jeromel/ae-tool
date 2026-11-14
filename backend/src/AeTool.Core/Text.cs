@@ -2,7 +2,7 @@ using System.Text;
 
 namespace AeTool.Core;
 
-/// <summary>Outils de texte partagés par les rapprochements.</summary>
+/// <summary>Outils de texte partagés : comparaison de libellés, recherche sans accents, clés dérivées d'un libellé.</summary>
 public static class Text
 {
     // Lettres accentuées courantes (Latin-1 et Latin étendu A) et leur équivalent sans accent. Une table explicite plutôt que la
@@ -32,6 +32,27 @@ public static class Text
         }
         // Un libellé fait uniquement de ponctuation ne doit pas être confondu avec tous les autres.
         return sb.Length > 0 ? sb.ToString() : s.Trim().ToLowerInvariant();
+    }
+
+    /// <summary>Texte en minuscules et sans accents, ponctuation conservée : sert à la recherche (« Sécurité » se trouve en tapant « securite »).</summary>
+    public static string Plain(string? s)
+    {
+        if (string.IsNullOrEmpty(s)) return "";
+        var sb = new StringBuilder(s.Length);
+        foreach (var ch in s) sb.Append(Fold(char.ToLowerInvariant(ch)));
+        return sb.ToString();
+    }
+
+    /// <summary>Clé technique tirée d'un libellé : lettres sans accent et chiffres, tout le reste devient un tiret (« Bloc fonctionnel » donne « bloc-fonctionnel »).</summary>
+    public static string Slug(string? s)
+    {
+        var sb = new StringBuilder();
+        foreach (var ch in Plain(s))
+        {
+            if (ch is >= 'a' and <= 'z' or >= '0' and <= '9') sb.Append(ch);
+            else if (sb.Length > 0 && sb[^1] != '-') sb.Append('-');
+        }
+        return sb.ToString().Trim('-');
     }
 
     private static string Fold(char ch)

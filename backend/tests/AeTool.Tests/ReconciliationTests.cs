@@ -49,6 +49,14 @@ public static class ReconciliationTests
             True(Text.Key("---") != Text.Key("***"), "libellés de ponctuation seule distincts");
         });
 
+        Test("recherche sans accents : « Sécurité » se trouve en tapant « securite »", () =>
+        {
+            Equal("securite d'acces", Text.Plain("Sécurité d'accès"), "minuscules sans accents");
+            Equal("oeuvre", Text.Plain("Œuvre"), "ligature");
+            Equal("reseau-d-acces", Text.Slug("Réseau d'accès"), "clé technique");
+            Equal("depot", AeTool.Connectors.UrbaImporter.Normalize("  Dépôt "), "reprise du classeur");
+        });
+
         Test("lecture des lignes : identifiant ou nom absent, identifiant en double, colonne absente", () =>
         {
             var s = Make();

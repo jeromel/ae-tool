@@ -264,11 +264,6 @@ public static class UrbaImporter
 
     private static string Snapshot(ArchObject o) => System.Text.Json.JsonSerializer.Serialize(new { o.Properties, o.Owner, o.Archived });
 
-    public static string Normalize(string s)
-    {
-        var sb = new StringBuilder();
-        foreach (var ch in s.Normalize(NormalizationForm.FormD))
-            if (CharUnicodeInfo.GetUnicodeCategory(ch) != UnicodeCategory.NonSpacingMark) sb.Append(char.ToLowerInvariant(ch));
-        return sb.ToString().Trim();
-    }
+    /// <summary>Libellé en minuscules et sans accents, pour comparer et rechercher.</summary>
+    public static string Normalize(string s) => Text.Plain(s).Trim();
 }

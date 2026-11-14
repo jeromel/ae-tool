@@ -1,5 +1,3 @@
-using System.Text;
-
 namespace AeTool.Core;
 
 // Le métamodèle est une donnée propre à l'outil : couches, types, rôles, relations, propriétés typées, visuels,
@@ -170,23 +168,6 @@ public sealed class Metamodel
 
     public static Metamodel Default() => MetamodelDefault.Create();
 
-    /// <summary>Lettre sans accent d'un caractère ; null pour un séparateur. Table explicite : la normalisation Unicode n'est pas disponible en mode invariant.</summary>
-    private static string? Fold(char c) => c switch
-    {
-        >= 'a' and <= 'z' or >= '0' and <= '9' => c.ToString(),
-        'à' or 'â' or 'ä' or 'á' or 'ã' => "a",
-        'ç' => "c",
-        'é' or 'è' or 'ê' or 'ë' => "e",
-        'î' or 'ï' or 'í' => "i",
-        'ô' or 'ö' or 'ó' or 'õ' => "o",
-        'ù' or 'û' or 'ü' or 'ú' => "u",
-        'ÿ' => "y",
-        'ñ' => "n",
-        'œ' => "oe",
-        'æ' => "ae",
-        _ => null,
-    };
-
     /// <summary>
     /// Clé dérivée d'un libellé : minuscules, sans accents, tout ce qui n'est pas alphanumérique devient « - ».
     /// Un suffixe « -2 », « -3 »… est ajouté si la clé existe déjà.
@@ -194,14 +175,7 @@ public sealed class Metamodel
     public static string DeriveKey(string label, IEnumerable<string> existing)
     {
         var taken = existing.ToHashSet();
-        var sb = new StringBuilder();
-        foreach (var ch in label.ToLowerInvariant())
-        {
-            var folded = Fold(ch);
-            if (folded is not null) sb.Append(folded);
-            else if (sb.Length > 0 && sb[^1] != '-') sb.Append('-');
-        }
-        var key = sb.ToString().Trim('-');
+        var key = Text.Slug(label);
         if (key == "") key = "type";
         var candidate = key;
         for (var n = 2; taken.Contains(candidate); n++) candidate = $"{key}-{n}";
