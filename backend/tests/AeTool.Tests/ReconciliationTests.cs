@@ -129,6 +129,22 @@ public static class ReconciliationTests
             Equal(s.AppType, line.TypeKey, "type résolu");
         });
 
+        Test("statut nouveau : un homonyme hors des types visés est signalé, et peut être lié plutôt que créé", () =>
+        {
+            var s = Make();
+            var other = s.Repo.ActiveObjects.First(o => o.TypeKey != s.NodeType && o.TypeKey != s.AppType);
+            var records = new[] { Rec("CI-7", other.Name.ToUpperInvariant()) };
+            var report = Compare(s, records);
+            var line = Line(report, "CI-7");
+            Equal(LineStatus.New, line.Status, "rien n'est décidé à la place de l'utilisateur");
+            Equal(other.Id, line.Candidates.Single().Id, "l'homonyme est présenté");
+            True(line.Message!.Contains("doublon"), "le risque est dit");
+            var result = Apply(s, report, records, new ApplyRequest { Decisions = { new() { ExternalId = "CI-7", Action = DecisionAction.Link, ObjectId = other.Id } } });
+            Equal(1, result.Linked, "lié");
+            Equal(0, result.Created, "aucun objet créé");
+            Equal("CI-7", other.ExternalRefs[Key], "lien posé sur l'objet existant");
+        });
+
         Test("statut invalide : nature sans type ; avec un type par défaut la ligne devient nouvelle", () =>
         {
             var s = Make();

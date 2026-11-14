@@ -178,7 +178,15 @@ function plain(text: string | null | undefined): string {
                         <tr>
                           <td class="chk"><input type="checkbox" [attr.aria-label]="'Sélectionner ' + l.name" [disabled]="!!state.decisionOf(l.externalId)"
                             [checked]="selected().has(l.externalId)" (change)="toggle(l.externalId, $any($event.target).checked)" /></td>
-                          <td>{{ l.name }}<div class="muted small">{{ l.externalId }}</div></td>
+                          <td>{{ l.name }}<div class="muted small">{{ l.externalId }}</div>
+                            @if (l.candidates.length) {
+                              <div class="small warn-text">{{ l.message }}</div>
+                              @for (c of l.candidates; track c.id) {
+                                <div class="small homonym"><a [routerLink]="['/objets', c.id]">{{ c.name }}</a> <span class="muted">{{ state.typeLabel()(c.typeKey) }}</span>
+                                  @if (!state.decisionOf(l.externalId)) { <button type="button" class="ghost" (click)="link(l, c.id, c.name)">Lier à cet objet</button> }</div>
+                              }
+                            }
+                          </td>
                           <td>{{ l.typeValue }}</td>
                           <td>{{ state.typeLabel()(l.typeKey) }}</td>
                           <td class="actions">
@@ -288,6 +296,9 @@ function plain(text: string | null | undefined): string {
     .bilan { border-left: 4px solid var(--ok); }
     .inline { display: inline-flex; gap: 6px; align-items: center; }
     .warn-text { color: var(--warn); }
+    .homonym { margin-top: 3px; }
+    .homonym .muted { margin-left: 6px; }
+    .homonym button { margin-left: 8px; padding: 1px 8px; font-size: 12px; }
     td.actions { white-space: nowrap; }
     td.actions button, td.actions .chip { margin-left: 6px; }
     th.actions-h { text-align: right; }
@@ -347,7 +358,7 @@ export class ReconcileTab {
 
   selectedCount = computed(() => this.selected().size);
   allSelected = computed(() => {
-    const free = this.shown().filter((l) => !this.state.decisionOf(l.externalId));
+    const free = this.shown().filter((l) => this.selectableAtOnce(l));
     return free.length > 0 && free.every((l) => this.selected().has(l.externalId));
   });
 
@@ -512,7 +523,12 @@ export class ReconcileTab {
   }
 
   toggleAll(on: boolean): void {
-    this.selected.set(on ? new Set(this.shown().filter((l) => !this.state.decisionOf(l.externalId)).map((l) => l.externalId)) : new Set());
+    this.selected.set(on ? new Set(this.shown().filter((l) => this.selectableAtOnce(l)).map((l) => l.externalId)) : new Set());
+  }
+
+  /** « Tout sélectionner » laisse de côté les lignes qui ont un homonyme : créer un doublon demande un geste voulu, ligne par ligne. */
+  private selectableAtOnce(l: Line): boolean {
+    return !this.state.decisionOf(l.externalId) && l.candidates.length === 0;
   }
 
   createSelected(): void {

@@ -289,6 +289,7 @@ public static class Reconciler
         private readonly SourceProfile _profile;
         private readonly Dictionary<string, List<ArchObject>> _linked;
         private readonly Dictionary<string, List<ArchObject>> _byName;
+        private readonly Dictionary<string, List<ArchObject>> _homonyms;
         private readonly HashSet<string> _ignored;
 
         public HashSet<string> Targeted { get; }
@@ -300,6 +301,9 @@ public static class Reconciler
             _linked = repo.Objects.Values.Where(o => o.ExternalRefs.ContainsKey(profile.Key))
                 .GroupBy(o => o.ExternalRefs[profile.Key]).ToDictionary(g => g.Key, g => g.ToList());
             _byName = repo.ActiveObjects.Where(o => Targeted.Contains(o.TypeKey) && !o.ExternalRefs.ContainsKey(profile.Key))
+                .GroupBy(o => Text.Key(o.Name)).ToDictionary(g => g.Key, g => g.ToList());
+            // Hors des types visés : ces objets ne sont jamais proposés d'office, mais un nom identique est signalé avant de créer.
+            _homonyms = repo.ActiveObjects.Where(o => !Targeted.Contains(o.TypeKey) && !o.ExternalRefs.ContainsKey(profile.Key))
                 .GroupBy(o => Text.Key(o.Name)).ToDictionary(g => g.Key, g => g.ToList());
             _ignored = profile.IgnoredIds.ToHashSet();
         }
@@ -333,8 +337,26 @@ public static class Reconciler
                     ? "Aucun type par défaut dans le profil pour une ligne sans nature."
                     : $"La nature « {r.TypeValue} » n'est associée à aucun type du métamodèle.";
             }
-            else line.Status = LineStatus.New;
+            else
+            {
+                line.Status = LineStatus.New;
+                WarnOfHomonyms(line);
+            }
             return line;
+        }
+
+        /// <summary>
+        /// Garde-fou contre les doublons : un objet de même nom existe ailleurs dans le référentiel, sous un type que la source
+        /// ne vise pas. La ligne reste « nouvelle » (rien n'est décidé à la place de l'utilisateur), mais elle le dit et
+        /// présente ces objets, pour qu'il puisse lier plutôt que créer.
+        /// </summary>
+        private void WarnOfHomonyms(ReconciliationLine line)
+        {
+            if (!_homonyms.TryGetValue(Text.Key(line.Name), out var same)) return;
+            line.Candidates = same.Select(o => new Candidate(o.Id, o.Name, o.TypeKey)).ToList();
+            line.Message = same.Count == 1
+                ? "Un objet du même nom existe déjà sous un autre type : le lier évite un doublon."
+                : $"{same.Count} objets du même nom existent déjà sous d'autres types : en lier un évite un doublon.";
         }
 
         private ReconciliationLine ClassifyLinked(ReconciliationLine line, SourceRecord r, List<ArchObject> linked)
