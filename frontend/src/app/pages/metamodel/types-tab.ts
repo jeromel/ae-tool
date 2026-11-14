@@ -13,7 +13,7 @@ import { TypeDetail } from './type-detail';
     <div class="tools">
       <input type="search" placeholder="Rechercher un type" aria-label="Rechercher un type par libellé" [value]="search()" (input)="search.set($any($event.target).value)" />
       <label class="inline"><input type="checkbox" [checked]="showUnused()" (change)="showUnused.set($any($event.target).checked)" /> Afficher les types inutilisés</label>
-      <span class="muted small">{{ shown() }} {{ shown() > 1 ? 'types affichés' : 'type affiché' }} sur {{ store.types().length }}@if (hidden() > 0 && !search()) { ({{ hidden() }} masqués : sans objet et sans rôle) }</span>
+      <span class="muted small">{{ shown() }} {{ shown() > 1 ? 'types affichés' : 'type affiché' }} sur {{ store.types().length }}@if (hidden() > 0 && !search()) { ({{ hidden() }} masqués : types du gabarit sans objet ni rôle) }</span>
     </div>
     <div class="card inline-form" role="group" aria-label="Nouveau type">
       <b>Nouveau type</b>
@@ -54,7 +54,7 @@ import { TypeDetail } from './type-detail';
                   </tr>
                 }
               }
-            } @empty { <tr><td colspan="6" class="muted">Aucun type ne correspond. Cochez « Afficher les types inutilisés » pour voir les types sans objet ni rôle.</td></tr> }
+            } @empty { <tr><td colspan="6" class="muted">Aucun type ne correspond. Cochez « Afficher les types inutilisés » pour voir les types du gabarit sans objet ni rôle.</td></tr> }
           </table>
         </div>
       </div>
@@ -80,7 +80,10 @@ export class TypesTab {
   protected count = (key: string) => this.store.usage().objectTypes[key] ?? 0;
   private visible = computed(() => {
     const q = plain(this.search().trim());
-    return this.store.types().filter((t) => (q ? plain(t.label).includes(q) : this.showUnused() || this.count(t.key) > 0 || t.roles.length > 0));
+    // Seuls les types du gabarit livré se replient tant qu'ils ne servent pas : un type créé ici reste toujours visible.
+    const template = new Set<string>(this.store.catalog().templateObjectTypeKeys);
+    return this.store.types().filter((t) => (q ? plain(t.label).includes(q)
+      : this.showUnused() || this.count(t.key) > 0 || t.roles.length > 0 || !template.has(t.key)));
   });
   protected shown = computed(() => this.visible().length);
   protected hidden = computed(() => this.store.types().length - this.shown());

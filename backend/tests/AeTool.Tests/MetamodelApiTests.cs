@@ -142,6 +142,8 @@ public static class MetamodelApiTests
             Equal((7, 2), (catalog.GetProperty("objectRoles").GetArrayLength(), catalog.GetProperty("relationshipRoles").GetArrayLength()), "rôles");
             True(catalog.GetProperty("archimate").GetProperty("elements").GetArrayLength() > 50, "concepts d'éléments");
             Equal(5, catalog.GetProperty("dataTypes").GetArrayLength(), "types de données");
+            var template = catalog.GetProperty("templateObjectTypeKeys").EnumerateArray().Select(k => k.GetString()).ToList();
+            True(template.Contains("application") && template.Contains("capacite"), "types du gabarit livré");
         });
         Test("relations : modification d'une relation avec contrôle des couples ; objet créé dans l'outil sans concept d'origine", () =>
         {

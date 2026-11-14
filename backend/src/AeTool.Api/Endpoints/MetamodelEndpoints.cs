@@ -24,8 +24,15 @@ public static class MetamodelEndpoints
         MapSettingsAndExchange(api);
     }
 
+    /// <summary>
+    /// Types du gabarit livré avec l'outil. L'écran s'en sert pour replier ceux qui ne servent pas encore,
+    /// sans jamais masquer un type que l'utilisateur a créé lui-même.
+    /// </summary>
+    private static readonly string[] TemplateObjectTypeKeys = Metamodel.Default().ObjectTypes.Select(t => t.Key).ToArray();
+
     private static object Catalog() => new
     {
+        TemplateObjectTypeKeys,
         ObjectRoles = Roles.ForObjects,
         RelationshipRoles = Roles.ForRelationships,
         Archimate = new { Elements = Archimate.Elements, Relationships = Archimate.Relationships },

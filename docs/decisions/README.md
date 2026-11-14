@@ -12,3 +12,4 @@ et ce qui a été écarté. Une décision ne se modifie pas : on en écrit une n
 | [005](005-sources-externes.md) | Sources externes : un moteur de rapprochement, des adaptateurs en lecture seule | Acceptée |
 | [006](006-aucune-dependance-tierce.md) | Aucune dépendance tierce côté serveur | Acceptée |
 | [007](007-vues-par-cas-d-usage.md) | Des vues générées par cas d'usage plutôt que des dessins importés | Acceptée |
+| [008](008-cadre-dotnet-suit-le-sdk.md) | Le cadre .NET visé suit le SDK de construction ; .NET 10 pour un serveur | Acceptée |

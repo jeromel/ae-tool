@@ -1,4 +1,4 @@
-import { Component, inject, input, output, signal } from '@angular/core';
+import { Component, computed, inject, input, output, signal } from '@angular/core';
 import { Api } from '../../api';
 import { ConfirmPanel } from './confirm-panel';
 import { MetaStore } from './store';
@@ -10,6 +10,7 @@ interface Reclassification { changes: number; moves: Move[]; dryRun: boolean; }
 @Component({
   selector: 'app-reapply-panel',
   imports: [ConfirmPanel],
+  styles: '.warn-note { background: #fbe9cc; color: var(--warn); margin: 10px 0 0; }',
   template: `
     <div class="card">
       <h2>Effet sur les données déjà importées</h2>
@@ -29,13 +30,18 @@ interface Reclassification { changes: number; moves: Move[]; dryRun: boolean; }
               <tr><td>{{ m.kind === 'objet' ? 'Objets' : 'Relations' }}</td><td>{{ label(m.kind, m.from) }}</td><td aria-hidden="true">→</td><td>{{ label(m.kind, m.to) }}</td><td class="num">{{ m.count }}</td></tr>
             }
           </table>
+          @for (l of lostRoles(); track $index) {
+            <p class="note warn-note"><b>Attention :</b> « {{ l.to }} » ne porte pas le rôle « {{ l.role }} » que porte « {{ l.from }} ».
+              Ces {{ l.count }} {{ l.kind === 'objet' ? 'objet(s)' : 'relation(s)' }} sortiront de ce que ce rôle active ({{ l.effect }}).
+              Pour l'éviter, donnez d'abord ce rôle au nouveau type, dans l'onglet « {{ l.tab }} ».</p>
+          }
           @if (!confirming()) { <div class="tools" style="margin-top: 12px"><button type="button" (click)="confirming.set(true)" [disabled]="blocked()">Réappliquer la matrice</button></div> }
         }
       }
       @if (confirming() && result()) {
         <app-confirm title="Réappliquer la matrice" action="Réappliquer" [disabled]="busy()" (confirm)="apply()" (cancel)="confirming.set(false)">
           <p>{{ total('objet') }} objet(s) et {{ total('relation') }} relation(s) vont changer de type, comme le montre la simulation. Les impacts déduits des projets seront recalculés et l'opération est inscrite au journal.
-            Elle ne peut pas être annulée en un clic : un retour demande de modifier la matrice et de réappliquer.</p>
+            Une sauvegarde est prise juste avant : Administrer › Sauvegardes permet d'y revenir.</p>
         </app-confirm>
       }
       @if (applied(); as a) { <p class="note" role="status">Matrice réappliquée : {{ a.objets }} objet(s) et {{ a.relations }} relation(s) ont changé de type.</p> }
@@ -56,6 +62,26 @@ export class ReapplyPanel {
   protected total(kind: string): number {
     return (this.result()?.moves ?? []).filter((m) => m.kind === kind).reduce((n, m) => n + m.count, 0);
   }
+
+  /**
+   * Rôles que le type de départ porte et que le type d'arrivée ne porte pas : les écrans lisent les rôles, pas les types,
+   * donc des objets retypés vers un type sans le rôle disparaissent de l'espace correspondant. Mieux vaut le dire avant.
+   */
+  protected lostRoles = computed(() => {
+    const out: { kind: string; tab: string; from: string; to: string; role: string; effect: string; count: number }[] = [];
+    const catalog = this.store.catalog();
+    for (const m of this.result()?.moves ?? []) {
+      const types: any[] = m.kind === 'objet' ? this.store.types() : this.store.relTypes();
+      const infos: any[] = m.kind === 'objet' ? catalog.objectRoles : catalog.relationshipRoles;
+      const kept = new Set<string>(types.find((t) => t.key === m.to)?.roles ?? []);
+      for (const key of types.find((t) => t.key === m.from)?.roles ?? []) {
+        if (kept.has(key)) continue;
+        const info = infos.find((r) => r.key === key);
+        out.push({ kind: m.kind, tab: m.kind === 'objet' ? "Types d'objets" : 'Relations', from: this.label(m.kind, m.from), to: this.label(m.kind, m.to), role: info?.label ?? key, effect: info?.effect ?? '', count: m.count });
+      }
+    }
+    return out;
+  });
 
   protected label(kind: string, key: string): string {
     return kind === 'objet' ? this.store.typeLabel(key) : this.store.relLabel(key);

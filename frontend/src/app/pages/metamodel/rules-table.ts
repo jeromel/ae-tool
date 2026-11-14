@@ -21,7 +21,7 @@ import { RuleKind, TranscodingDraft } from './transcoding-draft';
     </p>
     <div class="tools">
       <input type="search" placeholder="Rechercher un type" aria-label="Rechercher un type" [value]="search()" (input)="search.set($any($event.target).value)" />
-      <label class="inline"><input type="checkbox" [checked]="showAll()" (change)="showAll.set($any($event.target).checked)" /> Afficher les types inutilisés et sans règle</label>
+      <label class="inline"><input type="checkbox" [checked]="showAll()" (change)="showAll.set($any($event.target).checked)" /> Afficher les types archivés sans règle</label>
       <span class="muted small">{{ groups().length }} types affichés</span>
     </div>
     <datalist id="archi-properties">@for (n of archiNames(); track n) { <option [value]="n"></option> }</datalist>
@@ -102,7 +102,8 @@ export class RulesTable {
     const q = plain(this.search().trim());
     return [...list, ...unknown]
       .map((type) => ({ type, rules: rules.map((r, i) => ({ r, i })).filter((x) => x.r.typeKey === type.key) }))
-      .filter((g) => (q ? plain(g.type.label).includes(q) : this.showAll() || g.rules.length > 0 || this.count(g.type.key) > 0 || g.type.roles.length > 0 || g.type.key === this.unmapped()));
+      // Un type sans règle reste visible : c'est ici qu'on lui en donne une. Seul un type archivé, sans règle ni objet, se replie.
+      .filter((g) => (q ? plain(g.type.label).includes(q) : this.showAll() || !g.type.archived || g.rules.length > 0 || this.count(g.type.key) > 0));
   });
 
   protected used(rule: any): number | null {
