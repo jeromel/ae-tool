@@ -4,7 +4,7 @@ namespace AeTool.Api;
 
 // Entrées des routes et projections renvoyées à l'interface.
 
-public sealed record ObjectInput(string? Name, string? TypeKey, string? Documentation, string? Owner, string? ValidationStatus,
+public sealed record ObjectInput(string? Name, string? TypeKey, string? Documentation, string? Owner,
     List<PropertyValue>? Properties, Visual? VisualOverride, bool? ClearVisualOverride);
 public sealed record RelationshipInput(string TypeKey, string SourceId, string TargetId, string? Name);
 public sealed record RelationshipUpdate(string? Name, string? TypeKey, List<PropertyValue>? Properties);
@@ -29,7 +29,6 @@ public static class Dto
     {
         if (input.Documentation is not null) o.Documentation = input.Documentation;
         if (input.Owner is not null) o.Owner = input.Owner;
-        if (input.ValidationStatus is not null) o.ValidationStatus = input.ValidationStatus;
         if (input.Properties is not null) o.Properties = input.Properties;
         if (input.VisualOverride is not null) o.VisualOverride = input.VisualOverride;
     }

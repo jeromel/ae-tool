@@ -1,6 +1,7 @@
 using AeTool.Api.Auth;
 using AeTool.Api.Endpoints;
 using AeTool.Api.Sources;
+using AeTool.Api.Storage;
 
 namespace AeTool.Api;
 
@@ -16,7 +17,8 @@ public static class AppHost
         var dataPath = builder.Configuration["DataPath"] ?? Path.Combine(AppContext.BaseDirectory, "data", "referentiel.json");
         var paths = new DataPaths(dataPath);
         builder.Services.AddSingleton(paths);
-        builder.Services.AddSingleton<IRepositoryStore>(new JsonFileStore(paths.RepositoryFile));
+        builder.Services.AddSingleton<IRepositoryStore>(new JsonFileStore(paths.RepositoryFile,
+            builder.Configuration.GetValue("Storage:BackupsToKeep", BackupStore.DefaultToKeep)));
         builder.Services.AddSingleton<Workspace>();
         builder.Services.AddKeyStorage(paths);
         builder.AddAeAuthentication(paths);
@@ -41,6 +43,7 @@ public static class AppHost
         MetamodelEndpoints.Map(api);
         ObjectEndpoints.Map(api);
         EditingEndpoints.Map(api);
+        ValidationEndpoints.Map(api);
         ViewEndpoints.Map(api);
         AnalysisEndpoints.Map(api);
         SpaceEndpoints.Map(api);
@@ -48,6 +51,7 @@ public static class AppHost
         PortfolioEndpoints.Map(api);
         ExchangeEndpoints.Map(api);
         SourceEndpoints.Map(api);
+        AdminEndpoints.Map(api);
         if (app.Environment.IsDevelopment()) AdminEndpoints.MapDevelopment(api);
 
         app.MapFallbackToFile("index.html");

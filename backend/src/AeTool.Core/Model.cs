@@ -210,7 +210,7 @@ public sealed class JournalEntry
 /// <summary>Tout l'état de l'outil. Sérialisable en un seul fichier JSON (réversibilité, exigence ED-01).</summary>
 public sealed class Repository
 {
-    public const int CurrentSchemaVersion = 2;
+    public const int CurrentSchemaVersion = 3;
 
     /// <summary>Version du format de stockage. Un fichier sans cette propriété est en version 1 (voir <see cref="RepositoryUpgrader"/>).</summary>
     public int SchemaVersion { get; set; } = CurrentSchemaVersion;
@@ -231,9 +231,35 @@ public sealed class Repository
     [JsonIgnore] public IEnumerable<Relationship> ActiveRelationships => Relationships.Values.Where(r => !r.Archived);
     [JsonIgnore] public IEnumerable<Diagram> ActiveDiagrams => Diagrams.Values.Where(d => !d.Archived);
 
-    public void Log(string user, string action, string? targetId = null, string? detail = null)
-    {
-        Journal.Add(new JournalEntry { At = DateTime.UtcNow, User = user, Action = action, TargetId = targetId, Detail = detail });
-        if (Journal.Count > 5000) Journal.RemoveRange(0, Journal.Count - 5000);
-    }
+    /// <summary>Entrée de journal sans champ modifié (import, métamodèle…). La nature de la cible se déduit de l'action.</summary>
+    public void Log(string user, string action, string? targetId = null, string? detail = null) =>
+        Journal.Add(new JournalEntry { At = DateTime.UtcNow, User = user, Action = action, TargetId = targetId, TargetKind = JournalKinds.Infer(action), Detail = detail });
+
+    /// <summary>Entrée de journal portant les champs modifiés avec leur valeur avant et après (EF-52). Le journal n'est jamais tronqué.</summary>
+    public void Log(string user, string action, string kind, string? targetId, IReadOnlyList<FieldChange>? changes, string? detail = null) =>
+        Journal.Add(new JournalEntry
+        {
+            At = DateTime.UtcNow, User = user, Action = action, TargetKind = kind, TargetId = targetId, Detail = detail,
+            Changes = changes is { Count: > 0 } ? changes.ToList() : null,
+        });
+}
+
+/// <summary>Natures de cible du journal.</summary>
+public static class JournalKinds
+{
+    public const string Object = "objet";
+    public const string Relationship = "relation";
+    public const string Impact = "impact";
+    public const string Assessment = "notation";
+    public const string Metamodel = "métamodèle";
+    public const string Import = "import";
+    public const string Account = "compte";
+
+    public static readonly string[] All = { Object, Relationship, Impact, Assessment, Metamodel, Import, Account };
+
+    /// <summary>Nature déduite du libellé d'une action écrite sans nature explicite (métamodèle, imports, rapprochements).</summary>
+    public static string? Infer(string action) =>
+        action.StartsWith("Métamodèle", StringComparison.Ordinal) ? Metamodel
+        : action.StartsWith("Import", StringComparison.Ordinal) || action.StartsWith("Rapprochement", StringComparison.Ordinal) ? Import
+        : null;
 }

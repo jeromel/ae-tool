@@ -58,7 +58,7 @@ public static class AccessRulesTests
 
         Test("lectures : lecteur", () =>
         {
-            foreach (var path in new[] { "/api/summary", "/api/objects", "/api/objects/id-1", "/api/portfolio", "/api/metamodel", "/api/journal", "/api/import/reports" })
+            foreach (var path in new[] { "/api/summary", "/api/objects", "/api/objects/id-1", "/api/portfolio", "/api/metamodel", "/api/validation/pending", "/api/objects/id-1/history", "/api/import/reports" })
                 Expect(Roles.Reader, "GET", path);
             Expect(Roles.Reader, "HEAD", "/api/summary");
         });
@@ -78,6 +78,21 @@ public static class AccessRulesTests
         {
             Expect(Roles.Validator, "POST", "/api/validation/id-1");
             Expect(Roles.Validator, "PUT", "/api/validation/id-1/status");
+        });
+
+        Test("journal : valideur ; sauvegardes et état du stockage : administrateur ; proposer : contributeur", () =>
+        {
+            Expect(Roles.Validator, "GET", "/api/journal");
+            Expect(Roles.Validator, "GET", "/api/Journal/");
+            Expect(Roles.Administrator, "GET", "/api/admin/status");
+            Expect(Roles.Administrator, "GET", "/api/admin/backups");
+            Expect(Roles.Administrator, "POST", "/api/admin/backups");
+            Expect(Roles.Administrator, "GET", "/api/admin/backups/referentiel-20250101-000000-auto.json.gz");
+            Expect(Roles.Administrator, "POST", "/api/admin/backups/x/restore");
+            Expect(Roles.Contributor, "POST", "/api/objects/id-1/propose");
+            Expect(Roles.Validator, "POST", "/api/validation/objects/id-1/validate");
+            Expect(Roles.Validator, "POST", "/api/validation/objects/id-1/reject");
+            Expect(Roles.Validator, "POST", "/api/validation/validate");
         });
 
         Test("métamodèle et imports : administrateur", () =>

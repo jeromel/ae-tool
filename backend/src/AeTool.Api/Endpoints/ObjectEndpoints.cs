@@ -11,11 +11,12 @@ public static class ObjectEndpoints
 {
     public static void Map(RouteGroupBuilder api)
     {
-        api.MapGet("/objects", (Workspace ws, string? type, string? layer, string? q, int? limit) => ws.Read((repo, _) =>
+        api.MapGet("/objects", (Workspace ws, string? type, string? layer, string? q, string? status, int? limit) => ws.Read((repo, _) =>
         {
             var query = repo.ActiveObjects;
             if (!string.IsNullOrEmpty(type)) query = query.Where(o => o.TypeKey == type);
             if (!string.IsNullOrEmpty(layer)) query = query.Where(o => repo.Metamodel.LayerOf(o.TypeKey) == layer);
+            if (!string.IsNullOrEmpty(status)) query = query.Where(o => o.ValidationStatus == status);
             if (!string.IsNullOrWhiteSpace(q))
             {
                 var needle = UrbaImporter.Normalize(q);
@@ -57,16 +58,24 @@ public static class ObjectEndpoints
             });
         }));
 
+        // Historique avant/après d'un objet : les plus récentes d'abord.
+        api.MapGet("/objects/{id}/history", (Workspace ws, string id) => ws.Read((repo, _) =>
+            repo.Objects.ContainsKey(id)
+                ? Results.Ok(repo.Journal.Where(e => e.TargetId == id).Reverse().Take(200).ToList())
+                : Results.NotFound()));
+
         api.MapPost("/objects", (Workspace ws, ObjectInput input, HttpRequest req) => ws.Write(repo =>
         {
             if (string.IsNullOrWhiteSpace(input.Name)) return Results.BadRequest(new { error = "Le nom est obligatoire." });
             if (repo.Metamodel.Type(input.TypeKey ?? "") is null) return Results.BadRequest(new { error = $"Type inconnu : {input.TypeKey}" });
             if (PropertyProblems(repo.Metamodel, input.Properties, null) is { Count: > 0 } problems) return InvalidValues(problems);
             // Un objet créé dans l'outil a la source « saisie » et aucun concept ArchiMate d'origine.
-            var o = new ArchObject { Id = "id-" + Guid.NewGuid().ToString("N"), TypeKey = input.TypeKey!, Name = input.Name.Trim(), Source = "saisie", UpdatedAt = DateTime.UtcNow };
+            // Un objet créé dans l'outil entre en brouillon : il faut le proposer, puis un valideur le valide.
+            var o = new ArchObject { Id = "id-" + Guid.NewGuid().ToString("N"), TypeKey = input.TypeKey!, Name = input.Name.Trim(), Source = "saisie",
+                UpdatedAt = DateTime.UtcNow, UpdatedBy = User(req), ValidationStatus = Validation.Draft };
             Dto.Apply(o, input);
             repo.Objects[o.Id] = o;
-            repo.Log(User(req), "Objet créé", o.Id, o.Name);
+            repo.Log(User(req), "Objet créé", JournalKinds.Object, o.Id, ChangeSet.Between(repo.Metamodel, null, ChangeSet.Capture(o)), o.Name);
             return Results.Ok(o);
         }));
 
@@ -75,21 +84,29 @@ public static class ObjectEndpoints
             if (!repo.Objects.TryGetValue(id, out var o)) return Results.NotFound();
             if (input.TypeKey is not null && repo.Metamodel.Type(input.TypeKey) is null) return Results.BadRequest(new { error = $"Type inconnu : {input.TypeKey}" });
             if (PropertyProblems(repo.Metamodel, input.Properties, o) is { Count: > 0 } problems) return InvalidValues(problems);
-            var before = JsonSerializer.Serialize(o);
+            var before = ChangeSet.Capture(o);
             if (!string.IsNullOrWhiteSpace(input.Name)) o.Name = input.Name.Trim();
             if (input.TypeKey is not null) o.TypeKey = input.TypeKey;
             Dto.Apply(o, input);
             if (input.ClearVisualOverride == true) o.VisualOverride = null;
+            // Un non-valideur qui modifie le fond d'un objet validé le renvoie à la validation.
+            var backToProposed = Validation.AfterChange(o, before, ValidationEndpoints.IsValidator(req), User(req), DateTime.UtcNow);
+            var changes = ChangeSet.Between(repo.Metamodel, before, ChangeSet.Capture(o));
+            // Rien n'a changé : ni journal, ni nouvelle date de modification.
+            if (changes.Count == 0) return Results.Ok(o);
             o.UpdatedAt = DateTime.UtcNow;
-            repo.Log(User(req), "Objet modifié", id, $"avant : {before}");
+            o.UpdatedBy = User(req);
+            repo.Log(User(req), "Objet modifié", JournalKinds.Object, id, changes, backToProposed ? $"{o.Name} : repassé à l'état proposé" : o.Name);
             return Results.Ok(o);
         }));
 
         api.MapDelete("/objects/{id}", (Workspace ws, string id, HttpRequest req) => ws.Write(repo =>
         {
             if (!repo.Objects.TryGetValue(id, out var o)) return Results.NotFound();
+            if (o.Archived) return Results.NoContent();
+            var before = ChangeSet.Capture(o);
             o.Archived = true; // archivage, jamais de suppression physique
-            repo.Log(User(req), "Objet archivé", id, o.Name);
+            repo.Log(User(req), "Objet archivé", JournalKinds.Object, id, ChangeSet.Between(repo.Metamodel, before, ChangeSet.Capture(o)), o.Name);
             return Results.NoContent();
         }));
 
@@ -100,7 +117,7 @@ public static class ObjectEndpoints
             if (repo.Metamodel.CheckRelationship(input.TypeKey, s.TypeKey, t.TypeKey) is string problem) return Results.BadRequest(new { error = problem });
             var r = new Relationship { Id = "id-" + Guid.NewGuid().ToString("N"), TypeKey = input.TypeKey, SourceId = s.Id, TargetId = t.Id, Name = input.Name };
             repo.Relationships[r.Id] = r;
-            repo.Log(User(req), "Relation créée", r.Id, $"{s.Name} -[{r.TypeKey}]-> {t.Name}");
+            repo.Log(User(req), "Relation créée", JournalKinds.Relationship, r.Id, ChangeSet.Between(repo.Metamodel, null, ChangeSet.Capture(repo, r)), $"{s.Name} -[{r.TypeKey}]-> {t.Name}");
             return Results.Ok(r);
         }));
 
@@ -116,19 +133,22 @@ public static class ObjectEndpoints
                 else if (repo.Metamodel.RelType(input.TypeKey) is null) return Results.BadRequest(new { error = $"Type de relation inconnu : {input.TypeKey}" });
             }
             if (PropertyProblems(repo.Metamodel, input.Properties, null) is { Count: > 0 } problems) return InvalidValues(problems);
-            var before = JsonSerializer.Serialize(r);
+            var before = ChangeSet.Capture(repo, r);
             if (input.Name is not null) r.Name = string.IsNullOrWhiteSpace(input.Name) ? null : input.Name.Trim();
             if (input.TypeKey is not null) r.TypeKey = input.TypeKey;
             if (input.Properties is not null) r.Properties = input.Properties;
-            repo.Log(User(req), "Relation modifiée", id, $"avant : {before}");
+            var changes = ChangeSet.Between(repo.Metamodel, before, ChangeSet.Capture(repo, r));
+            if (changes.Count > 0) repo.Log(User(req), "Relation modifiée", JournalKinds.Relationship, id, changes);
             return Results.Ok(r);
         }));
 
         api.MapDelete("/relationships/{id}", (Workspace ws, string id, HttpRequest req) => ws.Write(repo =>
         {
             if (!repo.Relationships.TryGetValue(id, out var r)) return Results.NotFound();
+            if (r.Archived) return Results.NoContent();
+            var before = ChangeSet.Capture(repo, r);
             r.Archived = true;
-            repo.Log(User(req), "Relation archivée", id);
+            repo.Log(User(req), "Relation archivée", JournalKinds.Relationship, id, ChangeSet.Between(repo.Metamodel, before, ChangeSet.Capture(repo, r)));
             return Results.NoContent();
         }));
     }

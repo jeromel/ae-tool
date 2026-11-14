@@ -311,7 +311,7 @@ public static class MetamodelEndpoints
                 var result = new Transcoder(repo.Metamodel).Reclassify(repo, dryRun: false, User(req));
                 new Analyzer(repo).RefreshDeducedImpacts();
                 return Results.Ok(result);
-            });
+            }, BackupReasons.MatrixReapplied);
         });
     }
 
@@ -360,7 +360,7 @@ public static class MetamodelEndpoints
                 repo.Metamodel = incoming;
                 repo.Log(User(req), "Métamodèle importé");
                 return Results.Ok(incoming);
-            });
+            }, BackupReasons.MetamodelImport);
         });
     }
 

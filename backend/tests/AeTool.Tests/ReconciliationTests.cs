@@ -244,6 +244,29 @@ public static class ReconciliationTests
             True(s.Repo.Metamodel.Property("cmdb:serie") is { Source: Key, Label: "Numéro de série" }, "définition de propriété créée");
         });
 
+        Test("application : une entrée de journal par objet touché, avec l'avant/après ; un objet créé entre à l'état proposé", () =>
+        {
+            var s = Make();
+            var recs = new[] { Rec("N/9", "NOUVEAU", "Application", "SER9"), Rec("1", "ITSM-SUITE", "Application", "SER1") };
+            Apply(s, Compare(s, recs), recs, new ApplyRequest
+            {
+                Decisions = { new() { ExternalId = "N/9", Action = "creer" }, new() { ExternalId = "1", Action = "lier" } }, SyncLinked = true,
+            });
+            Equal("Proposé", s.Repo.Objects["id-cmdb-n-9"].ValidationStatus, "état d'entrée");
+            var created = s.Repo.Journal.Single(e => e.TargetId == "id-cmdb-n-9");
+            Equal(("objet", "Objet créé par rapprochement"), (created.TargetKind!, created.Action), "création journalisée");
+            Equal("SER9", created.Changes!.Single(c => c.Field == "Numéro de série").After, "propriété reprise, libellé lisible");
+            Equal("Proposé", created.Changes!.Single(c => c.Field == "État de validation").After, "état d'entrée");
+            var linked = s.Repo.Journal.Single(e => e.TargetId == "id-itsm");
+            Equal("Objet modifié par rapprochement", linked.Action, "objet lié et mis à jour");
+            Equal(new FieldChange("Numéro de série", null, "SER1"), linked.Changes!.Single(c => c.Field == "Numéro de série"), "avant/après de la propriété");
+            True(linked.Changes!.Any(c => c.Field == "Lien avec la source « cmdb »"), "lien posé");
+            True(s.Repo.Journal.Any(e => e.TargetKind == "import" && e.Action.StartsWith("Rapprochement")), "résumé conservé");
+            var count = s.Repo.Journal.Count;
+            Apply(s, Compare(s, recs), recs, new ApplyRequest { SyncLinked = true });
+            Equal(count, s.Repo.Journal.Count, "un rejeu sans écart ne journalise rien");
+        });
+
         Test("application : créer une ligne invalide est refusé", () =>
         {
             var s = Make();
