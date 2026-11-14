@@ -95,6 +95,6 @@ public static class XlsxReader
         var entry = zip.GetEntry(path);
         if (entry is null) return null;
         using var s = entry.Open();
-        return XDocument.Load(s);
+        return SafeXml.Load(s);
     }
 }

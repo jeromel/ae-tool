@@ -20,7 +20,7 @@ public static class ArchimateExchange
     {
         var report = new ImportReport { Source = "Archi (format d'échange ArchiMate)" };
         XDocument doc;
-        try { doc = XDocument.Load(xml); }
+        try { doc = SafeXml.Load(xml); }
         catch (Exception e) { report.Error("xml-invalide", $"Fichier XML illisible : {e.Message}"); return report; }
 
         var model = doc.Root;

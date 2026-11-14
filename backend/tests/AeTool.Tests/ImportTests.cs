@@ -103,5 +103,17 @@ public static class ImportTests
             var report = ArchimateExchange.Import(Fixtures.Stream("<model><pas-ferme>"), repo);
             Equal("xml-invalide", report.Anomalies[0].Code); Equal(0, repo.Objects.Count);
         });
+
+        Test("un fichier portant une déclaration DOCTYPE est refusé : aucune entité n'est développée", () =>
+        {
+            var repo = new Repository();
+            var model = Fixtures.Model();
+            var afterDeclaration = model.IndexOf("?>", StringComparison.Ordinal) + 2;
+            var hostile = model[..afterDeclaration] + "<!DOCTYPE model [<!ENTITY e \"injecté\">]>" + model[afterDeclaration..];
+            var report = ArchimateExchange.Import(Fixtures.Stream(hostile), repo);
+            Equal("xml-invalide", report.Anomalies[0].Code, "refus signalé");
+            True(report.Anomalies[0].Message.Contains("DTD"), "c'est bien la déclaration qui est refusée : " + report.Anomalies[0].Message);
+            Equal(0, repo.Objects.Count, "rien n'est importé");
+        });
     }
 }
