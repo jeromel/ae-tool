@@ -7,7 +7,7 @@ import { readPref, writePref } from './prefs';
 
 /**
  * Le menu suit l'intention, pas les objets de l'outil : comprendre le système d'information couche par couche,
- * décider en comité, tenir le référentiel à jour. Les cas d'usage vivent dans chaque espace, sous forme de questions.
+ * décider en comité, tenir le référentiel à jour, administrer l'outil. Les cas d'usage vivent dans chaque espace, sous forme de questions.
  */
 @Component({
   selector: 'app-root',
@@ -38,11 +38,21 @@ import { readPref, writePref } from './prefs';
 
         <div class="group">Tenir à jour</div>
         <a routerLink="/qualite" routerLinkActive="on">Qualité du référentiel</a>
+        @if (session.can('valideur')) { <a routerLink="/validations" routerLinkActive="on">Validations</a> }
         <a routerLink="/vues" routerLinkActive="on">Vues Archi</a>
         @if (session.can('administrateur')) {
           <a routerLink="/imports" routerLinkActive="on">Imports et exports</a>
-          <a routerLink="/metamodele" routerLinkActive="on">Métamodèle</a>
-          <a routerLink="/utilisateurs" routerLinkActive="on">Utilisateurs</a>
+          <a routerLink="/sources" routerLinkActive="on">Sources externes</a>
+        }
+
+        @if (session.can('valideur')) {
+          <div class="group">Administrer</div>
+          @if (session.can('administrateur')) {
+            <a routerLink="/metamodele" routerLinkActive="on">Métamodèle</a>
+            <a routerLink="/utilisateurs" routerLinkActive="on">Utilisateurs</a>
+          }
+          <a routerLink="/journal" routerLinkActive="on">Journal</a>
+          @if (session.can('administrateur')) { <a routerLink="/sauvegardes" routerLinkActive="on">Sauvegardes</a> }
         }
         @if (session.user(); as u) {
           <div class="me">

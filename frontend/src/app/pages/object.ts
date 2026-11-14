@@ -1,10 +1,12 @@
 import { Component, effect, inject, input, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { Api, SOURCE_LABELS } from '../api';
+import { ObjectValidation } from '../object-validation';
+import { ObjectHistory } from '../object-history';
 
 /** Fiche d'un objet : propriétés, relations, vues, projets, analyse d'impact et visuel propre à l'élément. */
 @Component({
-  imports: [RouterLink],
+  imports: [RouterLink, ObjectValidation, ObjectHistory],
   template: `
     @if (d(); as d) {
       <a routerLink="/referentiel">← Tous les objets</a>
@@ -16,6 +18,7 @@ import { Api, SOURCE_LABELS } from '../api';
         @if (d.hasAssessment) { <a [routerLink]="['/portefeuille', d.brief.id]">Voir la notation</a> }
         <a routerLink="/impact" [queryParams]="{ objet: d.brief.id }">Analyser l'impact</a>
       </p>
+      <app-object-validation [objectId]="d.brief.id" (changed)="load()" />
       <div class="row">
         <div class="card">
           <h2>Description et propriétés</h2>
@@ -77,6 +80,7 @@ import { Api, SOURCE_LABELS } from '../api';
           </table>
         </div>
       </div>
+      <app-object-history [objectId]="d.brief.id" />
       <div class="card">
         <div class="tools">
           <h2 style="margin: 0">Analyse d'impact</h2>

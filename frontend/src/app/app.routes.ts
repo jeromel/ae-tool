@@ -20,6 +20,11 @@ import { CapabilitiesPage } from './pages/capabilities';
 import { ListSpacePage } from './pages/list-space';
 import { ImpactPage } from './pages/impact';
 import { QualityPage } from './pages/quality';
+import { ObjectNewPage } from './pages/object-new';
+import { ValidationPage } from './pages/validation';
+import { JournalPage } from './pages/journal';
+import { BackupsPage } from './pages/backups';
+import { SourcesPage } from './pages/sources';
 import { APPLICATIONS, DATA, FLOWS, INFRASTRUCTURE } from './spaces.config';
 
 /** Toute route exige une session ; sinon connexion, ou premier lancement tant qu'aucun compte n'existe. */
@@ -68,14 +73,22 @@ const protectedRoutes: Routes = [
   { path: 'impact', component: ImpactPage },
   // Tenir à jour.
   { path: 'qualite', component: QualityPage },
+  { path: 'validations', component: ValidationPage, canActivate: [requires('valideur')] },
   { path: 'vues', component: ViewsPage },
   { path: 'vues/:id', component: ViewsPage },
   { path: 'imports', component: ImportsPage, canActivate: [requires('administrateur')] },
+  { path: 'sources', component: SourcesPage, canActivate: [requires('administrateur')] },
+  { path: 'sources/:key', component: SourcesPage, canActivate: [requires('administrateur')] },
+  // Administrer.
   { path: 'metamodele', component: MetamodelPage, canActivate: [requires('administrateur')] },
+  { path: 'metamodele/:onglet', component: MetamodelPage, canActivate: [requires('administrateur')] },
   { path: 'utilisateurs', component: UsersPage, canActivate: [requires('administrateur')] },
+  { path: 'journal', component: JournalPage, canActivate: [requires('valideur')] },
+  { path: 'sauvegardes', component: BackupsPage, canActivate: [requires('administrateur')] },
   { path: 'compte', component: AccountPage },
   // Hors menu : atteints par la recherche, par une fiche ou par un lien.
   { path: 'referentiel', component: ObjectsPage },
+  { path: 'objets/nouveau', component: ObjectNewPage, canActivate: [requires('contributeur')] },
   { path: 'objets/:id', component: ObjectPage },
   { path: 'matrices', component: MatrixPage },
   { path: '**', redirectTo: '' },
