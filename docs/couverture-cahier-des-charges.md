@@ -19,7 +19,7 @@
 |---|---|---|---|---|
 | EV-01 Importer des schémas draw.io | 0 | 3 | Non fait | fichiers `.drawio` (pages compressées ou non), formes ArchiMate de draw.io traduites par la matrice de transcodification, autres formes rapprochées du référentiel par leur libellé ; schéma conservé comme vue |
 | EV-02 Dessiner dans l'outil avec draw.io intégré, à partir des objets du référentiel | 1 | 3 | Non fait | éditeur draw.io hébergé avec l'outil (aucun appel extérieur), bibliothèque de formes tirée du référentiel ; répond à EF-60, 62, 65, 67 |
-| EV-03 Étapes de transition et scénarios des projets, SI vu à chaque étape | 2 | 4 | Besoin à affiner | dessin des étapes et des scénarios par les chefs de projet et architectes ; vue du SI à une étape choisie ; scénarios par étape ; reprend EF-30 à 36 |
+| EV-03 Étapes de transition et scénarios des projets, SI vu à chaque étape | 2 | 4 | Spécifié (15 novembre 2026), six incréments | dessin des étapes et des scénarios par les chefs de projet et architectes ; vue du SI à une étape choisie ; scénarios par étape ; reprend EF-30 à 36 |
 
 ## Exigences fonctionnelles
 
