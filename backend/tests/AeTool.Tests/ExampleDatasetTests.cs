@@ -51,6 +51,7 @@ public static class ExampleDatasetTests
             Equal(5, results.Count(x => x.r.Priority == "Haute"), "priorités hautes");
         });
         RunDrawing(repo, dir);
+        RunTrajectory(repo);
     }
 
     /// <summary>Le dessin draw.io du jeu se rattache au référentiel Hydréane : les chiffres annoncés dans le README d'exemple.</summary>
@@ -68,6 +69,45 @@ public static class ExampleDatasetTests
             using (var s = File.OpenRead(path)) r = DrawioImporter.Apply(s, "hydreane-facturation-saas.drawio", repo, "test", null);
             Equal(0, r.Anomalies.Count, "anomalies");
             Equal(2, r.Views?.Count ?? 0, "vues");
+        });
+    }
+
+    /// <summary>Critère d'acceptation de l'incrément 1 d'EV-03 : la facturation en SaaS, en deux étapes, sur Hydréane.</summary>
+    public static void RunTrajectory(Repository repo)
+    {
+        Test("jeu Hydréane : à l'étape 2 du scénario SaaS, ONDINE est retirée, le SaaS l'a remplacée et ses flux suivent", () =>
+        {
+            var app = repo.ActiveObjects.Where(o => repo.Metamodel.IsA(o.TypeKey, AeTool.Core.Roles.Application)).ToDictionary(o => o.Name, o => o.Id);
+            var flow = repo.Metamodel.RelationshipTypes.First(t => t.Roles.Contains(AeTool.Core.Roles.Flow)).Key;
+            bool IsFlow(Relationship r) => repo.Metamodel.RelIsA(r.TypeKey, AeTool.Core.Roles.Flow);
+            var ondineFlows = repo.ActiveRelationships.Count(r => IsFlow(r) && (r.SourceId == app["ONDINE"] || r.TargetId == app["ONDINE"]));
+            var before = System.Text.Json.JsonSerializer.Serialize(repo.Objects);
+            var s = new Scenario { Id = "scn-saas", ProjectId = "p", Name = "Facturation en SaaS" };
+            s.Envisioned["env-saas"] = new ArchObject { Id = "env-saas", Name = "Offre de facturation en ligne", TypeKey = repo.Objects[app["ONDINE"]].TypeKey };
+            s.Steps.Add(new TrajectoryStep { Id = "e1", Name = "Mise en service", Order = 1, Changes =
+            {
+                new TrajectoryChange { Id = "c1", Op = ChangeOps.Add, ElementId = "env-saas" },
+                new TrajectoryChange { Id = "c2", Op = ChangeOps.Add, Target = "relation", Relation = new PlannedRelation { TypeKey = flow, SourceId = app["CAPTA"], TargetId = "env-saas", Name = "envoie les index relevés" } },
+            } });
+            s.Steps.Add(new TrajectoryStep { Id = "e2", Name = "Décommissionnement", Order = 2, Changes =
+            {
+                new TrajectoryChange { Id = "c3", Op = ChangeOps.Replace, ElementId = app["ONDINE"], ReplacementId = "env-saas" },
+            } });
+            repo.Scenarios[s.Id] = s;
+            try
+            {
+                var p = Projection.Build(repo, "scn-saas", "e2");
+                var space = new SpaceReader(p.Repo, new Analyzer(p.Repo));
+                var names = space.Applications().Select(a => a.Name).ToHashSet();
+                True(!names.Contains("ONDINE") && names.Contains("Offre de facturation en ligne"), "applications à l'étape 2");
+                var saasFlows = p.Repo.ActiveRelationships.Count(r => IsFlow(r) && (r.SourceId == "env-saas" || r.TargetId == "env-saas"));
+                Equal(ondineFlows, saasFlows, "les flux d'ONDINE passent au SaaS (CAPTA déjà relié à l'étape 1)");
+                Equal(0, p.Issues.Count, "anomalies");
+                Equal(before, System.Text.Json.JsonSerializer.Serialize(repo.Objects), "existant intact");
+                var step1 = new SpaceReader(Projection.Build(repo, "scn-saas", "e1").Repo, new Analyzer(repo)).Applications().Select(a => a.Name).ToHashSet();
+                True(step1.Contains("ONDINE") && step1.Contains("Offre de facturation en ligne"), "à l'étape 1, les deux coexistent");
+            }
+            finally { repo.Scenarios.Remove(s.Id); }
         });
     }
 

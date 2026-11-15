@@ -1,5 +1,6 @@
 import { Component, computed, effect, inject, input, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
+import { Mark } from '../projection';
 import { Api, SOURCE_LABELS } from '../api';
 import { Session } from '../session';
 import { ObjectForm } from './object-form';
@@ -9,11 +10,11 @@ import { HistoryRefresh, ObjectHistory } from '../object-history';
 
 /** Fiche d'un objet : propriétés, relations, vues, projets, analyse d'impact et visuel propre à l'élément. */
 @Component({
-  imports: [RouterLink, ObjectValidation, ObjectHistory, ObjectForm, ObjectRelations],
+  imports: [RouterLink, ObjectValidation, ObjectHistory, ObjectForm, ObjectRelations, Mark],
   template: `
     @if (d(); as d) {
       <a routerLink="/referentiel">← Tous les objets</a>
-      <h1><span class="swatch" [style.background]="d.effectiveVisual.fill"></span>{{ d.brief.name || '(sans nom)' }}</h1>
+      <h1><span class="swatch" [style.background]="d.effectiveVisual.fill"></span>{{ d.brief.name || '(sans nom)' }}<app-mark [id]="d.brief.id" /></h1>
       <p class="lead" style="max-width: none">
         <span class="chip info">{{ d.brief.typeLabel }}</span> <span class="chip">{{ d.brief.layerLabel }}</span>
         <span class="chip">Source : {{ sources[d.brief.source] ?? d.brief.source }}</span> <span class="chip">{{ d.brief.status }}</span>

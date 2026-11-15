@@ -1,6 +1,7 @@
 import { Component, computed, effect, inject, input, signal } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
+import { Mark } from '../projection';
 import { Api } from '../api';
 import { MatrixView } from '../matrix-view';
 import { Question, QuestionBar } from '../questions';
@@ -20,7 +21,7 @@ const DUPLICATE_FROM = 3;
  * Les questions changent la coloration ; cliquer une capacité ouvre le tiroir de ses applications.
  */
 @Component({
-  imports: [RouterLink, NgTemplateOutlet, QuestionBar, MatrixView],
+  imports: [RouterLink, NgTemplateOutlet, QuestionBar, MatrixView, Mark],
   template: `
     <h1>Capacités</h1>
     <p class="lead">Ce que l'entreprise sait faire, et les applications qui le rendent possible. La carte se lit de la capacité vers ses sous-capacités.</p>
@@ -96,7 +97,7 @@ const DUPLICATE_FROM = 3;
             <h3>Applications ({{ p.covering.length }})</h3>
             @for (a of p.covering; track a.id) {
               <div class="line">
-                <a [routerLink]="['/objets', a.id]">{{ a.name }}</a>
+                <a [routerLink]="['/objets', a.id]">{{ a.name }}</a><app-mark [id]="a.id" />
                 <span class="chip" [class.warn]="a.via === 'vue'" [title]="a.via === 'vue' ? 'Déduit d\\'une imbrication dans une vue : pas encore une relation du référentiel' : ''">{{ a.via }}</span>
                 <a class="small" routerLink="/impact" [queryParams]="{ objet: a.id }">Impact</a>
               </div>

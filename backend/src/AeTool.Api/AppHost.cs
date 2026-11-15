@@ -33,6 +33,8 @@ public static class AppHost
         app.UseHosting(paths);
         // Avant les fichiers statiques : les en-têtes de sécurité couvrent aussi l'interface ; les habilitations ne visent que /api.
         app.UseAeAuthentication();
+        // Après les habilitations : l'état projeté (paramètre « etat ») vaut pour toutes les lectures de la requête.
+        app.Use(ProjectionContext.Middleware);
         app.UseDefaultFiles();
         app.UseStaticFiles();
 
@@ -51,6 +53,7 @@ public static class AppHost
         AnalysisEndpoints.Map(api);
         SpaceEndpoints.Map(api);
         ProjectEndpoints.Map(api);
+        AeTool.Api.Endpoints.TrajectoryEndpoints.Map(api);
         PortfolioEndpoints.Map(api);
         ExchangeEndpoints.Map(api);
         SourceEndpoints.Map(api);

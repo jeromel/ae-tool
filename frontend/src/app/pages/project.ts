@@ -1,10 +1,11 @@
 import { Component, computed, effect, inject, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { Api } from '../api';
+import { ProjectTrajectories } from './project-trajectories';
 
 /** Fiche projet : vues du dossier projet et objets impactés par couche, avec la nature de chaque impact. */
 @Component({
-  imports: [RouterLink],
+  imports: [RouterLink, ProjectTrajectories],
   template: `
     @if (d(); as d) {
       <a routerLink="/projets">← Projets</a>
@@ -14,6 +15,7 @@ import { Api } from '../api';
         <a [routerLink]="['/objets', d.project.id]">Fiche de l'objet</a>
       </p>
       @if (d.documentation) { <div class="card" style="white-space: pre-wrap">{{ d.documentation }}</div> }
+      <app-project-trajectories [projectId]="id()" [projectName]="d.project.name" />
       <div class="card">
         <h2>Vues du projet ({{ d.diagrams.length }})</h2>
         @for (v of d.diagrams; track v.id) { <div><a [routerLink]="['/vues', v.id]">{{ v.name }}</a></div> }

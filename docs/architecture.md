@@ -1,6 +1,6 @@
 # Dossier d'architecture de l'outil
 
-Version décrite : 0.12.0 (pilote). Ce document dit ce qu'est l'outil, comment il est construit et pourquoi.
+Version décrite : 0.13.0 (pilote). Ce document dit ce qu'est l'outil, comment il est construit et pourquoi.
 Les choix structurants sont détaillés dans [les décisions d'architecture](decisions/README.md).
 
 ## 1. Couche métier : à quoi sert l'outil
@@ -30,6 +30,7 @@ Processus de gouvernance outillés :
 | Espaces de lecture | vues générées par question (« quelles applications portent cette capacité ? ») ; vues Archi importées |
 | Analyses | impact amont et aval, matrices, adhérences entre projets, conformité au métamodèle, qualité |
 | Portefeuille | notation, synthèse, décisions |
+| Trajectoires | scénarios et étapes des projets, changements, objets envisagés ; SI projeté à une étape, dans tous les écrans |
 | Échanges | import et export Archi (format d'échange Open Group), reprise du classeur d'urbanisation, import des dessins draw.io (rapprochés forme par forme), export CSV |
 | Sources externes | rapprochement avec un export de fichier ou la CMDB EasyVista : comparer, puis appliquer des décisions |
 | Validation et historique | états brouillon, proposé, validé ; journal filtrable ; avant et après de chaque modification |
@@ -83,11 +84,18 @@ L'outil n'appelle aucun service sur Internet en dehors de ces deux derniers flux
   `saisie` ou la clé d'une source externe), concept ArchiMate d'origine, liens vers les sources externes, état de
   validation et ses auteurs.
 - **Relation** : type, source, cible, nom, propriétés, concept ArchiMate d'origine.
-- **Vue** : diagramme importé d'Archi (nœuds, liens, géométrie).
+- **Vue** : diagramme importé d'Archi ou de draw.io (nœuds, liens, géométrie), et sa disposition retouchée dans l'outil.
+- **Scénario** : proposition de trajectoire d'un projet ; étapes ordonnées (date facultative), changements (ajout, retrait,
+  modification, remplacement) sur des objets, des relations ou des objets envisagés propres au scénario.
 - **Projet, impact, notation** : rattachés aux objets par leur identifiant.
 - **Métamodèle** : couches, types d'objets et de relations (avec rôles et visuel), définitions de propriétés, matrice de
   transcodification, grille de notation, réglages. C'est une donnée du référentiel : il s'exporte et s'importe.
 - **Journal** : une entrée par écriture, avec la cible et les champs modifiés (avant, après).
+
+Le **SI à une étape** n'est pas stocké : il est calculé à la demande. Une lecture qui porte le paramètre `etat`
+(scénario et étape) reçoit un référentiel projeté : l'existant partagé, plus une copie des seuls éléments touchés par
+les changements de la chaîne d'étapes. Tous les espaces, vues et analyses le lisent sans code propre ; toute écriture
+dans cet état est refusée. Le calcul est mis en cache jusqu'à la prochaine écriture.
 
 ### Le stockage
 

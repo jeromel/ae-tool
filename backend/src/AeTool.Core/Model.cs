@@ -262,6 +262,20 @@ public sealed class Repository
     public List<ProjectImpact> Impacts { get; set; } = new();
     public Dictionary<string, Assessment> Assessments { get; set; } = new();
     public List<JournalEntry> Journal { get; set; } = new();
+    /// <summary>Scénarios et étapes de transition des projets.</summary>
+    public Dictionary<string, Scenario> Scenarios { get; set; } = new();
+
+    /// <summary>Référentiel projeté seulement : ce qui a changé à l'étape lue (identifiant → ajouté, modifié, retiré).</summary>
+    [JsonIgnore] public Dictionary<string, string>? Projection { get; set; }
+    /// <summary>Référentiel projeté seulement : objet remplacé → remplaçant. Les vues dessinent le remplaçant à la place.</summary>
+    [JsonIgnore] public Dictionary<string, string>? Replacements { get; set; }
+
+    /// <summary>Remplaçant final d'un objet dans un état projeté (en suivant les remplacements successifs), sinon l'objet lui-même.</summary>
+    public string ReplacedBy(string id)
+    {
+        for (var i = 0; i < 20 && Replacements is not null && Replacements.TryGetValue(id, out var next); i++) id = next;
+        return id;
+    }
 
     [JsonIgnore] public IEnumerable<ArchObject> ActiveObjects => Objects.Values.Where(o => !o.Archived);
     [JsonIgnore] public IEnumerable<Relationship> ActiveRelationships => Relationships.Values.Where(r => !r.Archived);

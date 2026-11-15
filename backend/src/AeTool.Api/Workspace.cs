@@ -51,6 +51,8 @@ public sealed class Workspace
     private Repository _repo;
     private Analyzer? _analyzer;
     private DateOnly? _lastDaily;
+    /// <summary>États projetés déjà calculés, valables jusqu'à la prochaine écriture.</summary>
+    private readonly Dictionary<(string, string), (Projected Projected, Analyzer Analyzer)> _projections = new();
 
     public List<ImportReport> Reports { get; } = new();
 
@@ -62,9 +64,43 @@ public sealed class Workspace
         _lastDaily = _store.Backups().Where(b => b.Reason == BackupReasons.Daily).Select(b => (DateOnly?)DateOnly.FromDateTime(b.At)).FirstOrDefault();
     }
 
+    /// <summary>
+    /// Lecture. Pendant une requête qui demande un état projeté (paramètre « etat »), la lecture porte sur le SI à cette
+    /// étape, calculé à partir de l'existant : tous les espaces, vues et analyses le montrent sans changer de code.
+    /// </summary>
     public T Read<T>(Func<Repository, Analyzer, T> query)
     {
+        lock (_gate)
+        {
+            if (ProjectionContext.Current is { } state)
+            {
+                var (projected, analyzer) = ProjectedState(state.ScenarioId, state.StepId);
+                return query(projected.Repo, analyzer);
+            }
+            return query(_repo, _analyzer ??= new Analyzer(_repo));
+        }
+    }
+
+    /// <summary>Lecture qui ignore l'état projeté demandé : la gestion des scénarios porte toujours sur l'existant.</summary>
+    public T ReadCurrent<T>(Func<Repository, Analyzer, T> query)
+    {
         lock (_gate) return query(_repo, _analyzer ??= new Analyzer(_repo));
+    }
+
+    /// <summary>SI à une étape d'un scénario (calculé une fois par version du référentiel).</summary>
+    public Projected Project(string scenarioId, string stepId)
+    {
+        lock (_gate) return ProjectedState(scenarioId, stepId).Projected;
+    }
+
+    private (Projected Projected, Analyzer Analyzer) ProjectedState(string scenarioId, string stepId)
+    {
+        if (_projections.TryGetValue((scenarioId, stepId), out var cached)) return cached;
+        var projected = Projection.Build(_repo, scenarioId, stepId);
+        var entry = (projected, new Analyzer(projected.Repo));
+        if (_projections.Count > 20) _projections.Clear();
+        _projections[(scenarioId, stepId)] = entry;
+        return entry;
     }
 
     /// <summary>
@@ -78,7 +114,7 @@ public sealed class Workspace
             DailyBackup();
             if (backupReason is not null) _store.Backup(_repo, backupReason, Now());
             var result = command(_repo);
-            _analyzer = null;
+            _analyzer = null; _projections.Clear();
             _store.Save(_repo);
             return result;
         }
@@ -117,7 +153,7 @@ public sealed class Workspace
             var journal = _repo.Journal;
             _repo = new Repository { Journal = journal };
             _repo.Log(user, "Remise à zéro du référentiel");
-            _analyzer = null;
+            _analyzer = null; _projections.Clear();
             _store.Save(_repo);
         }
     }
@@ -155,7 +191,7 @@ public sealed class Workspace
             restored.Journal = AeTool.Api.Storage.JournalFile.Union(_repo.Journal, restored.Journal);
             _repo = restored;
             _repo.Log(user, "Sauvegarde restaurée", JournalKinds.Import, null, null, name);
-            _analyzer = null;
+            _analyzer = null; _projections.Clear();
             _store.Save(_repo);
             return _store.Backups().FirstOrDefault(b => b.Name == name) ?? new BackupInfo(name, "", Now(), 0);
         }

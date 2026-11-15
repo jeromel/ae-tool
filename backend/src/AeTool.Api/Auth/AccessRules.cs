@@ -32,6 +32,8 @@ public static class AccessRules
         if (IsUnder(p, "/api/import/drawio")) return Roles.Contributor;
         // Réorganiser une vue (déplacer, redimensionner) : contributeur ; cela ne change aucun objet.
         if (IsUnder(p, "/api/diagrams")) return Roles.Contributor;
+        // Scénarios et étapes : saisis par les chefs de projet et les architectes, dès le rôle contributeur.
+        if (IsUnder(p, "/api/scenarios")) return Roles.Contributor;
         // Métamodèle, imports et tout chemin d'écriture inconnu : refus par défaut, administrateur seulement.
         return Roles.Administrator;
     }

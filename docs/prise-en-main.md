@@ -191,6 +191,26 @@ Archi avec « Exporter vers Archi ». **Revenir à la disposition d'origine** l'
 au journal. Dans toutes les vues, le libellé ou la pastille d'un lien qui tomberait sur une carte n'apparaît que
 lorsque l'on clique sur l'une de ses deux extrémités.
 
+### Étapes et scénarios d'un projet
+
+Sur la fiche d'un projet, la section **Trajectoires** décrit comment le SI évolue (dès le rôle contributeur) :
+
+- un **scénario** est une proposition de solution, non validée ; il part de l'existant ou d'une étape d'un autre scénario
+  (une variante) ; on peut le copier pour en proposer une autre ;
+- chaque **étape** décrit ce qui change par rapport à la précédente : ajouter un objet (un objet *envisagé*, qui n'existe
+  que dans le scénario), ajouter un lien, retirer un objet ou un lien, modifier un nom ou une propriété, remplacer un
+  objet par un autre (ses liens passent au remplaçant, il est retiré) ; toutes les couches sont concernées ;
+- **Voir le SI à cette étape** ouvre tous les écrans sur le SI projeté : espaces, vues, matrices, qualité, analyse
+  d'impact. Un bandeau rappelle l'état regardé et résume ce qui change ; les objets portent une pastille *ajouté*,
+  *modifié* ou *retiré* ; dans les vues, un objet remplacé est dessiné sous les traits de son remplaçant. Le sélecteur
+  **État du SI regardé**, sous la recherche, permet de passer d'une étape à l'autre ou de revenir à l'existant.
+
+Le SI projeté est en lecture seule : rien de ce qu'on y voit ne modifie le référentiel. Quand l'existant a bougé
+depuis la saisie d'un changement (une propriété déjà modifiée, un objet déjà retiré), le changement est signalé sous
+l'étape au lieu d'être appliqué en silence. Un lecteur ne voit que les scénarios proposés, pas les brouillons. Les
+dates, la comparaison des scénarios, la décision du comité et la bascule vers l'existant viennent dans les incréments
+suivants (voir la spécification EV-03).
+
 ## 7. Se protéger d'une erreur
 
 **Administrer › Sauvegardes** : une sauvegarde automatique par jour d'activité et avant chaque opération risquée,
@@ -206,6 +226,7 @@ lorsque l'on clique sur l'une de ses deux extrémités.
 | savoir ce qui manque au référentiel | Tenir à jour › Qualité du référentiel |
 | retrouver un dessin d'Archi ou de draw.io | Tenir à jour › Vues |
 | importer un dessin draw.io | Tenir à jour › Importer un dessin |
+| voir le SI à une étape d'un projet | Décider › Projets › un projet › Trajectoires, ou le sélecteur « État du SI regardé » |
 | changer le métamodèle ou la matrice | Administrer › Métamodèle |
 | ouvrir l'outil à un collègue | Administrer › Utilisateurs |
 

@@ -13,7 +13,7 @@ public sealed record RelationshipTypeInput(string? Label, string? ReverseLabel, 
     string? SoftLine, string? Head, List<string>? AllowedPairs);
 public sealed record DisplayableInput(string Key, bool Displayable);
 public sealed record ImpactInput(string Nature, string? Comment);
-public sealed record BriefDto(string Id, string Name, string TypeKey, string TypeLabel, string Layer, string LayerLabel, string Source, string Status, string? Owner);
+public sealed record BriefDto(string Id, string Name, string TypeKey, string TypeLabel, string Layer, string LayerLabel, string Source, string Status, string? Owner, string? Mark = null);
 
 public static class Dto
 {
@@ -22,7 +22,8 @@ public static class Dto
         var type = repo.Metamodel.Type(o.TypeKey);
         var layer = type?.LayerKey ?? "autre";
         return new BriefDto(o.Id, o.Name, o.TypeKey, type?.Label ?? o.TypeKey, layer,
-            repo.Metamodel.Layers.FirstOrDefault(l => l.Key == layer)?.Label ?? layer, o.Source, o.ValidationStatus, o.Owner);
+            repo.Metamodel.Layers.FirstOrDefault(l => l.Key == layer)?.Label ?? layer, o.Source, o.ValidationStatus, o.Owner,
+            repo.Projection?.GetValueOrDefault(o.Id));
     }
 
     public static void Apply(ArchObject o, ObjectInput input)
@@ -64,12 +65,16 @@ public static class Dto
         void Visit(DiagramNode n, int depth, string? parentId)
         {
             var b = d.Placed(n);
-            repo.Objects.TryGetValue(n.ElementId ?? "", out var o);
+            // État projeté : un objet remplacé est dessiné sous les traits de son remplaçant, avec les liens qui lui ont été reportés.
+            var elementId = n.ElementId is null ? null : repo.ReplacedBy(n.ElementId);
+            var replaced = elementId is not null && elementId != n.ElementId ? repo.Objects.GetValueOrDefault(n.ElementId!)?.Name : null;
+            repo.Objects.TryGetValue(elementId ?? "", out var o);
             var visual = o is null ? new Visual() : meta.EffectiveVisual(o);
             var useStyle = !metamodelVisuals || o is null;
             nodes.Add(new
             {
-                n.Id, n.Kind, n.ElementId, Name = o?.Name ?? n.Label ?? "", TypeKey = o?.TypeKey,
+                n.Id, n.Kind, ElementId = elementId, Name = o?.Name ?? n.Label ?? "", Replaces = replaced,
+                Mark = elementId is null ? null : repo.Projection?.GetValueOrDefault(elementId), TypeKey = o?.TypeKey,
                 TypeLabel = o is null ? null : meta.Type(o.TypeKey)?.Label, n.ViewRefId,
                 b.X, b.Y, b.W, b.H, Depth = depth, ParentId = parentId,
                 Fill = (useStyle ? n.Style?.Fill?.Hex : null) ?? visual.Fill ?? "#ffffff",
@@ -117,7 +122,7 @@ public static class Dto
                 var type = r is null ? null : meta.RelType(r.TypeKey);
                 return new
                 {
-                    c.Id, c.SourceNodeId, c.TargetNodeId,
+                    c.Id, c.SourceNodeId, c.TargetNodeId, Mark = c.RelationshipId is null ? null : repo.Projection?.GetValueOrDefault(c.RelationshipId),
                     Bendpoints = d.Moved(c.SourceNodeId) || d.Moved(c.TargetNodeId) ? new List<Point>() : c.Bendpoints, TypeKey = r?.TypeKey, TypeLabel = type?.Label, Name = r?.Name ?? c.Label,
                     LineStyle = type?.LineStyle ?? (c.Dashed ? "tirets" : "plein"),
                     SoftLine = type?.SoftLine ?? (c.Head is null ? DrawingDefaults.FallbackLine : c.Dashed ? "tirets" : "plein"),

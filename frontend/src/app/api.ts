@@ -18,6 +18,11 @@ export class Api {
   csrfToken: string | null = null;
   /** Appelé quand le serveur répond 401 hors routes d'authentification (session expirée). Renseigné par `Session`. */
   onUnauthorized: (() => void) | null = null;
+  /**
+   * État du SI regardé : null pour l'existant, sinon une étape d'un scénario (« scenario:etape »). Gardé pour la durée de
+   * l'onglet ; toute lecture le transmet au serveur, qui répond alors sur le SI projeté, en lecture seule.
+   */
+  readonly etat: { scenarioId: string; stepId: string; label: string } | null = readEtat();
 
   get<T = any>(path: string): Promise<T> {
     return this.send<T>('GET', path);
@@ -44,11 +49,16 @@ export class Api {
     return this.base + path;
   }
 
+  private withEtat(method: string, path: string): string {
+    if (!this.etat || method !== 'GET' || /^\/(scenarios|trajectoires|auth|users|admin|journal|metamodel|import|export|sources|validation)\b/.test(path)) return path;
+    return path + (path.includes('?') ? '&' : '?') + 'etat=' + encodeURIComponent(this.etat.scenarioId + ':' + this.etat.stepId);
+  }
+
   private async send<T>(method: string, path: string, body?: BodyInit, contentType?: string): Promise<T> {
     const headers: Record<string, string> = {};
     if (contentType) headers['Content-Type'] = contentType;
     if (method !== 'GET' && this.csrfToken) headers['X-CSRF-TOKEN'] = this.csrfToken;
-    const response = await fetch(this.base + path, { method, body, headers });
+    const response = await fetch(this.base + this.withEtat(method, path), { method, body, headers });
     if (!response.ok) {
       let message = response.status === 403 ? DENIED : `Erreur ${response.status}`;
       let problems: string[] = [];
@@ -79,6 +89,30 @@ export interface Brief {
   source: string;
   status: string;
   owner: string | null;
+  mark?: string | null;
 }
 
 export const SOURCE_LABELS: Record<string, string> = { archi: 'Archi', urba: 'Classeur urbanisation', saisie: 'Saisie', drawio: 'draw.io' };
+
+const ETAT_KEY = 'ae.etat';
+
+function readEtat(): { scenarioId: string; stepId: string; label: string } | null {
+  try {
+    const raw = sessionStorage.getItem(ETAT_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Change l'état du SI regardé puis recharge l'interface : chaque écran relit alors ses données dans ce nouvel état. */
+export function enterEtat(etat: { scenarioId: string; stepId: string; label: string } | null, goto?: string): void {
+  try {
+    if (etat) sessionStorage.setItem(ETAT_KEY, JSON.stringify(etat));
+    else sessionStorage.removeItem(ETAT_KEY);
+  } catch {
+    /* stockage indisponible : l'état ne survivra pas au rechargement */
+  }
+  if (goto) location.assign(goto);
+  else location.reload();
+}

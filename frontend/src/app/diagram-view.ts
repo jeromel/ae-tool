@@ -6,12 +6,12 @@ import { Point, Rect, Side, bezier, bezierMiddle, contains, facingSides, polylin
 export interface DiagramNode {
   id: string; kind: string; elementId: string | null; name: string; typeLabel: string | null;
   x: number; y: number; w: number; h: number; fill: string; stroke: string; textColor: string;
-  fontSize: number; bold: boolean; shape: string; hasChildren: boolean; viewRefId: string | null; outlined?: boolean; parentId?: string | null;
+  fontSize: number; bold: boolean; shape: string; hasChildren: boolean; viewRefId: string | null; outlined?: boolean; parentId?: string | null; mark?: string | null; replaces?: string | null;
   template: string | null; glyph: string | null; layers: Record<string, string> | null;
 }
 interface Connection {
   id: string; sourceNodeId: string; targetNodeId: string; bendpoints: Point[];
-  lineStyle: string; softLine: string; head: string; flow: boolean; color: string; orthogonal?: boolean;
+  lineStyle: string; softLine: string; head: string; flow: boolean; color: string; orthogonal?: boolean; mark?: string | null;
   name: string | null; typeKey: string | null; typeLabel: string | null;
   protocol: string | null; encryption: string | null; carried: string[] | null;
 }
@@ -37,6 +37,7 @@ interface Wire {
   id: string; path: string; color: string; dash: string | null; head: string | null; tail: string | null;
   flow: boolean; mid: Point; tag: string | null; lock: boolean; label: string[]; title: string;
   sourceId: string; targetId: string;
+  mark: string | null;  // état projeté : ajouté, modifié, retiré
   crowded: boolean;   // libellé ou pastille qui tomberait sur une carte : montré seulement quand le lien est en vue
 }
 interface Overlay { id: string; x: number; y: number; font: number; vertical: boolean; legend: boolean; text: string; }
@@ -93,7 +94,7 @@ const NEUTRAL = '#e9edee';
         <g [attr.transform]="transform()">
           @for (n of nodes(); track n.id) {
             <g class="node" [class]="n.look" [class.link]="n.elementId || n.viewRefId" [class.selected]="n.elementId && n.elementId === selectedId()"
-              [class.dim]="isDimmed(n)" [class.moving]="movingIds().has(n.id)" (click)="pick(n, $event)" (dblclick)="open(n, $event)"
+              [class.dim]="isDimmed(n)" [class.moving]="movingIds().has(n.id)" [attr.data-mark]="n.mark || null" (click)="pick(n, $event)" (dblclick)="open(n, $event)"
               (pointerdown)="onNodeDown(n, $event, 'move')">
               @if (n.look === 'carte' || n.look === 'rond') {
                 <rect class="shadow" [attr.x]="n.x" [attr.y]="n.y + 2" [attr.width]="n.w" [attr.height]="n.h" [attr.rx]="n.radius" />
@@ -119,7 +120,7 @@ const NEUTRAL = '#e9edee';
                 <foreignObject [attr.x]="n.text.x" [attr.y]="n.text.y" [attr.width]="n.text.w" [attr.height]="n.text.h">
                   <div class="label" [class.top]="n.look === 'zone'" [class.left]="n.left" [style.color]="n.look === 'zone' && dark() ? null : n.textColor"
                     [style.font-size.px]="fontOf(n)" [style.font-weight]="n.bold || n.look === 'zone' ? 650 : n.look === 'exact' || n.look === 'note' ? 400 : 550"
-                    [title]="n.typeLabel ? n.typeLabel + ' : ' + n.name : n.name">
+                    [title]="(n.typeLabel ? n.typeLabel + ' : ' + n.name : n.name) + (n.replaces ? ' (remplace ' + n.replaces + ' à cette étape)' : '')">
                     <span [style.-webkit-line-clamp]="linesOf(n)">{{ n.name }}</span>
                   </div>
                 </foreignObject>
@@ -133,7 +134,7 @@ const NEUTRAL = '#e9edee';
             </g>
           }
           @for (c of wires(); track c.id) {
-            <g class="wire" [class.flow]="c.flow" [class.on]="isAttached(c)" [class.dim]="selectedNodeIds().size > 0 && !isAttached(c)">
+            <g class="wire" [attr.data-mark]="c.mark" [class.flow]="c.flow" [class.on]="isAttached(c)" [class.dim]="selectedNodeIds().size > 0 && !isAttached(c)">
               <path [attr.d]="c.path" fill="none" [style.stroke]="c.color" [attr.stroke-dasharray]="c.dash"
                 [attr.marker-end]="c.head ? 'url(#m-' + c.head + ')' : null" [attr.marker-start]="c.tail ? 'url(#m-' + c.tail + ')' : null">
                 <title>{{ c.title }}</title>
@@ -195,6 +196,15 @@ const NEUTRAL = '#e9edee';
     .stage.editing { cursor: default; background-size: 10px 10px; }
     .stage.editing .node { cursor: move; }
     .stage.editing .node.moving .body { stroke: #1f6f8b; stroke-width: 2; }
+    .node[data-mark='ajouté'] .body { stroke: #2e8b4e !important; stroke-width: 3; }
+    .node[data-mark='modifié'] .body { stroke: #d08a10 !important; stroke-width: 3; }
+    .node[data-mark='retiré'] { opacity: .45; }
+    .node[data-mark='retiré'] .body { stroke: #b23a2a !important; stroke-width: 2; stroke-dasharray: 6 4; }
+    .node[data-mark='retiré'] .label span { text-decoration: line-through; }
+    .wire[data-mark='ajouté'] path { stroke: #2e8b4e !important; stroke-width: 2.4; }
+    .wire[data-mark='modifié'] path { stroke: #d08a10 !important; stroke-width: 2.4; }
+    .wire[data-mark='retiré'] { opacity: .35; }
+    .wire[data-mark='retiré'] path { stroke: #b23a2a !important; stroke-dasharray: 5 4; }
     .grip { fill: #fff; stroke: #1f6f8b; stroke-width: 1.2; vector-effect: non-scaling-stroke; cursor: nwse-resize; }
     svg { display: block; }
 
@@ -450,7 +460,7 @@ export class DiagramView implements OnDestroy {
           c.encryption ? 'Chiffrement : ' + c.encryption : '',
           c.carried?.length ? 'Transporte : ' + c.carried.join(', ') : '',
         ].filter(Boolean).join('\n'),
-        sourceId: s.id, targetId: t.id,
+        sourceId: s.id, targetId: t.id, mark: c.mark ?? null,
         crowded: false,
       };
     });

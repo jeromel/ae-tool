@@ -10,7 +10,6 @@ import { ObjectsPage } from './pages/objects';
 import { ObjectPage } from './pages/object';
 import { ViewsPage } from './pages/views';
 import { ProjectsPage } from './pages/projects';
-import { ProjectPage } from './pages/project';
 import { CapabilitiesPage } from './pages/capabilities';
 import { ListSpacePage } from './pages/list-space';
 import { ImpactPage } from './pages/impact';
@@ -63,7 +62,7 @@ const protectedRoutes: Routes = [
   { path: 'portefeuille', component: PortfolioPage },
   { path: 'portefeuille/:id', loadComponent: () => import('./pages/assessment').then((m) => m.AssessmentPage) },
   { path: 'projets', component: ProjectsPage },
-  { path: 'projets/:id', component: ProjectPage },
+  { path: 'projets/:id', loadComponent: () => import('./pages/project').then((m) => m.ProjectPage) },
   { path: 'impact', component: ImpactPage },
   // Tenir à jour.
   { path: 'qualite', component: QualityPage },

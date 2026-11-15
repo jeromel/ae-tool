@@ -3,6 +3,7 @@ import { Router, RouterLink } from '@angular/router';
 import { Api } from '../api';
 import { MatrixView } from '../matrix-view';
 import { QuestionBar } from '../questions';
+import { Mark } from '../projection';
 import { Session } from '../session';
 import { SpaceConfig } from '../spaces.config';
 
@@ -11,7 +12,7 @@ import { SpaceConfig } from '../spaces.config';
  * Le même composant sert Applications, Flux, Données et Infrastructure ; seule la configuration change.
  */
 @Component({
-  imports: [RouterLink, QuestionBar, MatrixView],
+  imports: [RouterLink, QuestionBar, MatrixView, Mark],
   template: `
     @let c = config();
     <h1>{{ c.title }}</h1>
@@ -50,12 +51,13 @@ import { SpaceConfig } from '../spaces.config';
                 @for (col of c.columns; track col.key) {
                   <td [class.num]="col.kind === 'nombre'">
                     @switch (col.kind) {
-                      @case ('objet') { <a [routerLink]="['/objets', r[col.idKey!]]"><b>{{ r[col.key] || '(sans nom)' }}</b></a> }
+                      @case ('objet') { <a [routerLink]="['/objets', r[col.idKey!]]"><b>{{ r[col.key] || '(sans nom)' }}</b></a><app-mark [id]="r[col.idKey!]" /> }
                       @case ('nombre') { <span [class.muted]="!r[col.key]">{{ r[col.key] ?? '–' }}</span> }
                       @case ('liste') { {{ r[col.key].join(', ') }} }
                       @case ('chip') { @if (r[col.key]) { <span class="chip">{{ r[col.key] }}</span> } }
                       @default { {{ r[col.key] }} }
                     }
+                    @if (col.key === rowMarkColumn() && r.id && r.id !== r[c.columns[0].idKey ?? '']) { <app-mark [id]="r.id" /> }
                   </td>
                 }
                 @if (c.actionsIdKey; as key) {
@@ -78,6 +80,8 @@ export class ListSpacePage {
   private api = inject(Api);
   private router = inject(Router);
   session = inject(Session);
+  /** Colonne où s'affiche la marque de la ligne elle-même (un flux) : la première qui n'est pas un objet lié. */
+  rowMarkColumn = computed(() => this.config().columns.find((col) => col.kind !== 'objet')?.key ?? '');
   config = input.required<SpaceConfig>();
   /** Question présélectionnée par l'adresse (?question=…), pour arriver depuis l'accueil ou un lien partagé. */
   question = input<string>();
