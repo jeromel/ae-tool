@@ -30,6 +30,8 @@ public static class AccessRules
         if (IsUnder(p, "/api/validation")) return Roles.Validator;
         // Un dessin draw.io s'importe dès le rôle contributeur : les objets qu'il crée partent en validation.
         if (IsUnder(p, "/api/import/drawio")) return Roles.Contributor;
+        // Réorganiser une vue (déplacer, redimensionner) : contributeur ; cela ne change aucun objet.
+        if (IsUnder(p, "/api/diagrams")) return Roles.Contributor;
         // Métamodèle, imports et tout chemin d'écriture inconnu : refus par défaut, administrateur seulement.
         return Roles.Administrator;
     }

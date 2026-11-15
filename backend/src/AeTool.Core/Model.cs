@@ -158,6 +158,9 @@ public sealed class DiagramConnection
     public bool Orthogonal { get; set; }
 }
 
+/// <summary>Position et taille d'un nœud, en coordonnées de vue.</summary>
+public sealed record Box(int X, int Y, int W, int H);
+
 public sealed class Diagram
 {
     public string Id { get; set; } = "";
@@ -169,8 +172,31 @@ public sealed class Diagram
     public List<DiagramConnection> Connections { get; set; } = new();
     public string Source { get; set; } = "saisie";
     public bool Archived { get; set; }
+    /// <summary>
+    /// Disposition retouchée dans l'outil : position et taille de nœuds, par identifiant. Elle se superpose à la géométrie
+    /// venue d'Archi ou de draw.io et survit à leurs réimports ; l'effacer rend la disposition d'origine.
+    /// </summary>
+    public Dictionary<string, Box>? Layout { get; set; }
+    public string? LayoutBy { get; set; }
+    public DateTime? LayoutAt { get; set; }
 
     public IEnumerable<DiagramNode> AllNodes() => Flatten(Nodes);
+
+    /// <summary>Position et taille affichées d'un nœud : la disposition retouchée si elle existe, sinon l'origine.</summary>
+    public Box Placed(DiagramNode n) => Layout is not null && Layout.TryGetValue(n.Id, out var b) ? b : new Box(n.X, n.Y, n.W, n.H);
+
+    /// <summary>Un nœud déplacé rend caducs les points de passage des liens qui y aboutissent.</summary>
+    public bool Moved(string nodeId) => Layout?.ContainsKey(nodeId) == true;
+
+    /// <summary>Reprend la disposition retouchée d'une version précédente de la vue, pour les nœuds qui existent encore.</summary>
+    public void KeepLayoutFrom(Diagram? previous)
+    {
+        if (previous?.Layout is null) return;
+        var ids = AllNodes().Select(n => n.Id).ToHashSet();
+        var kept = previous.Layout.Where(kv => ids.Contains(kv.Key)).ToDictionary(kv => kv.Key, kv => kv.Value);
+        if (kept.Count == 0) return;
+        Layout = kept; LayoutBy = previous.LayoutBy; LayoutAt = previous.LayoutAt;
+    }
 
     private static IEnumerable<DiagramNode> Flatten(IEnumerable<DiagramNode> nodes)
     {

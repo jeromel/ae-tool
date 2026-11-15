@@ -4,6 +4,7 @@ import { Router, RouterLink } from '@angular/router';
 import { Api, SOURCE_LABELS } from '../api';
 import { DiagramNode, DiagramView } from '../diagram-view';
 import { NoteGauge } from '../note-gauge';
+import { Session } from '../session';
 import { readPref, readText, writePref, writeText } from '../prefs';
 
 /**
@@ -83,14 +84,24 @@ import { readPref, readText, writePref, writeText } from '../prefs';
               </div>
             </details>
             <a class="btn ghost" [href]="api.url('/export/archimate?diagram=' + d.id)">Exporter vers Archi</a>
+            @if (session.can('contributeur') && !editing()) { <button type="button" class="ghost" (click)="startEditing()">Réorganiser</button> }
           } @else {
             <div class="title"><h1>Vues</h1></div>
           }
           <button type="button" (click)="toggleFullscreen()">{{ fullscreen() ? 'Quitter le plein écran' : 'Plein écran' }}</button>
         </header>
 
+        @if (editing() && diagram(); as d) {
+          <div class="editbar" role="toolbar" aria-label="Réorganiser la vue">
+            <span class="small">Glissez une forme pour la déplacer (son contenu suit), la poignée en bas à droite pour la redimensionner.</span>
+            <button type="button" class="ghost" (click)="plan()?.arrange()">Organiser automatiquement</button>
+            @if (d.layout) { <button type="button" class="ghost" [disabled]="saving()" (click)="resetLayout()">Revenir à la disposition d'origine</button> }
+            <button type="button" class="ghost" (click)="stopEditing()">Annuler</button>
+            <button type="button" [disabled]="saving() || !plan()?.dirty()" (click)="saveLayout()">Enregistrer</button>
+          </div>
+        }
         @if (diagram(); as d) {
-          <app-diagram-view [diagram]="d" [selectedId]="selected()" [find]="find()" [dark]="dark()" [exact]="exact()" [layer]="layer()" [colorize]="colorize()"
+          <app-diagram-view #plan [editing]="editing()" [diagram]="d" [selectedId]="selected()" [find]="find()" [dark]="dark()" [exact]="exact()" [layer]="layer()" [colorize]="colorize()"
             (select)="onSelect($event)" (openObject)="go(['/objets', $event])" (openView)="go(['/vues', $event])" />
         } @else {
           <div class="empty">
@@ -207,6 +218,8 @@ import { readPref, readText, writePref, writeText } from '../prefs';
     .menu select { width: 100%; }
     .menu p { margin: 0; }
     app-diagram-view { flex: 1; }
+    .editbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 14px; background: #e8f3f6; border-bottom: 1px solid #c5dde4; }
+    .editbar span { flex: 1; min-width: 240px; }
     .empty { flex: 1; display: grid; place-content: center; text-align: center; padding: 24px; }
     .empty p { margin: 0 0 6px; max-width: 46ch; }
 
@@ -227,6 +240,10 @@ export class ViewsPage {
   private router = inject(Router);
   private workspace = viewChild.required<ElementRef<HTMLElement>>('workspace');
   private display = viewChild<ElementRef<HTMLDetailsElement>>('display');
+  plan = viewChild<DiagramView>('plan');
+  session = inject(Session);
+  editing = signal(false);
+  saving = signal(false);
 
   id = input<string>();
   tree = signal<any>(null);
@@ -269,6 +286,7 @@ export class ViewsPage {
     effect(() => {
       const id = this.id();
       const mode = this.mode();
+      untracked(() => this.editing.set(false));
       if (!id) return this.diagram.set(null);
       this.api.get(`/diagrams/${id}?visuel=${mode}`).then((d) => this.diagram.set(d));
     });
@@ -290,6 +308,43 @@ export class ViewsPage {
         if (o.hasAssessment) this.api.get(`/portfolio/${id}`).then((s) => this.selected() === id && this.score.set(s));
       });
     });
+  }
+
+  startEditing(): void {
+    this.selected.set(null);
+    this.editing.set(true);
+  }
+
+  stopEditing(): void {
+    this.plan()?.discard();
+    this.editing.set(false);
+  }
+
+  async saveLayout(): Promise<void> {
+    const d = this.diagram();
+    const view = this.plan();
+    if (!d || !view) return;
+    this.saving.set(true);
+    try {
+      await this.api.put(`/diagrams/${d.id}/layout`, { boxes: view.layoutToSave() });
+      this.editing.set(false);
+      this.diagram.set(await this.api.get(`/diagrams/${d.id}?visuel=${this.mode()}`));
+    } finally {
+      this.saving.set(false);
+    }
+  }
+
+  async resetLayout(): Promise<void> {
+    const d = this.diagram();
+    if (!d || !confirm('Revenir à la disposition d\'origine ? Les déplacements enregistrés pour cette vue seront perdus.')) return;
+    this.saving.set(true);
+    try {
+      await this.api.delete(`/diagrams/${d.id}/layout`);
+      this.editing.set(false);
+      this.diagram.set(await this.api.get(`/diagrams/${d.id}?visuel=${this.mode()}`));
+    } finally {
+      this.saving.set(false);
+    }
   }
 
   onSelect(node: DiagramNode | null): void {

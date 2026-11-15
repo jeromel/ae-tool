@@ -1,6 +1,6 @@
 # Couverture du cahier des charges
 
-État de la version 0.11.0 face à chaque exigence du cahier des charges (révision du 13 novembre 2026).
+État de la version 0.12.0 face à chaque exigence du cahier des charges (révision du 13 novembre 2026).
 **Couvert** : fait et vérifié par un test ou par la recette dans un navigateur. **Partiel** : une partie manque, elle est nommée.
 **Non fait** : rien n'existe. **À la DSI** : ne relève pas du code.
 
@@ -51,7 +51,7 @@
 | EF-52 Historique : qui, quand, avant, après | Couvert | |
 | EF-53 Complétude et fraîcheur par type et par propriétaire | Partiel | complétude et conformité par type ; **manquent** la fraîcheur et la ventilation par propriétaire |
 | EF-54 Journal des décisions d'architecture | Non fait | lot 4 |
-| EF-60, 62, 65, 66, 67 Édition graphique, export d'image | Non fait | lot 3 ; les vues Archi sont en lecture seule |
+| EF-60, 62, 65, 66, 67 Édition graphique, export d'image | Partiel (0.12.0) | réorganisation des vues : déplacer, redimensionner, organisation automatique, disposition gardée aux réimports et exportée vers Archi ; ajout d'objets et de liens dans le dessin : EV-02 |
 | EF-61 Un objet, plusieurs diagrammes | Couvert en lecture | |
 | EF-63 Visuel du type, visuel propre à l'élément | Couvert | |
 | EF-64 Colorer selon un attribut | Couvert | calques |

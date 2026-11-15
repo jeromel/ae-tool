@@ -177,6 +177,20 @@ la CMDB pour les serveurs, l'outil de gestion de projet pour les projets.
 L'outil ne fait que lire la source. Un objet lié garde l'identifiant de la source : au rapprochement suivant il est
 retrouvé même si son nom a changé.
 
+### Réorganiser une vue
+
+Dans **Vues**, le bouton **Réorganiser** (dès le rôle contributeur) passe la vue en mode édition :
+
+- glisser une forme la déplace, avec tout ce qu'elle contient ; la poignée en bas à droite la redimensionne ;
+- **Organiser automatiquement** range la vue : chaque zone garde son contenu, les cartes reliées sont posées côte à côte,
+  les zones s'alignent en grille, les cartes prennent une taille commune assez large pour leur nom ;
+- rien n'est gardé avant **Enregistrer** ; **Annuler** rend la vue telle qu'elle était.
+
+La disposition enregistrée se superpose à celle d'Archi ou de draw.io : elle survit à leurs réimports et part vers
+Archi avec « Exporter vers Archi ». **Revenir à la disposition d'origine** l'efface. Chaque enregistrement est inscrit
+au journal. Dans toutes les vues, le libellé ou la pastille d'un lien qui tomberait sur une carte n'apparaît que
+lorsque l'on clique sur l'une de ses deux extrémités.
+
 ## 7. Se protéger d'une erreur
 
 **Administrer › Sauvegardes** : une sauvegarde automatique par jour d'activité et avant chaque opération risquée,

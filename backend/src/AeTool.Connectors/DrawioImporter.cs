@@ -437,6 +437,7 @@ public static class DrawioImporter
             var diagram = BuildDiagram(page, id, name, resolved, repo);
             diagram.Properties.Add(new PropertyValue { Key = FileProperty, Value = fileName });
             diagram.Properties.Add(new PropertyValue { Key = PageProperty, Value = page.Name });
+            if (repo.Diagrams.TryGetValue(id, out var previous)) diagram.KeepLayoutFrom(previous);
             if (!repo.Diagrams.TryGetValue(id, out var existing)) { repo.Diagrams[id] = diagram; views.Added++; }
             else if (System.Text.Json.JsonSerializer.Serialize(existing) == System.Text.Json.JsonSerializer.Serialize(diagram)) views.Unchanged++;
             else { repo.Diagrams[id] = diagram; views.Updated++; }

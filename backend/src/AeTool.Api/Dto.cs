@@ -61,8 +61,9 @@ public static class Dto
         }
 
         var nodes = new List<object>();
-        void Visit(DiagramNode n, int depth)
+        void Visit(DiagramNode n, int depth, string? parentId)
         {
+            var b = d.Placed(n);
             repo.Objects.TryGetValue(n.ElementId ?? "", out var o);
             var visual = o is null ? new Visual() : meta.EffectiveVisual(o);
             var useStyle = !metamodelVisuals || o is null;
@@ -70,7 +71,7 @@ public static class Dto
             {
                 n.Id, n.Kind, n.ElementId, Name = o?.Name ?? n.Label ?? "", TypeKey = o?.TypeKey,
                 TypeLabel = o is null ? null : meta.Type(o.TypeKey)?.Label, n.ViewRefId,
-                n.X, n.Y, n.W, n.H, Depth = depth,
+                b.X, b.Y, b.W, b.H, Depth = depth, ParentId = parentId,
                 Fill = (useStyle ? n.Style?.Fill?.Hex : null) ?? visual.Fill ?? "#ffffff",
                 Stroke = (useStyle ? n.Style?.Line?.Hex : null) ?? visual.Stroke ?? "#5c5c5c",
                 TextColor = (useStyle ? n.Style?.Font?.Color?.Hex : null) ?? visual.TextColor ?? "#000000",
@@ -83,9 +84,9 @@ public static class Dto
                 Layers = o is null ? null : LayerValues(o),
                 HasChildren = n.Children.Count > 0,
             });
-            foreach (var c in n.Children) Visit(c, depth + 1);
+            foreach (var c in n.Children) Visit(c, depth + 1, n.Id);
         }
-        foreach (var n in d.Nodes) Visit(n, 0);
+        foreach (var n in d.Nodes) Visit(n, 0, null);
 
         // Objets rattachés à une relation (ArchiMate autorise une relation vers une relation) : les données qu'un flux transporte.
         var shown = d.Connections.Select(c => c.RelationshipId).Where(id => id is not null).ToHashSet();
@@ -108,14 +109,16 @@ public static class Dto
 
         return new
         {
-            d.Id, d.Name, d.Documentation, d.Viewpoint, Nodes = nodes, Layers = layers,
+            d.Id, d.Name, d.Documentation, d.Viewpoint, d.Source, Nodes = nodes, Layers = layers,
+            Layout = d.Layout is null ? null : new { Count = d.Layout.Count, By = d.LayoutBy, At = d.LayoutAt },
             Connections = d.Connections.Select(c =>
             {
                 repo.Relationships.TryGetValue(c.RelationshipId ?? "", out var r);
                 var type = r is null ? null : meta.RelType(r.TypeKey);
                 return new
                 {
-                    c.Id, c.SourceNodeId, c.TargetNodeId, c.Bendpoints, TypeKey = r?.TypeKey, TypeLabel = type?.Label, Name = r?.Name ?? c.Label,
+                    c.Id, c.SourceNodeId, c.TargetNodeId,
+                    Bendpoints = d.Moved(c.SourceNodeId) || d.Moved(c.TargetNodeId) ? new List<Point>() : c.Bendpoints, TypeKey = r?.TypeKey, TypeLabel = type?.Label, Name = r?.Name ?? c.Label,
                     LineStyle = type?.LineStyle ?? (c.Dashed ? "tirets" : "plein"),
                     SoftLine = type?.SoftLine ?? (c.Head is null ? DrawingDefaults.FallbackLine : c.Dashed ? "tirets" : "plein"),
                     Head = type?.Head ?? c.Head ?? DrawingDefaults.FallbackHead, c.Orthogonal,

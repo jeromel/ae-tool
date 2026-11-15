@@ -1,11 +1,12 @@
 import { Component, ElementRef, OnDestroy, computed, effect, input, output, signal, viewChild } from '@angular/core';
 import { glyphPath } from './glyphs';
+import { autoLayout, Box, snap } from './auto-layout';
 import { Point, Rect, Side, bezier, bezierMiddle, contains, facingSides, polylineMiddle, portPoint, roundedPath } from './geometry';
 
 export interface DiagramNode {
   id: string; kind: string; elementId: string | null; name: string; typeLabel: string | null;
   x: number; y: number; w: number; h: number; fill: string; stroke: string; textColor: string;
-  fontSize: number; bold: boolean; shape: string; hasChildren: boolean; viewRefId: string | null; outlined?: boolean;
+  fontSize: number; bold: boolean; shape: string; hasChildren: boolean; viewRefId: string | null; outlined?: boolean; parentId?: string | null;
   template: string | null; glyph: string | null; layers: Record<string, string> | null;
 }
 interface Connection {
@@ -36,6 +37,7 @@ interface Wire {
   id: string; path: string; color: string; dash: string | null; head: string | null; tail: string | null;
   flow: boolean; mid: Point; tag: string | null; lock: boolean; label: string[]; title: string;
   sourceId: string; targetId: string;
+  crowded: boolean;   // libellé ou pastille qui tomberait sur une carte : montré seulement quand le lien est en vue
 }
 interface Overlay { id: string; x: number; y: number; font: number; vertical: boolean; legend: boolean; text: string; }
 
@@ -64,7 +66,7 @@ const NEUTRAL = '#e9edee';
   selector: 'app-diagram-view',
   host: { '[class.dark]': 'dark()' },
   template: `
-    <div class="stage" #stage [class.grabbing]="panning()" [style.background-size]="gridSize()" [style.background-position]="gridPosition()"
+    <div class="stage" #stage [class.editing]="editing()" [class.grabbing]="panning()" [style.background-size]="gridSize()" [style.background-position]="gridPosition()"
       (wheel)="onWheel($event)" (pointerdown)="onDown($event)" (pointermove)="onMove($event)" (pointerup)="onUp($event)"
       (pointercancel)="onUp($event)" (click)="onBackgroundClick()" (dblclick)="fit()">
       <svg width="100%" height="100%" role="img" [attr.aria-label]="diagram().name">
@@ -91,7 +93,8 @@ const NEUTRAL = '#e9edee';
         <g [attr.transform]="transform()">
           @for (n of nodes(); track n.id) {
             <g class="node" [class]="n.look" [class.link]="n.elementId || n.viewRefId" [class.selected]="n.elementId && n.elementId === selectedId()"
-              [class.dim]="isDimmed(n)" (click)="pick(n, $event)" (dblclick)="open(n, $event)">
+              [class.dim]="isDimmed(n)" [class.moving]="movingIds().has(n.id)" (click)="pick(n, $event)" (dblclick)="open(n, $event)"
+              (pointerdown)="onNodeDown(n, $event, 'move')">
               @if (n.look === 'carte' || n.look === 'rond') {
                 <rect class="shadow" [attr.x]="n.x" [attr.y]="n.y + 2" [attr.width]="n.w" [attr.height]="n.h" [attr.rx]="n.radius" />
               }
@@ -137,7 +140,7 @@ const NEUTRAL = '#e9edee';
               </path>
               @if (c.flow && !exact()) {
                 <g [attr.transform]="'translate(' + c.mid.x + ' ' + c.mid.y + ') scale(' + tagScale() + ')'">
-                  @if (c.tag && showTags()) {
+                  @if (c.tag && showTags() && (!c.crowded || isAttached(c))) {
                     <rect class="tag" [attr.x]="-tagWidth(c) / 2" y="-8" [attr.width]="tagWidth(c)" height="16" rx="8" [style.fill]="c.color" />
                     @if (c.lock) { <path class="lock" [attr.transform]="'translate(' + (-tagWidth(c) / 2 + 5) + ' -5)'" d="M2 4.5h6v5H2zM3.5 4.5V3a1.5 1.5 0 0 1 3 0v1.5" /> }
                     <text class="tagtext" [attr.x]="c.lock ? 5 : 0" y="3.4" text-anchor="middle">{{ c.tag }}</text>
@@ -154,6 +157,12 @@ const NEUTRAL = '#e9edee';
                 <text class="flowlabel" text-anchor="middle" [attr.transform]="'translate(' + c.mid.x + ' ' + (c.mid.y - 5) + ') scale(' + tagScale() + ')'">{{ c.label[0] }}</text>
               }
             </g>
+          }
+          @if (editing()) {
+            @for (n of nodes(); track n.id) {
+              <rect class="grip" [attr.x]="n.x + n.w - 6" [attr.y]="n.y + n.h - 6" width="12" height="12" rx="2"
+                (pointerdown)="onNodeDown(n, $event, 'size')"><title>Redimensionner</title></rect>
+            }
           }
           @for (o of overlays(); track o.id) {
             <text class="overlay" [class.edge]="o.legend" [attr.text-anchor]="o.legend ? 'start' : 'middle'" dominant-baseline="central" [attr.font-size]="o.font"
@@ -183,6 +192,10 @@ const NEUTRAL = '#e9edee';
     .stage { position: relative; height: 100%; overflow: hidden; cursor: grab; touch-action: none; user-select: none;
       background-color: var(--stage); background-image: radial-gradient(var(--dot) 1px, transparent 1.4px); }
     .stage.grabbing { cursor: grabbing; }
+    .stage.editing { cursor: default; background-size: 10px 10px; }
+    .stage.editing .node { cursor: move; }
+    .stage.editing .node.moving .body { stroke: #1f6f8b; stroke-width: 2; }
+    .grip { fill: #fff; stroke: #1f6f8b; stroke-width: 1.2; vector-effect: non-scaling-stroke; cursor: nwse-resize; }
     svg { display: block; }
 
     .node.link { cursor: pointer; }
@@ -248,6 +261,18 @@ export class DiagramView implements OnDestroy {
   layer = input('');
   /** Colore les cartes selon la valeur du calque. */
   colorize = input(false);
+  /** Mode réorganisation : les nœuds se déplacent et se redimensionnent ; la disposition reste un brouillon jusqu'à l'enregistrement. */
+  editing = input(false);
+  draft = signal<Record<string, Box>>({});
+  movingIds = signal<Set<string>>(new Set());
+  dirty = computed(() => Object.keys(this.draft()).length > 0);
+  private nodeDrag: { mode: 'move' | 'size'; x: number; y: number; origin: Map<string, Box>; lead: string; moved: boolean } | null = null;
+
+  /** Nœuds à leur place du moment : position enregistrée, retouchée par le brouillon en cours. */
+  private placed = computed<DiagramNode[]>(() => {
+    const d = this.draft();
+    return (this.diagram().nodes as DiagramNode[]).map((n) => (d[n.id] ? { ...n, ...d[n.id] } : n));
+  });
 
   select = output<DiagramNode | null>();
   openObject = output<string>();
@@ -306,7 +331,7 @@ export class DiagramView implements OnDestroy {
   });
 
   nodes = computed<NodeView[]>(() => {
-    const all = this.diagram().nodes as DiagramNode[];
+    const all = this.placed();
     const exact = this.exact();
     const layer = this.activeLayer();
     const colors = this.layerColors();
@@ -356,7 +381,10 @@ export class DiagramView implements OnDestroy {
     const byId = new Map(this.nodes().map((n) => [n.id, n]));
     const dark = this.dark();
     const exact = this.exact();
+    const moved = this.draft();
     const drawn = (this.diagram().connections as Connection[])
+      // Un nœud déplacé rend caducs les points de passage dessinés pour l'ancienne position.
+      .map((c) => (moved[c.sourceNodeId] || moved[c.targetNodeId] ? { ...c, bendpoints: [] } : c))
       .map((c) => ({ c, s: byId.get(c.sourceNodeId), t: byId.get(c.targetNodeId) }))
       .filter((e): e is { c: Connection; s: NodeView; t: NodeView } => !!e.s && !!e.t); // extrémité portée par une autre connexion : non dessinée
 
@@ -382,7 +410,7 @@ export class DiagramView implements OnDestroy {
       return portPoint(node, side, list.findIndex((e) => e.id === id), list.length);
     };
 
-    return drawn.map(({ c, s, t }) => {
+    const list: Wire[] = drawn.map(({ c, s, t }) => {
       let path: string;
       let mid: Point;
       if (c.orthogonal && c.bendpoints.length === 0) {
@@ -423,8 +451,20 @@ export class DiagramView implements OnDestroy {
           c.carried?.length ? 'Transporte : ' + c.carried.join(', ') : '',
         ].filter(Boolean).join('\n'),
         sourceId: s.id, targetId: t.id,
+        crowded: false,
       };
     });
+    // Libellé ou pastille posés sur une carte : on les garde pour le moment où le lien est mis en avant.
+    const cards = this.nodes().filter((n) => n.look !== 'zone');
+    const k = this.tagScale();
+    for (const w of list) {
+      const tagW = w.tag ? this.tagWidth(w) * k : 8 * k;
+      const textW = Math.max(0, ...w.label.map((l) => l.length)) * 6.2 * k;
+      const boxes = [{ x: w.mid.x - tagW / 2, y: w.mid.y - 8 * k, w: tagW, h: 16 * k }];
+      if (textW > 0) boxes.push({ x: w.mid.x - textW / 2, y: w.mid.y + 10 * k, w: textW, h: 12 * w.label.length * k });
+      w.crowded = cards.some((n) => boxes.some((b) => b.x < n.x + n.w && b.x + b.w > n.x && b.y < n.y + n.h && b.y + b.h > n.y));
+    }
+    return list;
   });
 
   /**
@@ -463,6 +503,7 @@ export class DiagramView implements OnDestroy {
     // À l'ouverture d'une vue, on la cadre en entier dans la surface disponible.
     effect(() => {
       this.diagram();
+      this.draft.set({});
       this.autoFit = true;
       requestAnimationFrame(() => this.fit());
     });
@@ -509,7 +550,7 @@ export class DiagramView implements OnDestroy {
   }
 
   showFlowLabel(c: Wire): boolean {
-    return c.label.length > 0 && (this.isAttached(c) || this.scale() >= 0.5);
+    return c.label.length > 0 && (this.isAttached(c) || (this.scale() >= 0.5 && !c.crowded));
   }
 
   badgeWidth(n: NodeView): number {
@@ -567,6 +608,26 @@ export class DiagramView implements OnDestroy {
   }
 
   onMove(event: PointerEvent): void {
+    const nd = this.nodeDrag;
+    if (nd) {
+      const dx = (event.clientX - nd.x) / this.scale();
+      const dy = (event.clientY - nd.y) / this.scale();
+      if (!nd.moved && Math.hypot(dx, dy) * this.scale() < 3) return;
+      nd.moved = true;
+      const lead = nd.origin.get(nd.lead)!;
+      const next = { ...this.draft() };
+      if (nd.mode === 'size') {
+        next[nd.lead] = { ...lead, w: Math.max(30, snap(lead.w + dx)), h: Math.max(20, snap(lead.h + dy)) };
+      } else {
+        // Le nœud saisi se cale sur la grille ; ce qu'il contient le suit du même pas.
+        const sx = snap(lead.x + dx) - lead.x;
+        const sy = snap(lead.y + dy) - lead.y;
+        for (const [id, b] of nd.origin) next[id] = { ...b, x: b.x + sx, y: b.y + sy };
+      }
+      this.draft.set(next);
+      this.movingIds.set(new Set(nd.origin.keys()));
+      return;
+    }
     const d = this.drag;
     if (!d) return;
     const dx = event.clientX - d.x;
@@ -582,6 +643,16 @@ export class DiagramView implements OnDestroy {
   }
 
   onUp(event: PointerEvent): void {
+    if (this.nodeDrag) {
+      this.stage().nativeElement.releasePointerCapture(event.pointerId);
+      if (this.nodeDrag.moved) {
+        this.justDragged = true;
+        setTimeout(() => (this.justDragged = false));
+      }
+      this.nodeDrag = null;
+      this.movingIds.set(new Set());
+      return;
+    }
     if (this.drag?.moved) {
       this.stage().nativeElement.releasePointerCapture(event.pointerId);
       this.justDragged = true;
@@ -595,9 +666,48 @@ export class DiagramView implements OnDestroy {
     if (!this.justDragged) this.select.emit(null);
   }
 
+  /** Début d'un déplacement (le nœud et tout ce qu'il contient) ou d'un redimensionnement, en mode réorganisation. */
+  onNodeDown(n: DiagramNode, event: PointerEvent, mode: 'move' | 'size'): void {
+    if (!this.editing() || event.button !== 0) return;
+    event.stopPropagation();
+    const all = this.placed();
+    const ids = mode === 'size' ? [n.id] : [n.id, ...this.descendants(n.id, all)];
+    const byId = new Map(all.map((x) => [x.id, x]));
+    const origin = new Map(ids.map((id) => { const x = byId.get(id)!; return [id, { x: x.x, y: x.y, w: x.w, h: x.h }] as [string, Box]; }));
+    this.nodeDrag = { mode, x: event.clientX, y: event.clientY, origin, lead: n.id, moved: false };
+    this.stage().nativeElement.setPointerCapture(event.pointerId);
+  }
+
+  private descendants(id: string, all: DiagramNode[]): string[] {
+    const out: string[] = [];
+    const walk = (p: string) => all.filter((x) => x.parentId === p).forEach((x) => { out.push(x.id); walk(x.id); });
+    walk(id);
+    return out;
+  }
+
+  /** Disposition calculée (organisation automatique), posée comme brouillon. */
+  arrange(): void {
+    const all = this.diagram().nodes as DiagramNode[];
+    const boxes = autoLayout(
+      all.map((n) => ({ id: n.id, parentId: n.parentId ?? null, w: n.w, h: n.h, zone: n.hasChildren, element: !!n.elementId, label: n.name ?? '' })),
+      (this.diagram().connections as Connection[]).map((c) => ({ source: c.sourceNodeId, target: c.targetNodeId })));
+    this.draft.set(boxes);
+    requestAnimationFrame(() => this.fit());
+  }
+
+  /** Positions à enregistrer : toutes celles du brouillon, plus celles déjà enregistrées qu'il ne touche pas. */
+  layoutToSave(): Record<string, Box> {
+    const d = this.draft();
+    return Object.fromEntries(this.placed().map((n) => [n.id, d[n.id] ?? { x: n.x, y: n.y, w: n.w, h: n.h }]));
+  }
+
+  discard(): void {
+    this.draft.set({});
+  }
+
   pick(n: DiagramNode, event: Event): void {
     event.stopPropagation();
-    if (this.justDragged) return;
+    if (this.justDragged || this.editing()) return;
     if (n.elementId) this.select.emit(n);
     else if (n.viewRefId) this.openView.emit(n.viewRefId);
     else this.select.emit(null);
@@ -605,6 +715,7 @@ export class DiagramView implements OnDestroy {
 
   open(n: DiagramNode, event: Event): void {
     event.stopPropagation();
+    if (this.editing()) return;
     if (n.elementId) this.openObject.emit(n.elementId);
   }
 

@@ -276,6 +276,8 @@ public static class ArchimateExchange
                     report.Error("reference-cassee", $"Dans la vue « {diagram.Name} », une connexion relie un nœud absent de la vue.", c.Id);
             }
             var nodeCount = diagram.AllNodes().Count();
+            // Une disposition retouchée dans l'outil survit au réimport.
+            if (repo.Diagrams.TryGetValue(id, out var previous)) diagram.KeepLayoutFrom(previous);
             if (!repo.Diagrams.TryGetValue(id, out var existing)) { repo.Diagrams[id] = diagram; tally.Added++; nodeTally.Added += nodeCount; connectionTally.Added += diagram.Connections.Count; }
             else if (Json(existing) == Json(diagram)) { tally.Unchanged++; nodeTally.Unchanged += nodeCount; connectionTally.Unchanged += diagram.Connections.Count; }
             else { repo.Diagrams[id] = diagram; tally.Updated++; nodeTally.Updated += nodeCount; connectionTally.Updated += diagram.Connections.Count; }
@@ -430,8 +432,8 @@ public static class ArchimateExchange
                 Named("name", d.Name),
                 d.Documentation is null ? null : Named("documentation", d.Documentation),
                 Plain(d.Properties),
-                d.Nodes.Select(n => WriteNode(n, lang)),
-                d.Connections.Select(WriteConnection)))));
+                d.Nodes.Select(n => WriteNode(n, lang, d)),
+                d.Connections.Select(c => WriteConnection(c, d))))));
 
         // Les définitions sont écrites après coup : seules celles réellement utilisées sont exportées.
         var propertyDefinitions = definitions.Count == 0 ? null : new XElement(A + "propertyDefinitions",
@@ -449,22 +451,28 @@ public static class ArchimateExchange
 
     private static string Short(string id) => id.StartsWith("id-") ? id[3..] : id;
 
-    private static XElement WriteNode(DiagramNode n, string lang) => new(A + "node",
+    /// <summary>Nœud tel qu'affiché : une disposition retouchée dans l'outil part vers Archi.</summary>
+    private static XElement WriteNode(DiagramNode n, string lang, Diagram d)
+    {
+        var b = d.Placed(n);
+        return new(A + "node",
         new XAttribute("identifier", n.Id),
         n.ElementId is null ? null : new XAttribute("elementRef", n.ElementId),
         new XAttribute(Xsi + "type", n.Kind),
-        new XAttribute("x", n.X), new XAttribute("y", n.Y), new XAttribute("w", n.W), new XAttribute("h", n.H),
+        new XAttribute("x", b.X), new XAttribute("y", b.Y), new XAttribute("w", b.W), new XAttribute("h", b.H),
         n.Label is null ? null : new XElement(A + "label", new XAttribute(XNamespace.Xml + "lang", lang), n.Label),
         WriteStyle(n.Style),
         n.ViewRefId is null ? null : new XElement(A + "viewRef", new XAttribute("ref", n.ViewRefId)),
-        n.Children.Select(c => WriteNode(c, lang)));
+        n.Children.Select(c => WriteNode(c, lang, d)));
+    }
 
-    private static XElement WriteConnection(DiagramConnection c) => new(A + "connection",
+    private static XElement WriteConnection(DiagramConnection c, Diagram d) => new(A + "connection",
         new XAttribute("identifier", c.Id),
         c.RelationshipId is null ? null : new XAttribute("relationshipRef", c.RelationshipId),
         new XAttribute(Xsi + "type", c.Kind), new XAttribute("source", c.SourceNodeId), new XAttribute("target", c.TargetNodeId),
         WriteStyle(c.Style),
-        c.Bendpoints.Select(b => new XElement(A + "bendpoint", new XAttribute("x", b.X), new XAttribute("y", b.Y))));
+        d.Moved(c.SourceNodeId) || d.Moved(c.TargetNodeId) ? null
+            : c.Bendpoints.Select(b => new XElement(A + "bendpoint", new XAttribute("x", b.X), new XAttribute("y", b.Y))));
 
     private static XElement? WriteStyle(DiagramStyle? s) => s is null ? null : new XElement(A + "style",
         s.LineWidth is null ? null : new XAttribute("lineWidth", s.LineWidth),
