@@ -19,6 +19,8 @@ public sealed class ImportReport
     public Dictionary<string, Tally> Counts { get; set; } = new();
     public List<Anomaly> Anomalies { get; set; } = new();
     public List<string> Notes { get; set; } = new();
+    /// <summary>Vues créées ou mises à jour par l'import, pour y mener directement (import draw.io).</summary>
+    public List<string>? Views { get; set; }
 
     public Tally For(string category)
     {

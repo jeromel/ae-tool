@@ -1,6 +1,6 @@
 # Dossier d'architecture de l'outil
 
-Version décrite : 0.9.0 (pilote). Ce document dit ce qu'est l'outil, comment il est construit et pourquoi.
+Version décrite : 0.10.0 (pilote). Ce document dit ce qu'est l'outil, comment il est construit et pourquoi.
 Les choix structurants sont détaillés dans [les décisions d'architecture](decisions/README.md).
 
 ## 1. Couche métier : à quoi sert l'outil
@@ -30,7 +30,7 @@ Processus de gouvernance outillés :
 | Espaces de lecture | vues générées par question (« quelles applications portent cette capacité ? ») ; vues Archi importées |
 | Analyses | impact amont et aval, matrices, adhérences entre projets, conformité au métamodèle, qualité |
 | Portefeuille | notation, synthèse, décisions |
-| Échanges | import et export Archi (format d'échange Open Group), reprise du classeur d'urbanisation, export CSV |
+| Échanges | import et export Archi (format d'échange Open Group), reprise du classeur d'urbanisation, import des dessins draw.io (rapprochés forme par forme), export CSV |
 | Sources externes | rapprochement avec un export de fichier ou la CMDB EasyVista : comparer, puis appliquer des décisions |
 | Validation et historique | états brouillon, proposé, validé ; journal filtrable ; avant et après de chaque modification |
 | Administration | comptes et rôles, sauvegardes et restauration, état du stockage |
@@ -49,7 +49,7 @@ Navigateur ── HTTPS ──► API REST (.NET, un seul processus) ──► d
    interface Angular        │
    (fichiers statiques      ├── AeTool.Core        domaine pur : modèle, métamodèle, transcodification, analyses,
     servis par l'API)       │                      notation, validation, historique, rapprochement
-                            ├── AeTool.Connectors  formats : Archi (XML), classeur xlsx, CSV, client EasyVista
+                            ├── AeTool.Connectors  formats : Archi (XML), draw.io, classeur xlsx, CSV, client EasyVista
                             └── AeTool.Api         routes, sessions et habilitations, stockage, hébergement
 ```
 

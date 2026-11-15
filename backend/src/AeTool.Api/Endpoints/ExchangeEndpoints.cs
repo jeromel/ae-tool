@@ -7,8 +7,17 @@ using static AeTool.Api.Http;
 namespace AeTool.Api.Endpoints;
 
 /// <summary>Imports (Archi, classeur d'urbanisation) et exports.</summary>
+public sealed record DrawioImportInput(string? Name, string? Content, Dictionary<string, DrawioDecision>? Decisions);
+
 public static class ExchangeEndpoints
 {
+    /// <summary>Nom de fichier affiché et gardé sur les vues : sans chemin, et jamais vide.</summary>
+    private static string FileName(string? name)
+    {
+        var n = Path.GetFileName((name ?? "").Replace('\\', '/')).Trim();
+        return n.Length == 0 ? "dessin.drawio" : n.Length > 120 ? n[..120] : n;
+    }
+
     public static void Map(RouteGroupBuilder api)
     {
         api.MapPost("/import/archimate", async (Workspace ws, HttpRequest req) =>
@@ -21,6 +30,24 @@ public static class ExchangeEndpoints
         {
             var body = await Body(req);
             return ws.Import(repo => UrbaImporter.Import(body, repo, User(req)), BackupReasons.UrbaImport);
+        });
+
+        // draw.io en deux temps : l'analyse propose sans rien écrire, l'import applique les choix.
+        api.MapPost("/import/drawio/analyse", async (Workspace ws, HttpRequest req, string? name) =>
+        {
+            var body = await Body(req);
+            try { return Results.Ok(ws.Read((repo, _) => DrawioImporter.Analyse(body, FileName(name), repo))); }
+            catch (InvalidDataException e) { return Results.BadRequest(new { error = e.Message }); }
+        });
+
+        api.MapPost("/import/drawio", async (Workspace ws, HttpRequest req, DrawioImportInput input) =>
+        {
+            byte[] bytes;
+            try { bytes = Convert.FromBase64String(input.Content ?? ""); }
+            catch (FormatException) { return Results.BadRequest(new { error = "Contenu du fichier illisible." }); }
+            if (bytes.Length == 0) return Results.BadRequest(new { error = "Fichier vide." });
+            var name = FileName(input.Name);
+            return Results.Ok(ws.Import(repo => DrawioImporter.Apply(new MemoryStream(bytes), name, repo, User(req), input.Decisions), BackupReasons.DrawioImport));
         });
 
         api.MapGet("/import/reports", (Workspace ws) => ws.Reports);

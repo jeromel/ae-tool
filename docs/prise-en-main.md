@@ -26,8 +26,30 @@ console et dans `donnees\code-installation.txt`.
 Les imports sont rejouables : réimporter le même fichier ne crée aucun doublon, met à jour ce qui a changé et archive ce
 qui a disparu. Ce qui a été saisi dans l'outil est conservé. Une sauvegarde est prise avant chaque import.
 
+### Les dessins draw.io
+
+**Tenir à jour › Importer un dessin** (dès le rôle contributeur) : choisissez un fichier .drawio, .xml ou .drawio.svg
+(« SVG modifiable »). L'outil propose, forme par forme, avant d'écrire quoi que ce soit :
+
+| Ce que porte la forme | Proposition |
+|---|---|
+| donnée `ae.id` (Modifier les données dans draw.io) | lier à cet objet |
+| forme de la bibliothèque ArchiMate de draw.io | lier à l'objet du même nom et du même type, sinon le créer avec le type que donne la matrice de transcodification |
+| donnée `archimate.type` (un concept ArchiMate ou un type de l'outil) | même chose, avec ce type |
+| forme ordinaire (rectangle, note…) | lier à l'objet du même nom s'il est seul à le porter, sinon garder comme dessin |
+
+Les liens suivent la même logique : un lien entre deux objets se rattache à leur relation existante, ou crée la relation
+quand son tracé est celui d'une relation ArchiMate (flux en tirets, réalisation, composition…). Une flèche ordinaire
+reste un trait de dessin, sauf si une seule relation relie déjà les deux objets. Deux objets du même nom ne sont jamais
+départagés au hasard : la ligne attend votre choix.
+
+Chaque page devient une vue, rangée dans **Vues › Schémas draw.io**. Les objets créés partent en validation. Réimporter
+le même fichier met à jour ses vues sans doublon, même si un objet a été renommé entre-temps ; une page retirée du
+fichier archive sa vue. L'export Archi complet n'emporte pas ces vues (Archi reste maître des siennes) ; le bouton
+« Exporter vers Archi » d'une vue draw.io l'y fait passer.
+
 Pour essayer l'outil sans données réelles, le dossier [`exemples/hydreane`](../exemples/hydreane/README.md) contient un
-jeu complet d'une entreprise fictive : modèle Archi, classeur d'urbanisation et présentation de la méthode.
+jeu complet d'une entreprise fictive : modèle Archi, classeur d'urbanisation, dessin draw.io et présentation de la méthode.
 
 ## 3. Régler le métamodèle
 
@@ -150,7 +172,8 @@ retrouvé même si son nom a changé.
 | comprendre une couche du SI | Comprendre › Capacités, Applications, Flux, Données, Infrastructure : les questions en tête de page |
 | préparer un comité | Décider › Portefeuille, Projets, Analyse d'impact |
 | savoir ce qui manque au référentiel | Tenir à jour › Qualité du référentiel |
-| retrouver un dessin d'Archi | Tenir à jour › Vues Archi |
+| retrouver un dessin d'Archi ou de draw.io | Tenir à jour › Vues |
+| importer un dessin draw.io | Tenir à jour › Importer un dessin |
 | changer le métamodèle ou la matrice | Administrer › Métamodèle |
 | ouvrir l'outil à un collègue | Administrer › Utilisateurs |
 

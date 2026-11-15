@@ -21,6 +21,11 @@ import { Api } from '../api';
         <label class="btn">Choisir le fichier XLSX<input type="file" accept=".xlsx" hidden (change)="run('/import/urba', $event)" /></label>
       </div>
       <div class="card">
+        <h2>Dessin draw.io</h2>
+        <p class="muted small">Chaque page devient une vue ; les formes sont rapprochées des objets du référentiel, forme par forme, avant tout import.</p>
+        <a class="btn" routerLink="/import-drawio">Importer un dessin</a>
+      </div>
+      <div class="card">
         <h2>Exports</h2>
         <p><a [href]="api.url('/export/archimate')">Référentiel au format d'échange ArchiMate</a> <span class="muted small">(réimportable dans Archi)</span></p>
         <p><a [href]="api.url('/export/json')">Référentiel complet en JSON</a> <span class="muted small">(réversibilité : tout l'état de l'outil)</span></p>

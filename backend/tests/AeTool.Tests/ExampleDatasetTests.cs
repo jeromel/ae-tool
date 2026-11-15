@@ -50,6 +50,25 @@ public static class ExampleDatasetTests
             Equal(9, results.Count(x => x.r.ComputedDecision == "À instruire"), "décisions À instruire");
             Equal(5, results.Count(x => x.r.Priority == "Haute"), "priorités hautes");
         });
+        RunDrawing(repo, dir);
+    }
+
+    /// <summary>Le dessin draw.io du jeu se rattache au référentiel Hydréane : les chiffres annoncés dans le README d'exemple.</summary>
+    public static void RunDrawing(Repository repo, string dir)
+    {
+        Test("jeu Hydréane : le dessin draw.io se rattache au référentiel comme annoncé", () =>
+        {
+            var path = Path.Combine(dir, "hydreane-facturation-saas.drawio");
+            DrawioAnalysis a;
+            using (var s = File.OpenRead(path)) a = DrawioImporter.Analyse(s, "hydreane-facturation-saas.drawio", repo);
+            Equal(12, a.Items.Count(i => i.Proposal == DrawioItem.Link), "rattachés");
+            Equal(5, a.Items.Count(i => i.Proposal == DrawioItem.Create), "à créer");
+            Equal(3, a.Items.Count(i => i.Proposal == DrawioItem.Drawing), "dessin");
+            ImportReport r;
+            using (var s = File.OpenRead(path)) r = DrawioImporter.Apply(s, "hydreane-facturation-saas.drawio", repo, "test", null);
+            Equal(0, r.Anomalies.Count, "anomalies");
+            Equal(2, r.Views?.Count ?? 0, "vues");
+        });
     }
 
     static string? Locate()

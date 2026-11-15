@@ -42,7 +42,8 @@ import { readPref, writePref } from './prefs';
         <div class="group">Tenir à jour</div>
         <a routerLink="/qualite" routerLinkActive="on">Qualité du référentiel</a>
         @if (session.can('valideur')) { <a routerLink="/validations" routerLinkActive="on">Validations@if (toValidate() > 0) { <span class="count" aria-label="objets à valider">{{ toValidate() }}</span> }</a> }
-        <a routerLink="/vues" routerLinkActive="on">Vues Archi</a>
+        <a routerLink="/vues" routerLinkActive="on">Vues</a>
+        @if (session.can('contributeur')) { <a routerLink="/import-drawio" routerLinkActive="on">Importer un dessin</a> }
         @if (session.can('administrateur')) {
           <a routerLink="/imports" routerLinkActive="on">Imports et exports</a>
           <a routerLink="/sources" routerLinkActive="on">Sources externes</a>

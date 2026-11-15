@@ -35,6 +35,7 @@ public static class BackupReasons
     public const string Manual = "manuelle";
     public const string ArchiImport = "import-archi";
     public const string UrbaImport = "import-urbanisation";
+    public const string DrawioImport = "import-drawio";
     public const string MetamodelImport = "import-metamodele";
     public const string MatrixReapplied = "matrice-reappliquee";
     public const string BeforeRestore = "avant-restauration";

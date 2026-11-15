@@ -228,9 +228,12 @@ public static class ArchimateExchange
             }
             else folders.Add(Read(item));
         }
-        var first = repo.Folders.Count == 0;
-        var changed = Json(repo.Folders) != Json(folders);
-        repo.Folders = folders;
+        // Les dossiers qui ne viennent pas d'Archi (schémas draw.io) sont gardés, à la suite.
+        var kept = repo.Folders.Where(f => f.Source is not null).ToList();
+        var previous = repo.Folders.Where(f => f.Source is null).ToList();
+        var first = previous.Count == 0;
+        var changed = Json(previous) != Json(folders);
+        repo.Folders = folders.Concat(kept).ToList();
         var tally = report.For("Dossiers");
         var count = CountFolders(folders);
         if (first) tally.Added = count; else if (changed) tally.Updated = count; else tally.Unchanged = count;
@@ -365,7 +368,8 @@ public static class ArchimateExchange
             props.Select(p => new XElement(A + "property", new XAttribute("propertyDefinitionRef", DefinitionId(p.Name)), Named("value", p.Value))));
         XElement? Plain(List<PropertyValue> props) => Properties(transcoder.ArchiProperties(props));
 
-        var diagrams = repo.ActiveDiagrams.Where(d => onlyDiagramIds is null || onlyDiagramIds.Contains(d.Id)).ToList();
+        // Archi reste maître de ses vues : l'export complet n'emporte pas les schémas draw.io, l'export d'une vue choisie si.
+        var diagrams = repo.ActiveDiagrams.Where(d => onlyDiagramIds is null ? d.Source != DrawioImporter.SourceTag : onlyDiagramIds.Contains(d.Id)).ToList();
         HashSet<string>? scope = null;
         if (onlyDiagramIds is not null)
         {
@@ -411,12 +415,14 @@ public static class ArchimateExchange
                 new XAttribute(Xsi + "type", "Association"), Named("name", $"Impact : {impact.Nature}")));
         }
 
+        var exported = objectIds.Concat(relations.Select(r => r.Id)).Concat(diagrams.Select(d => d.Id)).ToHashSet();
         XElement Item(Folder f) => new(A + "item", Named("label", f.Label),
             f.Documentation is null ? null : Named("documentation", f.Documentation),
-            f.Children.Select(Item),
-            f.Entries.Where(e => scope is null || scope.Contains(e) || diagrams.Any(d => d.Id == e))
+            f.Children.Where(c => c.Source is null).Select(Item),
+            f.Entries.Where(exported.Contains)
                 .Select(e => new XElement(A + "item", new XAttribute("identifierRef", e))));
-        var organizations = repo.Folders.Count == 0 ? null : new XElement(A + "organizations", repo.Folders.Select(Item));
+        var archiFolders = repo.Folders.Where(f => f.Source is null).ToList();
+        var organizations = archiFolders.Count == 0 ? null : new XElement(A + "organizations", archiFolders.Select(Item));
 
         var views = diagrams.Count == 0 ? null : new XElement(A + "views", new XElement(A + "diagrams", diagrams.Select(d =>
             new XElement(A + "view", new XAttribute("identifier", d.Id), new XAttribute(Xsi + "type", "Diagram"),

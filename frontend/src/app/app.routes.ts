@@ -70,6 +70,7 @@ const protectedRoutes: Routes = [
   { path: 'validations', loadComponent: () => import('./pages/validation').then((m) => m.ValidationPage), canActivate: [requires('valideur')] },
   { path: 'vues', component: ViewsPage },
   { path: 'vues/:id', component: ViewsPage },
+  { path: 'import-drawio', loadComponent: () => import('./pages/drawio-import').then((m) => m.DrawioImportPage), canActivate: [requires('contributeur')] },
   { path: 'imports', loadComponent: () => import('./pages/imports').then((m) => m.ImportsPage), canActivate: [requires('administrateur')] },
   { path: 'sources', loadComponent: () => import('./pages/sources').then((m) => m.SourcesPage), canActivate: [requires('administrateur')] },
   { path: 'sources/:key', loadComponent: () => import('./pages/sources').then((m) => m.SourcesPage), canActivate: [requires('administrateur')] },

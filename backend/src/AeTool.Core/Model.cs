@@ -88,6 +88,8 @@ public sealed class Folder
     public List<Folder> Children { get; set; } = new();
     /// <summary>Identifiants d'objets, de relations ou de diagrammes rangés dans ce dossier.</summary>
     public List<string> Entries { get; set; } = new();
+    /// <summary>Origine du dossier quand il ne vient pas d'Archi (« drawio ») : un import Archi le garde tel quel.</summary>
+    public string? Source { get; set; }
 }
 
 public sealed class Rgba
@@ -146,6 +148,8 @@ public sealed class DiagramConnection
     public string TargetNodeId { get; set; } = "";
     public DiagramStyle? Style { get; set; }
     public List<Point> Bendpoints { get; set; } = new();
+    /// <summary>Texte d'un trait de dessin qui ne porte pas de relation (lien draw.io non rapproché).</summary>
+    public string? Label { get; set; }
 }
 
 public sealed class Diagram

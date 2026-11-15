@@ -114,7 +114,7 @@ public static class Dto
                 var type = r is null ? null : meta.RelType(r.TypeKey);
                 return new
                 {
-                    c.Id, c.SourceNodeId, c.TargetNodeId, c.Bendpoints, TypeKey = r?.TypeKey, TypeLabel = type?.Label, r?.Name,
+                    c.Id, c.SourceNodeId, c.TargetNodeId, c.Bendpoints, TypeKey = r?.TypeKey, TypeLabel = type?.Label, Name = r?.Name ?? c.Label,
                     LineStyle = type?.LineStyle ?? "plein",
                     SoftLine = type?.SoftLine ?? DrawingDefaults.FallbackLine, Head = type?.Head ?? DrawingDefaults.FallbackHead,
                     Flow = r is not null && meta.RelIsA(r.TypeKey, Roles.Flow),

@@ -81,4 +81,4 @@ export interface Brief {
   owner: string | null;
 }
 
-export const SOURCE_LABELS: Record<string, string> = { archi: 'Archi', urba: 'Classeur urbanisation', saisie: 'Saisie' };
+export const SOURCE_LABELS: Record<string, string> = { archi: 'Archi', urba: 'Classeur urbanisation', saisie: 'Saisie', drawio: 'draw.io' };

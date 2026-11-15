@@ -10,6 +10,7 @@ rien anonymiser.
 |---|---|
 | `hydreane-referentiel.xml` | modèle Archi au format d'échange Open Group (ArchiMate 3.1) : 417 éléments, 903 relations, 58 vues |
 | `hydreane-referentiel-urbanisation.xlsx` | classeur d'urbanisation : 38 applications, 1 080 preuves de notation, formules recalculées |
+| `hydreane-facturation-saas.drawio` | dessin draw.io d'une équipe projet : la facturation en SaaS en formes ArchiMate (page 1) et un croquis de l'existant en formes ordinaires, page compressée (page 2) |
 | `Hydreane-methode-urbanisation.pptx` | présentation de la méthode de notation et des premiers résultats, chiffres tirés du classeur |
 
 ## Charger le jeu
@@ -20,7 +21,8 @@ Sur une instance vide, **Tenir à jour › Imports et exports** :
 2. puis importer `hydreane-referentiel-urbanisation.xlsx`.
 
 Résultat attendu : aucune anomalie, 38 applications enrichies par le classeur (aucune créée), 7 projets avec leurs
-impacts. Le modèle s'ouvre aussi dans Archi (Fichier › Importer › Modèle au format d'échange Open Group).
+impacts. Ensuite, **Tenir à jour › Importer un dessin** avec `hydreane-facturation-saas.drawio` : 12 formes et liens
+rattachés au référentiel, une application et quatre flux à créer, trois formes gardées comme dessin. Le modèle s'ouvre aussi dans Archi (Fichier › Importer › Modèle au format d'échange Open Group).
 
 ## Ce que le jeu couvre
 
