@@ -6,7 +6,7 @@ Le cahier des charges prévoit une base relationnelle. Le prototype range tout l
 démarrage et réécrit à chaque modification, derrière une interface de stockage (`IRepositoryStore`).
 Deux faits pèsent sur la décision :
 
-- le référentiel de démonstration tient en quelques mégaoctets (environ 1 800 objets, 1 650 relations, 130 vues) et sera utilisé par une
+- un référentiel réel de taille moyenne tient en quelques mégaoctets (environ 1 800 objets, 1 650 relations, 130 vues) et sera utilisé par une
   poignée de contributeurs pendant le pilote ;
 - aucun pilote d'accès SQL n'est disponible sans dépendance externe (voir décision 006), et aucun n'a pu être installé
   ni donc testé pendant le développement.

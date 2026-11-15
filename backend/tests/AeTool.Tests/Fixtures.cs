@@ -76,7 +76,10 @@ public static class Fixtures
 
     public static Stream Stream(string text) => new MemoryStream(Encoding.UTF8.GetBytes(text.TrimStart()));
 
-    /// <summary>Fabrique un classeur .xlsx minimal : chaînes en ligne, une feuille par entrée.</summary>
+    /// <summary>
+    /// Fabrique un classeur .xlsx minimal : chaînes en ligne, une feuille par entrée. Une valeur « date:46310 » est un
+    /// nombre au format de date prédéfini 14 ; « datefr:46310 », au format personnalisé « dd/mm/yyyy ».
+    /// </summary>
     public static Stream Xlsx(params (string Name, string?[][] Rows)[] sheets)
     {
         var ms = new MemoryStream();
@@ -103,6 +106,11 @@ public static class Fixtures
                         var v = sheets[i].Rows[r][c];
                         if (v is null) continue;
                         var reference = $"{(char)('A' + c)}{r + 1}";
+                        if (v.StartsWith("date:") || v.StartsWith("datefr:"))
+                        {
+                            data.Append($"<c r=\"{reference}\" s=\"{(v.StartsWith("date:") ? 1 : 2)}\"><v>{v[(v.IndexOf(':') + 1)..]}</v></c>");
+                            continue;
+                        }
                         data.Append(double.TryParse(v, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out _)
                             ? $"<c r=\"{reference}\"><v>{v}</v></c>"
                             : $"<c r=\"{reference}\" t=\"inlineStr\"><is><t>{Escape(v)}</t></is></c>");
@@ -111,6 +119,8 @@ public static class Fixtures
                 }
                 Add($"xl/worksheets/sheet{i + 1}.xml", $"<worksheet xmlns=\"{main}\"><sheetData>{data}</sheetData></worksheet>");
             }
+            Add("xl/styles.xml", $"<styleSheet xmlns=\"{main}\"><numFmts count=\"1\"><numFmt numFmtId=\"164\" formatCode=\"dd/mm/yyyy\"/></numFmts>"
+                + "<cellXfs count=\"3\"><xf numFmtId=\"0\"/><xf numFmtId=\"14\"/><xf numFmtId=\"164\"/></cellXfs></styleSheet>");
             Add("xl/workbook.xml", $"<workbook xmlns=\"{main}\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"><sheets>{sheetTags}</sheets></workbook>");
             Add("xl/_rels/workbook.xml.rels", $"<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">{rels}</Relationships>");
         }

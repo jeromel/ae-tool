@@ -26,6 +26,9 @@ console et dans `donnees\code-installation.txt`.
 Les imports sont rejouables : réimporter le même fichier ne crée aucun doublon, met à jour ce qui a changé et archive ce
 qui a disparu. Ce qui a été saisi dans l'outil est conservé. Une sauvegarde est prise avant chaque import.
 
+Pour essayer l'outil sans données réelles, le dossier [`exemples/hydreane`](../exemples/hydreane/README.md) contient un
+jeu complet d'une entreprise fictive : modèle Archi, classeur d'urbanisation et présentation de la méthode.
+
 ## 3. Régler le métamodèle
 
 **Administrer › Métamodèle.** C'est le cœur de l'outil : les types d'objets, de relations et de propriétés sont les

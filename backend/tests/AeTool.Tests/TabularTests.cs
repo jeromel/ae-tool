@@ -26,6 +26,18 @@ public static class TabularTests
     {
         Console.WriteLine("Adaptateur fichier (CSV, Excel)");
 
+        Test("classeur : une cellule au format date est lue en date ISO, un nombre ordinaire reste un nombre", () =>
+        {
+            var book = AeTool.Connectors.XlsxReader.Read(Fixtures.Xlsx(("Preuves", new[] { new string?[] { "date:46307", "datefr:46307.5", "46307", "texte" } })));
+            var row = book["Preuves"][0];
+            Equal("2026-10-12", row[0], "format de date prédéfini");
+            Equal("2026-10-12 12:00", row[1], "format personnalisé, avec heure");
+            Equal("46307", row[2], "nombre sans format de date");
+            Equal("texte", row[3], "texte");
+            True(!AeTool.Connectors.XlsxReader.IsDateFormat("0.0") && !AeTool.Connectors.XlsxReader.IsDateFormat("\"jours\" 0")
+                 && AeTool.Connectors.XlsxReader.IsDateFormat("mm-dd-yy") && AeTool.Connectors.XlsxReader.IsDateFormat("[$-fr-FR]dddd d mmmm"), "détection du format");
+        });
+
         Test("séparateur détecté : point-virgule, virgule, tabulation, barre verticale", () =>
         {
             foreach (var d in new[] { ";", ",", "\t", "|" })

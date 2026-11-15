@@ -112,7 +112,7 @@ est inscrite dans le fichier ; une version plus ancienne est migrée à la lectu
   serveur, .NET 8 n'étant plus maintenu depuis novembre 2026.
 - **Hébergement** : poste de l'architecte (pilote), ou serveur Windows derrière IIS, ou Linux derrière un mandataire
   inverse. HTTPS est porté par IIS, par le mandataire, ou par Kestrel avec un certificat. Voir [installation.md](installation.md).
-- **Dimensionnement** : le référentiel de démonstration (environ 1 800 objets, 1 650 relations, 130 vues) occupe environ 6 Mo sur disque et
+- **Dimensionnement** : un référentiel réel de taille moyenne (environ 1 800 objets, 1 650 relations, 130 vues) occupe environ 6 Mo sur disque et
   quelques dizaines de Mo en mémoire. Un serveur modeste suffit (1 processeur, 1 Go).
 - **Supervision** : `GET /api/health` (sans session) ; journaux sur la sortie standard et, sous Windows, dans
   l'observateur d'événements.
