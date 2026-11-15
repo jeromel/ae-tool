@@ -1,6 +1,6 @@
 # Dossier d'architecture de l'outil
 
-Version décrite : 0.10.0 (pilote). Ce document dit ce qu'est l'outil, comment il est construit et pourquoi.
+Version décrite : 0.11.0 (pilote). Ce document dit ce qu'est l'outil, comment il est construit et pourquoi.
 Les choix structurants sont détaillés dans [les décisions d'architecture](decisions/README.md).
 
 ## 1. Couche métier : à quoi sert l'outil

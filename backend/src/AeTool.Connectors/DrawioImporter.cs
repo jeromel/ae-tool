@@ -102,6 +102,7 @@ public static class DrawioImporter
             result.Pages.Add(new DrawioPageSummary(page.Id, page.Name, shapes.Count, links.Count));
             var refKey = RefKey(fileName, page.Id);
             var items = new Dictionary<string, DrawioItem>();
+            var bpmnKinds = new Dictionary<string, BpmnKind>();
 
             foreach (var c in shapes)
             {
@@ -112,6 +113,13 @@ public static class DrawioImporter
                 if (explicitType is not null) item.TypeKey = explicitType;
                 else if (concept is not null) item.TypeKey = transcoder.ElementType(concept, Raw(c)).TypeKey;
                 item.TypeLabel = item.TypeKey is null ? null : meta.Type(item.TypeKey)?.Label ?? item.TypeKey;
+                var bpmn = concept is null && explicitType is null ? DrawioBpmn.Kind(c, cells) : BpmnKind.None;
+                if (bpmn != BpmnKind.None)
+                {
+                    bpmnKinds[c.Id] = bpmn;
+                    if (ProposeBpmn(item, c, bpmn, refKey, repo, transcoder, byName)) continue;
+                    // Une forme BPMN portant un identifiant explicite suit la règle générale ci-dessous.
+                }
 
                 // 1. Identifiant explicite porté par la forme. 2. Lien gardé d'un import précédent. 3. Nom.
                 var explicitId = IdKeys.Select(k => c.Data.GetValueOrDefault(k)).FirstOrDefault(v => !string.IsNullOrEmpty(v));
@@ -146,6 +154,8 @@ public static class DrawioImporter
             {
                 if (e.Source is null || e.Target is null || !items.TryGetValue(e.Source, out var from) || !items.TryGetValue(e.Target, out var to)) continue;
                 var concept = DrawioConcepts.Relation(e);
+                // Entre formes BPMN, une flèche est un flux de séquence (déclenchement), des pointillés partant d'un rond un flux de message.
+                if (bpmnKinds.ContainsKey(e.Source) || bpmnKinds.ContainsKey(e.Target)) concept = DrawioBpmn.Relation(e);
                 var item = new DrawioItem
                 {
                     Key = page.Id + "/" + e.Id, Page = page.Name, Kind = "relation", Label = LinkLabel(e, page),
@@ -183,6 +193,28 @@ public static class DrawioImporter
                 }
                 else item.Reason = !endsKnown ? "une extrémité reste du dessin" : concept is null ? "lien sans concept ArchiMate (flèche ordinaire)" : "lien ordinaire entre deux formes sans concept";
             }
+            // Une tâche posée dans un couloir : le rôle du couloir est affecté au processus de la tâche.
+            foreach (var (taskId, kind) in bpmnKinds.Where(k => k.Value == BpmnKind.Task))
+            {
+                var lane = DrawioBpmn.Lane(cells[taskId], cells);
+                if (lane is null || !bpmnKinds.TryGetValue(lane.Id, out var laneKind) || laneKind != BpmnKind.Lane) continue;
+                var (role, task) = (items[lane.Id], items[taskId]);
+                if (role.Proposal == DrawioItem.Drawing || task.Proposal == DrawioItem.Drawing) continue;
+                var item = new DrawioItem
+                {
+                    Key = page.Id + "/" + lane.Id + ">" + taskId, Page = page.Name, Kind = "relation", Label = $"{role.Label} → {task.Label}",
+                    Concept = "Assignment", ConceptHow = "tâche posée dans le couloir", SourceKey = role.Key, TargetKey = task.Key,
+                };
+                var choice = transcoder.RelationType("Assignment", Array.Empty<ArchiProperty>(),
+                    role.TargetId is { } r ? repo.Objects[r].TypeKey : role.TypeKey, task.TargetId is { } t ? repo.Objects[t].TypeKey : task.TypeKey);
+                item.TypeKey = choice.TypeKey; item.TypeLabel = meta.RelType(choice.TypeKey)?.Label ?? choice.TypeKey;
+                var existing = role.Proposal == DrawioItem.Link && task.Proposal == DrawioItem.Link
+                    ? repo.ActiveRelationships.FirstOrDefault(x => x.SourceId == role.TargetId && x.TargetId == task.TargetId && x.TypeKey == item.TypeKey) : null;
+                if (existing is not null) { item.Proposal = DrawioItem.Link; item.TargetId = existing.Id; item.Reason = "affectation déjà au référentiel";
+                    item.Candidates = new() { new DrawioCandidate(existing.Id, item.Label, item.TypeLabel) }; }
+                else { item.Proposal = DrawioItem.Create; item.Reason = "affectation déduite : la tâche est dans le couloir de ce rôle"; }
+                items[lane.Id + ">" + taskId] = item;
+            }
             result.Items.AddRange(items.Values);
             foreach (var e in links.Where(e => e.Source is null || e.Target is null))
                 result.Anomalies.Add(new Anomaly("avertissement", "lien-flottant", $"Page « {page.Name} » : un lien n'est pas accroché à deux formes ; il reste du dessin.", page.Id + "/" + e.Id));
@@ -191,6 +223,51 @@ public static class DrawioImporter
             result.Anomalies.Add(new Anomaly("avertissement", "couche-supposee",
                 $"« {item.Label} » : la couleur de la forme ne dit pas sa couche ; {item.Concept} est supposé. Vérifiez le type proposé.", item.Key));
         return result;
+    }
+
+    /// <summary>
+    /// Proposition pour une forme BPMN. Rend faux quand la forme porte un identifiant explicite : la règle générale s'applique.
+    /// Par défaut on ne lie que ce qui existe déjà au référentiel ; seul un couloir nommé propose de créer son rôle.
+    /// </summary>
+    private static bool ProposeBpmn(DrawioItem item, DrawioCell c, BpmnKind kind, string refKey, Repository repo, Transcoder transcoder,
+                                    Dictionary<string, List<ArchObject>> byName)
+    {
+        if (IdKeys.Any(k => c.Data.ContainsKey(k))) return false;
+        var meta = repo.Metamodel;
+        var concept = DrawioBpmn.Concept(kind);
+        item.Concept = concept; item.ConceptHow = DrawioBpmn.Label(kind);
+        item.TypeKey = concept is null || kind == BpmnKind.Gateway ? null : transcoder.ElementType(concept, Raw(c)).TypeKey;
+        item.TypeLabel = item.TypeKey is null ? null : meta.Type(item.TypeKey)?.Label ?? item.TypeKey;
+        if (kind == BpmnKind.Gateway)
+        {
+            item.Reason = "passerelle BPMN (jonction ArchiMate) : elle oriente le déroulement, ce n'est pas un objet du référentiel";
+            return true;
+        }
+        var remembered = repo.ActiveObjects.FirstOrDefault(o => o.ExternalRefs.TryGetValue(refKey, out var cell) && cell == c.Id);
+        if (remembered is not null) { Propose(item, DrawioItem.Link, remembered, "lien gardé depuis un import précédent de ce fichier", meta); return true; }
+        if (DrawioBpmn.IsDefaultName(item.Label))
+        {
+            item.Reason = item.Label.Length == 0 ? $"{DrawioBpmn.Label(kind)} sans nom" : $"nom laissé par draw.io (« {item.Label} ») : il ne désigne rien";
+            return true;
+        }
+        var accepted = DrawioBpmn.Accepts(kind).Select(k => transcoder.ElementType(k, Array.Empty<ArchiProperty>()).TypeKey).ToHashSet();
+        var matches = Matches(item.Label, byName).Where(o => accepted.Contains(o.TypeKey)).ToList();
+        if (matches.Count == 1) { Propose(item, DrawioItem.Link, matches[0], $"{DrawioBpmn.Label(kind)} : même nom qu'un objet du référentiel", meta); return true; }
+        item.Candidates = matches.Select(o => new DrawioCandidate(o.Id, o.Name, meta.Type(o.TypeKey)?.Label)).ToList();
+        if (matches.Count > 1) { item.Reason = $"{matches.Count} objets portent ce nom : à choisir"; return true; }
+        if (kind == BpmnKind.Lane && item.TypeKey is not null)
+        {
+            item.Proposal = DrawioItem.Create;
+            item.Reason = "couloir BPMN : aucun rôle ni acteur de ce nom, création du rôle proposée";
+            return true;
+        }
+        item.Reason = kind switch
+        {
+            BpmnKind.Task => "tâche BPMN sans processus du même nom : le détail reste dans le dessin",
+            BpmnKind.Pool => "pool BPMN sans processus ni acteur du même nom",
+            _ => $"{DrawioBpmn.Label(kind)} sans objet du même nom au référentiel",
+        };
+        return true;
     }
 
     private static void Propose(DrawioItem item, string action, ArchObject o, string reason, Metamodel meta)
@@ -402,7 +479,8 @@ public static class DrawioImporter
         {
             resolved.TryGetValue(page.Id + "/" + c.Id, out var objectId);
             var isGroup = c.Has("group");
-            if (objectId is null && c.Label.Length == 0 && !parents.Contains(c.Id)) continue;   // forme vide : décor
+            // Une forme vide sans contour ni fond (un point d'ancrage, un décor invisible) n'est pas reprise.
+            if (objectId is null && c.Label.Length == 0 && !parents.Contains(c.Id) && StyleOf(c)?.Line is null && !c.Edge && c.StyleValue("fillColor") is "none") continue;
             nodes[c.Id] = new DiagramNode
             {
                 Id = NodeId(c.Id),
@@ -410,6 +488,7 @@ public static class DrawioImporter
                 ElementId = objectId, Label = objectId is null ? c.Label.Replace('\n', ' ') : null,
                 X = (int)Math.Round(c.X), Y = (int)Math.Round(c.Y), W = Math.Max(1, (int)Math.Round(c.W)), H = Math.Max(1, (int)Math.Round(c.H)),
                 Style = objectId is null ? StyleOf(c) : null,
+                Shape = objectId is null ? ShapeOf(c) : null,
             };
         }
         foreach (var c in visible.Where(c => nodes.ContainsKey(c.Id)))
@@ -431,6 +510,9 @@ public static class DrawioImporter
                 Id = connectionId, Kind = relationId is not null ? "Relationship" : "Line", RelationshipId = relationId,
                 SourceNodeId = source, TargetNodeId = target, Label = relationId is null && label.Length > 0 ? label : null,
                 Style = relationId is null ? StyleOf(e) : null,
+                Head = relationId is null ? ((e.StyleValue("endArrow") ?? "classic") == "none" ? "aucune" : "fleche") : null,
+                Dashed = relationId is null && e.StyleValue("dashed") == "1",
+                Orthogonal = (e.StyleValue("edgeStyle") ?? "").Contains("orthogonal", StringComparison.OrdinalIgnoreCase),
                 Bendpoints = e.Points.Select(p => new Point { X = (int)Math.Round(p.X), Y = (int)Math.Round(p.Y) }).ToList(),
             });
         }
@@ -442,12 +524,26 @@ public static class DrawioImporter
         return diagram;
     }
 
+    /// <summary>Forme d'un élément de dessin, quand ce n'est pas un rectangle.</summary>
+    private static string? ShapeOf(DrawioCell c)
+    {
+        var shape = (c.StyleValue("shape") ?? "").ToLowerInvariant();
+        if (c.Has("rhombus") || shape is "rhombus" || shape.Contains("gateway")) return "losange";
+        if (c.Has("ellipse") || shape is "ellipse" || shape.Contains("bpmn.event")) return "ellipse";
+        if (c.StyleValue("rounded") == "1") return "arrondi";
+        return null;
+    }
+
     private static DiagramStyle? StyleOf(DrawioCell c)
     {
-        var fill = Color(c.StyleValue("fillColor") ?? (c.Vertex && !c.Has("text") ? "#ffffff" : null));
-        var line = Color(c.StyleValue("strokeColor"));
+        var drawn = c.Vertex && !c.Has("text") && !c.Has("edgeLabel");
+        var fill = Color(c.StyleValue("fillColor") ?? (drawn ? "#ffffff" : null));
+        // draw.io trace un contour noir par défaut ; « none » le retire.
+        var line = Color(c.StyleValue("strokeColor") is { } stroke ? stroke : drawn || c.Edge ? "#000000" : null);
         var font = Color(c.StyleValue("fontColor"));
-        var size = c.StyleValue("fontSize");
+        // draw.io compte en pixels (12 par défaut), l'outil en points comme Archi.
+        var px = double.TryParse(c.StyleValue("fontSize"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var f) ? f : 12;
+        var size = ((int)Math.Round(px * 0.75)).ToString(System.Globalization.CultureInfo.InvariantCulture);
         var bold = int.TryParse(c.StyleValue("fontStyle"), out var fs) && (fs & 1) == 1;
         if (fill is null && line is null && font is null && size is null && !bold) return null;
         return new DiagramStyle

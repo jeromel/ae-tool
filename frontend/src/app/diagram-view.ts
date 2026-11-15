@@ -5,12 +5,12 @@ import { Point, Rect, Side, bezier, bezierMiddle, contains, facingSides, polylin
 export interface DiagramNode {
   id: string; kind: string; elementId: string | null; name: string; typeLabel: string | null;
   x: number; y: number; w: number; h: number; fill: string; stroke: string; textColor: string;
-  fontSize: number; bold: boolean; shape: string; hasChildren: boolean; viewRefId: string | null;
+  fontSize: number; bold: boolean; shape: string; hasChildren: boolean; viewRefId: string | null; outlined?: boolean;
   template: string | null; glyph: string | null; layers: Record<string, string> | null;
 }
 interface Connection {
   id: string; sourceNodeId: string; targetNodeId: string; bendpoints: Point[];
-  lineStyle: string; softLine: string; head: string; flow: boolean; color: string;
+  lineStyle: string; softLine: string; head: string; flow: boolean; color: string; orthogonal?: boolean;
   name: string | null; typeKey: string | null; typeLabel: string | null;
   protocol: string | null; encryption: string | null; carried: string[] | null;
 }
@@ -95,12 +95,14 @@ const NEUTRAL = '#e9edee';
               @if (n.look === 'carte' || n.look === 'rond') {
                 <rect class="shadow" [attr.x]="n.x" [attr.y]="n.y + 2" [attr.width]="n.w" [attr.height]="n.h" [attr.rx]="n.radius" />
               }
-              @if (n.look === 'exact' && n.shape === 'ellipse') {
+              @if (n.shape === 'ellipse' && (n.look === 'exact' || n.look === 'note')) {
                 <ellipse class="body" [attr.cx]="n.x + n.w / 2" [attr.cy]="n.y + n.h / 2" [attr.rx]="n.w / 2" [attr.ry]="n.h / 2"
                   [style.fill]="n.shown" [style.stroke]="edge(n)" />
+              } @else if (n.shape === 'losange' && (n.look === 'exact' || n.look === 'note')) {
+                <polygon class="body" [attr.points]="diamond(n)" [style.fill]="n.shown" [style.stroke]="edge(n)" />
               } @else {
                 <rect class="body" [attr.x]="n.x" [attr.y]="n.y" [attr.width]="n.w" [attr.height]="n.h" [attr.rx]="n.radius"
-                  [style.fill]="n.shown" [style.stroke]="n.kind === 'Label' ? 'none' : edge(n)" />
+                  [style.fill]="n.shown" [style.stroke]="n.kind === 'Label' && !n.outlined ? 'none' : edge(n)" />
               }
               @if (n.glyphBox; as g) {
                 @if (showGlyph(n)) {
@@ -327,6 +329,8 @@ export class DiagramView implements OnDestroy {
         header: kids.length ? Math.max(0, Math.min(...kids.map((k) => k.y)) - n.y) : n.h,
         innerZones: kids.filter((k) => zones.has(k.id)).map((k) => k.id),
       };
+      // Petite forme de dessin (losange, cercle) : comme dans draw.io, son texte peut déborder de part et d'autre.
+      if (look === 'note' && n.w < 70) view.text = { x: n.x + n.w / 2 - 50, y: n.y - 4, w: 100, h: n.h + 8 };
       if (look === 'zone') layoutZone(view, exact);
       else if (look === 'carte' || look === 'rond') layoutCard(view);
       return view;
@@ -381,7 +385,12 @@ export class DiagramView implements OnDestroy {
     return drawn.map(({ c, s, t }) => {
       let path: string;
       let mid: Point;
-      if (exact) {
+      if (c.orthogonal && c.bendpoints.length === 0) {
+        // Tracé à angles droits de draw.io, sans point de passage enregistré : un coude au milieu, comme draw.io le calcule.
+        const points = elbow(s, t);
+        path = roundedPath(points, 6);
+        mid = polylineMiddle(points);
+      } else if (exact) {
         const centre = (n: DiagramNode) => ({ x: n.x + n.w / 2, y: n.y + n.h / 2 });
         const via = c.bendpoints;
         const points = [borderPoint(s, via[0] ?? centre(t)), ...via, borderPoint(t, via[via.length - 1] ?? centre(s))];
@@ -599,6 +608,11 @@ export class DiagramView implements OnDestroy {
     if (n.elementId) this.openObject.emit(n.elementId);
   }
 
+  diamond(n: NodeView): string {
+    const cx = n.x + n.w / 2, cy = n.y + n.h / 2;
+    return `${cx},${n.y} ${n.x + n.w},${cy} ${cx},${n.y + n.h} ${n.x},${cy}`;
+  }
+
   isDimmed(n: NodeView): boolean {
     const q = this.find().trim().toLowerCase();
     return q.length > 0 && n.look !== 'zone' && !n.name.toLowerCase().includes(q);
@@ -662,6 +676,28 @@ function layoutZone(n: NodeView, exact: boolean): void {
   n.font = Math.max(9, Math.min(room * 0.62, n.fontSize * 1.33 * 1.5, n.h * 0.2, 30));
   n.lines = 1;
   n.text = { x: n.x + 8, y: n.y + Math.max(2, (room - n.font * 1.25) / 2), w: n.w - 16, h: n.font * 1.3 };
+}
+
+/** Coude à angles droits entre deux formes : sortie par le côté qui fait face, segment du milieu perpendiculaire. */
+function elbow(s: Rect, t: Rect): Point[] {
+  const sc = { x: s.x + s.w / 2, y: s.y + s.h / 2 };
+  const tc = { x: t.x + t.w / 2, y: t.y + t.h / 2 };
+  const dx = tc.x - sc.x;
+  const dy = tc.y - sc.y;
+  // Formes l'une au-dessus de l'autre (recouvrement horizontal) : départ vertical.
+  const vertical = Math.min(s.x + s.w, t.x + t.w) > Math.max(s.x, t.x) || Math.abs(dy) > Math.abs(dx) * 1.5;
+  if (vertical) {
+    const a = { x: sc.x, y: dy >= 0 ? s.y + s.h : s.y };
+    const b = { x: tc.x, y: dy >= 0 ? t.y : t.y + t.h };
+    if (Math.abs(a.x - b.x) < 1) return [a, b];
+    const my = (a.y + b.y) / 2;
+    return [a, { x: a.x, y: my }, { x: b.x, y: my }, b];
+  }
+  const a = { x: dx >= 0 ? s.x + s.w : s.x, y: sc.y };
+  const b = { x: dx >= 0 ? t.x : t.x + t.w, y: tc.y };
+  if (Math.abs(a.y - b.y) < 1) return [a, b];
+  const mx = (a.x + b.x) / 2;
+  return [a, { x: mx, y: a.y }, { x: mx, y: b.y }, b];
 }
 
 /** Point du bord du nœud sur le segment qui relie son centre au point visé (rendu exact). */

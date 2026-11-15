@@ -53,7 +53,7 @@ type Filter = 'tout' | 'choisir' | 'lier' | 'créer' | 'dessin';
             @for (i of shown(); track i.key) {
               <tr>
                 <td class="small muted">{{ i.page }}</td>
-                <td>@if (i.kind === 'relation') { <span class="muted small">lien · </span> }{{ i.label || '(sans libellé)' }}</td>
+                <td>@if (i.kind === 'relation') { <span class="muted small">lien · </span> }{{ display(i) }}</td>
                 <td class="small">{{ i.concept ?? '—' }}@if (i.conceptHow) { <div class="muted">{{ i.conceptHow }}</div> }</td>
                 <td>
                   <select (change)="setAction(i, $any($event.target).value)" [attr.aria-label]="'Que faire de ' + i.label">
@@ -142,6 +142,15 @@ export class DrawioImportPage {
       this.objectTypes.set(m.objectTypes.map((t: any) => ({ key: t.key, label: t.label })).sort(byLabel));
       this.relationTypes.set(m.relationshipTypes.map((t: any) => ({ key: t.key, label: t.label })).sort(byLabel));
     });
+  }
+
+  /** Libellé affiché : un lien sans texte se reconnaît à ses deux extrémités. */
+  display(i: Item): string {
+    if (i.label) return i.label;
+    if (i.kind !== 'relation') return '(sans libellé)';
+    const items = this.analysis()?.items ?? [];
+    const end = (k: string | null) => items.find((x) => x.key === k)?.label || 'forme sans nom';
+    return `${end(i.sourceKey)} → ${end(i.targetKey)}`;
   }
 
   choice(i: Item): Choice {

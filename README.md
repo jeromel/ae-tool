@@ -1,7 +1,7 @@
 # Référentiel d'architecture d'entreprise
 
 Un outil pour décrire le système d'information, informatique et industriel, et s'en servir : comprendre une couche,
-préparer un comité, tenir les données à jour. Version 0.10.0, pilote.
+préparer un comité, tenir les données à jour. Version 0.11.0, pilote.
 
 - **Un métamodèle à vous.** Types, relations, propriétés et couches sont des données de l'outil, réglables à l'écran.
   ArchiMate est un format d'échange, relié au métamodèle par une **matrice de transcodification** que vous réglez aussi.

@@ -43,6 +43,24 @@ quand son tracé est celui d'une relation ArchiMate (flux en tirets, réalisatio
 reste un trait de dessin, sauf si une seule relation relie déjà les deux objets. Deux objets du même nom ne sont jamais
 départagés au hasard : la ligne attend votre choix.
 
+**Schémas BPMN.** L'outil reconnaît un processus BPMN, dessiné avec la bibliothèque BPMN de draw.io ou avec des formes
+ordinaires : une pool est un couloir qui contient des couloirs, une forme posée dans un couloir est une tâche, un losange
+une passerelle, un petit cercle un événement. Il ne relie au référentiel que ce qui y existe déjà, pour ne pas le
+charger du détail d'un BPMN :
+
+| Forme BPMN | ArchiMate | Proposition par défaut |
+|---|---|---|
+| pool | processus ou acteur | lier à celui du même nom, sinon dessin |
+| couloir | rôle | lier au rôle ou à l'acteur du même nom, sinon créer le rôle |
+| tâche | processus | lier au processus du même nom, sinon dessin |
+| passerelle (losange) | jonction | toujours dessin : elle oriente le déroulement, ce n'est pas un objet |
+| événement | événement métier | lier à celui du même nom ; sans nom, dessin |
+| flèche entre deux tâches liées | déclenchement | créer la relation |
+| tâche liée posée dans un couloir lié | affectation du rôle au processus | créer la relation |
+
+Les noms laissés par draw.io (« Pool », « Lane 3 ») ne sont rapprochés de rien. Le schéma garde ses formes (cercles,
+losanges) et ses tracés à angles droits dans la vue.
+
 Chaque page devient une vue, rangée dans **Vues › Schémas draw.io**. Les objets créés partent en validation. Réimporter
 le même fichier met à jour ses vues sans doublon, même si un objet a été renommé entre-temps ; une page retirée du
 fichier archive sa vue. L'export Archi complet n'emporte pas ces vues (Archi reste maître des siennes) ; le bouton

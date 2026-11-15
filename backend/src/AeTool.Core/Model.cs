@@ -120,6 +120,8 @@ public sealed class DiagramStyle
 /// <summary>Occurrence graphique : un même objet peut en avoir plusieurs, il n'est jamais dupliqué.</summary>
 public sealed class DiagramNode
 {
+    /// <summary>Forme d'un élément de dessin sans objet (« ellipse », « losange », « arrondi ») : un dessin draw.io garde ses formes.</summary>
+    public string? Shape { get; set; }
     public string Id { get; set; } = "";
     public string Kind { get; set; } = "Element"; // Element | Label | Container
     public string? ElementId { get; set; }
@@ -150,6 +152,10 @@ public sealed class DiagramConnection
     public List<Point> Bendpoints { get; set; } = new();
     /// <summary>Texte d'un trait de dessin qui ne porte pas de relation (lien draw.io non rapproché).</summary>
     public string? Label { get; set; }
+    /// <summary>Trait de dessin : extrémité (« fleche » ou « aucune »), tirets, tracé à angles droits.</summary>
+    public string? Head { get; set; }
+    public bool Dashed { get; set; }
+    public bool Orthogonal { get; set; }
 }
 
 public sealed class Diagram

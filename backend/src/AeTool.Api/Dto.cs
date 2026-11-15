@@ -76,7 +76,8 @@ public static class Dto
                 TextColor = (useStyle ? n.Style?.Font?.Color?.Hex : null) ?? visual.TextColor ?? "#000000",
                 FontSize = int.TryParse(n.Style?.Font?.Size, out var size) ? size : 9,
                 Bold = n.Style?.Font?.Style?.Contains("bold") == true,
-                Shape = visual.Shape ?? "rectangle",
+                Shape = n.Shape ?? visual.Shape ?? "rectangle",
+                Outlined = o is not null || n.Kind != "Label" || n.Style?.Line is not null,
                 Template = o is null ? null : visual.Template ?? DrawingDefaults.FallbackTemplate,
                 Glyph = o is null ? null : visual.Icon ?? DrawingDefaults.FallbackGlyph,
                 Layers = o is null ? null : LayerValues(o),
@@ -115,8 +116,9 @@ public static class Dto
                 return new
                 {
                     c.Id, c.SourceNodeId, c.TargetNodeId, c.Bendpoints, TypeKey = r?.TypeKey, TypeLabel = type?.Label, Name = r?.Name ?? c.Label,
-                    LineStyle = type?.LineStyle ?? "plein",
-                    SoftLine = type?.SoftLine ?? DrawingDefaults.FallbackLine, Head = type?.Head ?? DrawingDefaults.FallbackHead,
+                    LineStyle = type?.LineStyle ?? (c.Dashed ? "tirets" : "plein"),
+                    SoftLine = type?.SoftLine ?? (c.Head is null ? DrawingDefaults.FallbackLine : c.Dashed ? "tirets" : "plein"),
+                    Head = type?.Head ?? c.Head ?? DrawingDefaults.FallbackHead, c.Orthogonal,
                     Flow = r is not null && meta.RelIsA(r.TypeKey, Roles.Flow),
                     Protocol = r?.Properties.FirstOrDefault(p => p.Key == meta.Settings.FlowProtocolKey)?.Value,
                     Encryption = r?.Properties.FirstOrDefault(p => p.Key == meta.Settings.FlowEncryptionKey)?.Value,

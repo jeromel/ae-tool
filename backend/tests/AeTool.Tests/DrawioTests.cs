@@ -30,6 +30,23 @@ public static class DrawioTests
         </root></mxGraphModel>
         """;
 
+    /// <summary>Schéma BPMN dessiné avec des formes ordinaires, comme le font beaucoup d'équipes : pool, couloirs, cercles, losange.</summary>
+    private const string Bpmn = """
+        <mxGraphModel><root>
+          <mxCell id="0"/><mxCell id="1" parent="0"/>
+          <mxCell id="pool" value="Pool" style="swimlane;html=1;childLayout=stackLayout;horizontal=0;startSize=20;" vertex="1" parent="1"><mxGeometry x="120" y="120" width="450" height="360" as="geometry"/></mxCell>
+          <mxCell id="l1" value="Demandeur" style="swimlane;html=1;startSize=20;horizontal=0;" vertex="1" parent="pool"><mxGeometry x="20" width="430" height="120" as="geometry"/></mxCell>
+          <mxCell id="start" value="" style="ellipse;whiteSpace=wrap;html=1;" vertex="1" parent="l1"><mxGeometry x="40" y="40" width="40" height="40" as="geometry"/></mxCell>
+          <mxCell id="t1" value="Créer demande d'achat" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="l1"><mxGeometry x="120" y="30" width="80" height="60" as="geometry"/></mxCell>
+          <mxCell id="t2" value="Acheter produit" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="l1"><mxGeometry x="240" y="30" width="80" height="60" as="geometry"/></mxCell>
+          <mxCell id="l2" value="Valideur" style="swimlane;html=1;startSize=20;horizontal=0;" vertex="1" parent="pool"><mxGeometry x="20" y="120" width="430" height="120" as="geometry"/></mxCell>
+          <mxCell id="gw" value="Valide ?" style="rhombus;whiteSpace=wrap;html=1;" vertex="1" parent="l2"><mxGeometry x="260" y="40" width="40" height="40" as="geometry"/></mxCell>
+          <mxCell id="l3" value="Lane 3" style="swimlane;html=1;startSize=20;horizontal=0;" vertex="1" parent="pool"><mxGeometry x="20" y="240" width="430" height="120" as="geometry"/></mxCell>
+          <mxCell id="s1" style="endArrow=classic;html=1;" edge="1" parent="l1" source="start" target="t1"><mxGeometry relative="1" as="geometry"/></mxCell>
+          <mxCell id="s2" style="endArrow=classic;html=1;" edge="1" parent="pool" source="gw" target="t2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        </root></mxGraphModel>
+        """;
+
     private static string File(params (string Id, string Name, string Content)[] pages) =>
         "<mxfile host=\"drawio\">" + string.Concat(pages.Select(p => $"<diagram id=\"{p.Id}\" name=\"{p.Name}\">{p.Content}</diagram>")) + "</mxfile>";
 
@@ -231,6 +248,41 @@ public static class DrawioTests
             var back = new Repository();
             var r = ArchimateExchange.Import(Fixtures.Stream(one), back);
             Equal(0, r.Anomalies.Count(x => x.Severity == "erreur"), "la vue exportée se réimporte");
+        });
+
+        Test("BPMN en formes ordinaires : passerelle et événements en dessin, couloir en rôle, tâche liée seulement si le processus existe", () =>
+        {
+            var repo = Imported(out _);
+            var tr = new Transcoder(repo.Metamodel);
+            var processType = tr.ElementType("BusinessProcess", Array.Empty<ArchiProperty>()).TypeKey;
+            var roleType = tr.ElementType("BusinessRole", Array.Empty<ArchiProperty>()).TypeKey;
+            repo.Objects["id-proc"] = new ArchObject { Id = "id-proc", TypeKey = processType, Name = "Acheter produit" };
+            repo.Objects["id-role"] = new ArchObject { Id = "id-role", TypeKey = roleType, Name = "Demandeur" };
+            var a = DrawioImporter.Analyse(S(File(("p1", "Achat", Bpmn))), "achat.drawio", repo);
+            Equal(DrawioItem.Drawing, Item(a, "p1/pool").Proposal, "pool au nom par défaut");
+            Equal(DrawioItem.Link, Item(a, "p1/l1").Proposal, "couloir lié au rôle existant"); Equal("id-role", Item(a, "p1/l1").TargetId);
+            Equal(DrawioItem.Create, Item(a, "p1/l2").Proposal, "couloir nommé sans rôle : création proposée");
+            Equal(DrawioItem.Drawing, Item(a, "p1/l3").Proposal, "couloir au nom par défaut");
+            Equal(DrawioItem.Drawing, Item(a, "p1/start").Proposal, "événement sans nom");
+            Equal(DrawioItem.Drawing, Item(a, "p1/t1").Proposal, "tâche sans processus du même nom");
+            Equal(DrawioItem.Link, Item(a, "p1/t2").Proposal, "tâche au nom d'un processus"); Equal("id-proc", Item(a, "p1/t2").TargetId);
+            var gw = Item(a, "p1/gw");
+            Equal(DrawioItem.Drawing, gw.Proposal, "passerelle"); True(gw.Reason.Contains("jonction"), gw.Reason);
+            var assign = Item(a, "p1/l1>t2");
+            Equal(DrawioItem.Create, assign.Proposal, "affectation déduite du couloir"); Equal("Assignment", assign.Concept);
+            Equal(DrawioItem.Drawing, Item(a, "p1/s1").Proposal, "flux vers une tâche gardée en dessin");
+            var report = DrawioImporter.Apply(S(File(("p1", "Achat", Bpmn))), "achat.drawio", repo, "claire", null);
+            Equal(0, report.Anomalies.Count(x => x.Severity == "erreur"), "erreurs");
+            Equal(1, report.For("Objets").Added, "seul le rôle Valideur est créé");
+            True(repo.ActiveRelationships.Any(r => r.SourceId == "id-role" && r.TargetId == "id-proc"), "affectation créée");
+            True(!repo.Objects.Values.Any(o => o.Name == "Valide ?"), "aucune passerelle au référentiel");
+        });
+
+        Test("un simple conteneur draw.io n'est pas un couloir BPMN : son contenu garde le rapprochement ordinaire", () =>
+        {
+            var repo = Imported(out _);
+            var a = DrawioImporter.Analyse(S(File(("p1", "Vue", Page()))), "si.drawio", repo);
+            Equal<string?>(null, Item(a, "p1/z").Concept, "zone"); Equal(DrawioItem.Link, Item(a, "p1/z1").Proposal);
         });
 
         Test("habilitations : un contributeur importe un dessin, le reste des imports reste à l'administrateur", () =>
