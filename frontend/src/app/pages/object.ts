@@ -14,13 +14,13 @@ import { HistoryRefresh, ObjectHistory } from '../object-history';
     @if (d(); as d) {
       <a routerLink="/referentiel">← Tous les objets</a>
       <h1><span class="swatch" [style.background]="d.effectiveVisual.fill"></span>{{ d.brief.name || '(sans nom)' }}</h1>
-      <p class="lead">
+      <p class="lead" style="max-width: none">
         <span class="chip info">{{ d.brief.typeLabel }}</span> <span class="chip">{{ d.brief.layerLabel }}</span>
         <span class="chip">Source : {{ sources[d.brief.source] ?? d.brief.source }}</span> <span class="chip">{{ d.brief.status }}</span>
         @if (d.object.archived) { <span class="chip bad">Archivé</span> }
-        @if (updated(d.object); as u) { <span class="muted small">{{ u }}</span> }
-        @if (d.hasAssessment) { <a [routerLink]="['/portefeuille', d.brief.id]">Voir la notation</a> }
-        <a routerLink="/impact" [queryParams]="{ objet: d.brief.id }">Analyser l'impact</a>
+        @if (updated(d.object); as u) { <span class="muted small" style="margin: 0 10px 0 4px">{{ u }}</span> }
+        @if (d.hasAssessment) { <a [routerLink]="['/portefeuille', d.brief.id]" style="margin-right: 14px; white-space: nowrap">Voir la notation</a> }
+        <a routerLink="/impact" [queryParams]="{ objet: d.brief.id }" style="white-space: nowrap">Analyser l'impact</a>
       </p>
       <app-object-validation [objectId]="d.brief.id" (changed)="load()" />
       @if (notice()) { <div class="note" role="status">{{ notice() }}</div> }
