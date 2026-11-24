@@ -10,7 +10,7 @@ Chaque mesure citée renvoie au code qui la porte et, quand il existe, au test q
 |---|---|
 | Le référentiel | c'est la cartographie du SI, informatique et industriel : applications, flux, protocoles, serveurs, réseaux, zones. Entre de mauvaises mains, c'est un plan d'attaque. À traiter comme une information à diffusion restreinte. |
 | Les comptes | un compte administrateur donne tout le référentiel et le droit de le modifier |
-| Les secrets des sources externes | le compte de lecture de la CMDB EasyVista |
+| Les secrets des sources externes | le compte de lecture de la CMDB |
 | Le journal | il fonde la confiance dans le référentiel : qui a changé quoi |
 
 Hypothèses du pilote : l'outil est sur le réseau interne, derrière HTTPS, pour quelques dizaines de personnes de la DSI.
@@ -71,8 +71,8 @@ Il n'y a ni base SQL ni interpréteur de commandes : les injections correspondan
 - Le secret d'une source externe est chiffré au repos par la protection de données d'ASP.NET Core ; les clés sont dans
   `cles/`, elles-mêmes chiffrées par DPAPI sous Windows (`KeyStorage.cs`, `Sources/SourceStore.cs`).
 - Il n'est **jamais renvoyé** par l'API, qui dit seulement s'il est défini, ni écrit dans un journal (`SourcesApiTests`).
-- Le client EasyVista ne fait que des lectures, refuse une adresse en HTTP hors de la machine locale et ne suit aucune
-  redirection (`Connectors/EasyVistaClient.cs`, `EasyVistaClientTests`).
+- Le client API REST ne fait que des lectures, refuse une adresse en HTTP hors de la machine locale, ne suit aucune
+  redirection ni aucun lien de page suivante vers un autre hôte (`Connectors/RestSourceClient.cs`, `RestSourceClientTests`).
 - Le secret de l'application Entra ID se donne par variable d'environnement ; l'outil ne l'écrit nulle part.
 
 ### Traçabilité et intégrité
@@ -118,4 +118,4 @@ Il n'y a ni base SQL ni interpréteur de commandes : les injections correspondan
 - [ ] Deux administrateurs nommés au moins, pour ne pas dépendre d'une seule personne.
 - [ ] `code-installation.txt` absent du dossier de données (il disparaît à la création du premier compte).
 - [ ] Sonde `/api/health` branchée sur la supervision.
-- [ ] Avis du RSSI sur la sensibilité du référentiel et sur le compte de lecture EasyVista.
+- [ ] Avis du RSSI sur la sensibilité du référentiel et sur le compte de lecture de la CMDB.

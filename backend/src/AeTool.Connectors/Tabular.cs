@@ -4,7 +4,7 @@ using AeTool.Core;
 namespace AeTool.Connectors;
 
 /// <summary>
-/// Adaptateur « fichier » : lit un CSV ou un classeur Excel (export d'EasyVista, d'un outil de gestion de projet ou de tout autre outil)
+/// Adaptateur « fichier » : lit un CSV ou un classeur Excel (export d'une CMDB, d'un outil de gestion de projet ou de tout autre outil)
 /// et en tire des lignes colonne → valeur. Il ne connaît rien du rapprochement.
 /// </summary>
 public static class TabularReader

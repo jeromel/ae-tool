@@ -32,13 +32,13 @@ public static partial class SourceValidator
         var label = input.Label?.Trim();
         if (string.IsNullOrEmpty(label) || label.Length > 120) return Fail("Le libellé est obligatoire (120 caractères au plus).");
         var kind = input.Kind ?? existing?.Kind ?? "";
-        if (kind is not (SourceProfile.KindFile or SourceProfile.KindEasyVista)) return Fail("Le type de source doit être « fichier » ou « easyvista ».");
+        if (kind is not (SourceProfile.KindFile or SourceProfile.KindApi)) return Fail("Le type de source doit être « fichier » ou « api ».");
         var mapping = input.Mapping ?? existing?.Mapping;
         if (mapping is null) return Fail("Le mappage est obligatoire.");
         if (MappingError(mapping, metamodel) is { } mappingError) return Fail(mappingError);
         var connection = KnownSettings(kind, input.Connection ?? existing?.Connection ?? new());
-        if (kind == SourceProfile.KindEasyVista && EasyVistaClient.Validate(connection) is { } connectionError) return Fail(connectionError);
-        if (kind == SourceProfile.KindEasyVista && !string.IsNullOrEmpty(input.Secret) && input.Secret.Length > 4096) return Fail("Le secret est trop long.");
+        if (kind == SourceProfile.KindApi && RestSourceClient.Validate(connection) is { } connectionError) return Fail(connectionError);
+        if (kind == SourceProfile.KindApi && !string.IsNullOrEmpty(input.Secret) && input.Secret.Length > 4096) return Fail("Le secret est trop long.");
         var profile = new SourceProfile
         {
             Key = key, Label = label, Kind = kind, Connection = connection, Mapping = Clean(mapping),
@@ -53,8 +53,8 @@ public static partial class SourceValidator
 
     /// <summary>Seuls les réglages connus de l'adaptateur sont gardés, limités en taille : un mot de passe glissé ici ne serait pas stocké en clair.</summary>
     private static Dictionary<string, string> KnownSettings(string kind, Dictionary<string, string> connection) =>
-        kind == SourceProfile.KindEasyVista
-            ? connection.Where(c => EasyVistaClient.ConnectionKeys.Contains(c.Key) && c.Value.Length <= 500).ToDictionary(c => c.Key, c => c.Value.Trim())
+        kind == SourceProfile.KindApi
+            ? connection.Where(c => RestSourceClient.ConnectionKeys.Contains(c.Key) && c.Value.Length <= 500).ToDictionary(c => c.Key, c => c.Value.Trim())
             : new();
 
     private static string? MappingError(SourceMapping m, Metamodel metamodel)

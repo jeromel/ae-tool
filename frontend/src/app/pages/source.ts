@@ -7,7 +7,7 @@ import { ReconcileTab } from './source/reconcile';
 
 type Tab = 'connexion' | 'correspondances' | 'rapprochement';
 
-/** Une source : sa connexion (EasyVista), sa matrice de correspondances et son rapprochement, en trois onglets portés par l'adresse. */
+/** Une source : sa connexion (API REST), sa matrice de correspondances et son rapprochement, en trois onglets portés par l'adresse. */
 @Component({
   selector: 'app-source',
   imports: [RouterLink, ConnectionTab, MappingTab, ReconcileTab],
@@ -18,7 +18,7 @@ type Tab = 'connexion' | 'correspondances' | 'rapprochement';
     @if (state.profile(); as p) {
       <h1>{{ p.label }}</h1>
       <p class="lead">
-        <span class="chip info">{{ p.kind === 'easyvista' ? 'CMDB EasyVista' : 'Fichier CSV ou Excel' }}</span>
+        <span class="chip info">{{ p.kind === 'api' ? 'API REST' : 'Fichier CSV ou Excel' }}</span>
         <span class="muted small">Clé : {{ p.key }}</span>
         <span class="muted small">L'outil lit la source ; il n'y écrit jamais.</span>
       </p>
@@ -57,7 +57,7 @@ export class SourcePage {
     const all: { key: Tab; label: string }[] = [
       { key: 'connexion', label: 'Connexion' }, { key: 'correspondances', label: 'Correspondances' }, { key: 'rapprochement', label: 'Rapprochement' },
     ];
-    return this.state.profile()?.kind === 'easyvista' ? all : all.slice(1);
+    return this.state.profile()?.kind === 'api' ? all : all.slice(1);
   });
 
   /** Onglet demandé par l'adresse s'il existe pour ce profil ; sinon le premier. */

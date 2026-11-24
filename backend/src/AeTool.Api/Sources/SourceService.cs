@@ -14,7 +14,7 @@ public static class SourceServices
         services.AddSingleton<SourceStore>();
         services.AddSingleton<SourceRuns>();
         // Pas de redirection suivie : les identifiants ne doivent jamais partir vers un autre serveur que celui configuré.
-        services.AddSingleton(new EasyVistaClient(new HttpClient(new SocketsHttpHandler { AllowAutoRedirect = false, PooledConnectionLifetime = TimeSpan.FromMinutes(5) })
+        services.AddSingleton(new RestSourceClient(new HttpClient(new SocketsHttpHandler { AllowAutoRedirect = false, PooledConnectionLifetime = TimeSpan.FromMinutes(5) })
         { Timeout = Timeout.InfiniteTimeSpan }));
         services.AddSingleton<SourceService>();
         return services;
@@ -28,17 +28,17 @@ public sealed class SourceService
     private readonly Workspace _ws;
     private readonly SourceStore _store;
     private readonly SourceRuns _runs;
-    private readonly EasyVistaClient _easyVista;
+    private readonly RestSourceClient _api;
     private readonly object _applyGate = new();
 
-    public SourceService(Workspace ws, SourceStore store, SourceRuns runs, EasyVistaClient easyVista)
-    { _ws = ws; _store = store; _runs = runs; _easyVista = easyVista; }
+    public SourceService(Workspace ws, SourceStore store, SourceRuns runs, RestSourceClient api)
+    { _ws = ws; _store = store; _runs = runs; _api = api; }
 
     /// <summary>Lit la source : le fichier reçu, ou l'API (une seule page si maxRecords est petit).</summary>
     public async Task<SourceTable> ReadAsync(SourceProfile profile, Stream? file, string? fileName, int maxRecords, CancellationToken ct)
     {
-        if (profile.Kind == SourceProfile.KindEasyVista)
-            return await _easyVista.FetchAsync(profile.Connection, _store.Secret(profile.Key), maxRecords, ct);
+        if (profile.Kind == SourceProfile.KindApi)
+            return await _api.FetchAsync(profile.Connection, _store.Secret(profile.Key), maxRecords, ct);
         if (file is null || file.Length == 0) throw new SourceAccessException("Aucun fichier reçu : envoyez le fichier dans le corps de la requête.");
         return TabularReader.Read(file, fileName);
     }
@@ -47,7 +47,7 @@ public sealed class SourceService
     {
         try
         {
-            var total = await _easyVista.ProbeAsync(profile.Connection, _store.Secret(profile.Key), ct);
+            var total = await _api.ProbeAsync(profile.Connection, _store.Secret(profile.Key), ct);
             return (true, total, total is null ? "Connexion réussie." : $"Connexion réussie : {total} élément(s) disponibles.");
         }
         catch (SourceAccessException e) { return (false, null, e.Message); }

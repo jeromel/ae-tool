@@ -1,6 +1,6 @@
 # Couverture du cahier des charges
 
-État de la version 0.13.0 face à chaque exigence du cahier des charges (révision du 13 novembre 2026).
+État de la version 0.14.0 face à chaque exigence du cahier des charges (révision du 13 novembre 2026).
 **Couvert** : fait et vérifié par un test ou par la recette dans un navigateur. **Partiel** : une partie manque, elle est nommée.
 **Non fait** : rien n'existe. **À la DSI** : ne relève pas du code.
 
@@ -9,7 +9,7 @@
 | Lot | État | Ce qui reste |
 |---|---|---|
 | 1, référentiel | **Livré**, avec une dérogation et trois exigences partielles | base relationnelle (ET-04, dérogation de la décision 004) ; filtres enregistrés (EF-03) ; export Excel (EF-04) ; fraîcheur par propriétaire (EF-53) |
-| 2, CMDB et projets | **Commencé** | valider le client EasyVista sur la plateforme réelle ; synchronisation planifiée ; outil de gestion de projet par son API ; avis d'architecture (EF-24) |
+| 2, CMDB et projets | **Commencé** | valider le client API REST sur la CMDB réelle ; synchronisation planifiée ; outil de gestion de projet par son API ; avis d'architecture (EF-24) |
 | 3, modélisation | Amorcé par le rendu des vues | édition graphique des diagrammes (EF-60, 62, 65, 67) |
 | 4, trajectoires | Non commencé | scénarios, steps, journal des décisions (EF-30 à 36, EF-54) |
 
@@ -63,7 +63,7 @@
 | Système | État | Précision |
 |---|---|---|
 | Archi | Couvert | import rejouable, export, aller-retour sans perte vérifié sur le modèle réel |
-| EasyVista | Partiel, **à valider** | lecture par l'API et rapprochement par identifiant écrits et testés contre un serveur simulé ; jamais essayés sur la plateforme ; déclenchement manuel, pas de synchronisation planifiée |
+| CMDB par API REST | Partiel, **à valider** | lecture par l'API (client générique réglable) et rapprochement par identifiant écrits et testés contre un serveur simulé ; jamais essayés sur une CMDB réelle ; déclenchement manuel, pas de synchronisation planifiée |
 | Outil de gestion de projet | Par fichier | export CSV ou Excel rapproché comme toute source |
 | Annuaire | Partiel | flux « authorization code » avec PKCE et lecture de l'identité sur Graph ; pas de lecture des groupes |
 | API de l'outil | Partiel | l'interface n'utilise que l'API REST ; **manque** sa description OpenAPI |

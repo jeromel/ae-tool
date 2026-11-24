@@ -11,7 +11,7 @@ export interface Mapping {
 }
 
 export interface Profile {
-  key: string; label: string; kind: 'fichier' | 'easyvista';
+  key: string; label: string; kind: 'fichier' | 'api';
   connection: Record<string, string>; mapping: any; sourceIsMaster: boolean;
   ignoredCount: number; lastRunAt: string | null; lastRunBy: string | null; hasSecret: boolean; hasReport: boolean;
 }
@@ -133,7 +133,7 @@ export class SourceState {
     if (p) this.adopt(await this.api.get<Profile>(`/sources/${p.key}`), { mapping: this.mappingDirty(), connection: this.connectionDirty() });
   }
 
-  /** Lit un aperçu : le fichier choisi (profil fichier) ou un appel de l'API (EasyVista). */
+  /** Lit un aperçu : le fichier choisi (profil fichier) ou un appel de l'API (profil API REST). */
   async loadPreview(): Promise<void> {
     const p = this.profile()!;
     const file = this.file();

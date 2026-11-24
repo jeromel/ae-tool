@@ -21,8 +21,8 @@ public static class SourceEndpoints
 
         g.MapGet("/templates", () => new[]
         {
-            new SourceTemplate("Fichier", "Export CSV ou Excel d'EasyVista, d'un outil de gestion de projet ou de tout autre outil.", SourceProfile.FileTemplate()),
-            new SourceTemplate("EasyVista", "CMDB EasyVista par son API REST, en lecture seule.", SourceProfile.EasyVistaTemplate()),
+            new SourceTemplate("Fichier", "Export CSV ou Excel d'une CMDB, d'un outil de gestion de projet ou de tout autre outil.", SourceProfile.FileTemplate()),
+            new SourceTemplate("API REST", "CMDB ou autre outil lu par son API REST (JSON paginé), en lecture seule.", SourceProfile.ApiTemplate()),
         });
 
         g.MapGet("/{key}", (string key, SourceStore store, SourceRuns runs) =>
@@ -51,7 +51,7 @@ public static class SourceEndpoints
         g.MapPost("/{key}/test", async (string key, SourceStore store, SourceService service, CancellationToken ct) =>
         {
             if (store.Get(key) is not { } profile) return Results.NotFound();
-            if (profile.Kind != SourceProfile.KindEasyVista) return Results.BadRequest(new { error = "Le test de connexion ne concerne que les sources EasyVista." });
+            if (profile.Kind != SourceProfile.KindApi) return Results.BadRequest(new { error = "Le test de connexion ne concerne que les sources lues par API." });
             var (ok, total, message) = await service.TestAsync(profile, ct);
             return Results.Ok(new { ok, total, message });
         });
@@ -94,9 +94,9 @@ public static class SourceEndpoints
         });
     }
 
-    /// <summary>Aperçu : une seule page de l'API EasyVista suffit.</summary>
+    /// <summary>Aperçu : une seule page de l'API suffit.</summary>
     private static int ReadSize(SourceProfile profile) =>
-        profile.Kind == SourceProfile.KindEasyVista && int.TryParse(profile.Connection.GetValueOrDefault("pageSize"), out var n) ? Math.Clamp(n, 1, 1000) : 100;
+        profile.Kind == SourceProfile.KindApi && int.TryParse(profile.Connection.GetValueOrDefault("pageSize"), out var n) ? Math.Clamp(n, 1, 1000) : 100;
 
     private static async Task<Stream?> BodyOrNull(HttpRequest req) => req.ContentLength is 0 ? null : await Body(req);
 

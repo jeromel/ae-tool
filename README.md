@@ -1,7 +1,7 @@
 # Référentiel d'architecture d'entreprise
 
 Un outil pour décrire le système d'information, informatique et industriel, et s'en servir : comprendre une couche,
-préparer un comité, tenir les données à jour. Version 0.13.0, pilote.
+préparer un comité, tenir les données à jour. Version 0.14.0, pilote.
 
 - **Un métamodèle à vous.** Types, relations, propriétés et couches sont des données de l'outil, réglables à l'écran.
   ArchiMate est un format d'échange, relié au métamodèle par une **matrice de transcodification** que vous réglez aussi.
@@ -56,7 +56,7 @@ n'a pas été validée et laisse les tests trancher ; pour revenir au SDK 8 s'il
 | Comprendre | espaces Capacités, Applications, Flux, Données, Infrastructure, interrogés par questions ; vues Archi en rendu soigné, avec calques |
 | Décider | portefeuille noté (criticité métier et critères C1 à C4), projets, impacts et adhérences, analyse d'impact amont et aval, matrices |
 | Tenir à jour | création et modification d'objets et de relations selon le métamodèle ; validation (brouillon, proposé, validé) ; historique ; qualité et conformité au métamodèle |
-| Sources externes | rapprochement en deux temps avec un export CSV ou Excel, ou avec la CMDB EasyVista en lecture seule |
+| Sources externes | rapprochement en deux temps avec un export CSV ou Excel, ou avec une CMDB lue par son API REST, en lecture seule |
 | Administration | comptes locaux ou Microsoft Entra ID, quatre rôles, journal, sauvegardes et restauration |
 
 ## Organisation du code
@@ -64,7 +64,7 @@ n'a pas été validée et laisse les tests trancher ; pour revenir au SDK 8 s'il
 | Dossier | Rôle | Dépend de |
 |---|---|---|
 | `backend/src/AeTool.Core` | domaine pur : modèle, métamodèle, transcodification, analyses, notation, validation, historique, rapprochement | rien |
-| `backend/src/AeTool.Connectors` | formats : Archi (XML), classeur xlsx, CSV, client EasyVista | Core |
+| `backend/src/AeTool.Connectors` | formats : Archi (XML), draw.io, classeur xlsx, CSV, client API REST générique | Core |
 | `backend/src/AeTool.Api` | routes REST, sessions et habilitations, stockage, hébergement | Core, Connectors |
 | `backend/tests/AeTool.Tests` | tests automatisés, exécutable console sans cadre de test | les trois |
 | `frontend` | interface Angular : composants autonomes, signaux | l'API |
@@ -84,7 +84,7 @@ dotnet run --project backend/tests/AeTool.Tests -- --fichier chemin/vers/export-
 | Sujet | État |
 |---|---|
 | Connexion Microsoft Entra ID | écrite et testée hors ligne ; **jamais essayée sur un locataire réel** |
-| Client EasyVista | écrit d'après la documentation de l'éditeur et testé contre un serveur simulé ; **jamais essayé sur une plateforme réelle**. Le rapprochement par fichier, lui, est vérifié de bout en bout |
+| Client API REST | générique (adresse, pagination et noms de champs réglables) et testé contre un serveur simulé ; **jamais essayé sur une API réelle**. Le rapprochement par fichier, lui, est vérifié de bout en bout |
 | SDK .NET 11 et suivants | non validés : les tests du script de construction font foi |
 | Base relationnelle | non : stockage par fichier, une seule instance ([décision 004](docs/decisions/004-stockage-fichier.md)) |
 | Outil de gestion de projet | par export de fichier seulement |

@@ -167,7 +167,7 @@ proposés. La fiche de chaque objet montre son **historique** : qui, quand, et p
 **Tenir à jour › Sources externes.** Une source est un outil qui maîtrise une partie de ce que le référentiel décrit :
 la CMDB pour les serveurs, l'outil de gestion de projet pour les projets.
 
-1. « Nouvelle source » : partir du modèle « Fichier » (un export CSV ou Excel suffit) ou « EasyVista » (lecture par l'API).
+1. « Nouvelle source » : partir du modèle « Fichier » (un export CSV ou Excel suffit) ou « API REST » (lecture par l'API de la CMDB ; adresse, pagination et noms de champs se règlent dans l'onglet Connexion).
 2. **Correspondances** : charger un aperçu, puis indiquer la colonne de l'identifiant, celle du nom, celle de la nature ;
    associer chaque nature à un type du métamodèle ; choisir les colonnes à reprendre comme propriétés.
 3. **Rapprochement** : « Lancer le rapprochement ». Le calcul ne modifie rien. Il classe les lignes : liées, proposées

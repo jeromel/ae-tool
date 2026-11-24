@@ -134,7 +134,7 @@ export const INFRASTRUCTURE: SpaceConfig = {
     { key: 'sans-application', label: 'Qu\'est-ce qui ne porte aucune application ?', filter: (r) => r.applications === 0 },
     {
       key: 'fin-support', label: 'Qu\'est-ce qui arrive en fin de support ?',
-      missing: 'Les versions et dates de fin de support ne sont pas dans le référentiel. Elles viendront de la CMDB EasyVista (lot 2).',
+      missing: 'Les versions et dates de fin de support ne sont pas dans le référentiel. Elles viendront de la CMDB, déclarée comme source externe.',
     },
   ],
 };

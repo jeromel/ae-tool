@@ -129,25 +129,25 @@ public static class SourcesApiTests
             Equal(HttpStatusCode.BadRequest, Send(server, HttpMethod.Post, "/api/sources/cmdb/test").Status, "test d'une source fichier");
         });
 
-        Test("modèles de profils : fichier et EasyVista", () =>
+        Test("modèles de profils : fichier et API REST", () =>
         {
             using var server = new ApiTests.Server();
             var templates = Ok(server, HttpMethod.Get, "/api/sources/templates");
-            Equal("fichier,easyvista", string.Join(",", templates.EnumerateArray().Select(t => t.GetProperty("profile").GetProperty("kind").GetString())), "types");
+            Equal("fichier,api", string.Join(",", templates.EnumerateArray().Select(t => t.GetProperty("profile").GetProperty("kind").GetString())), "types");
         });
 
         Test("secret : chiffré au repos, jamais dans une réponse, inchangé si absent, effacé si vide", () =>
         {
             using var server = ServerWithModel();
             var node = TypeOf(server, "id-srv");
-            var body = ProfileJson(node, "https://ev.example", Secret);
-            var created = Ok(server, HttpMethod.Put, "/api/sources/easyvista", body);
+            var body = ProfileJson(node, "https://cmdb.example", Secret);
+            var created = Ok(server, HttpMethod.Put, "/api/sources/cmdb-api", body);
             Equal(true, created.GetProperty("hasSecret").GetBoolean(), "secret enregistré");
             var responses = new[]
             {
-                created.GetRawText(), Send(server, HttpMethod.Get, "/api/sources").Body, Send(server, HttpMethod.Get, "/api/sources/easyvista").Body,
+                created.GetRawText(), Send(server, HttpMethod.Get, "/api/sources").Body, Send(server, HttpMethod.Get, "/api/sources/cmdb-api").Body,
                 Send(server, HttpMethod.Get, "/api/sources/templates").Body, Send(server, HttpMethod.Get, "/api/export/json").Body,
-                Send(server, HttpMethod.Post, "/api/sources/easyvista/test").Body,
+                Send(server, HttpMethod.Post, "/api/sources/cmdb-api/test").Body,
             };
             True(responses.All(r => !r.Contains(Secret)), "secret en clair dans une réponse");
 
@@ -157,49 +157,49 @@ public static class SourcesApiTests
             True(files.All(f => !File.ReadAllText(f).Contains(Secret)), "secret en clair dans un fichier du dossier de données");
             True(File.ReadAllText(Path.Combine(server.DataDirectory, "sources.json")).Contains("protectedSecret"), "secret chiffré stocké");
 
-            Ok(server, HttpMethod.Put, "/api/sources/easyvista", ProfileJson(node, "https://ev.example", null));
-            Equal(true, Ok(server, HttpMethod.Get, "/api/sources/easyvista").GetProperty("hasSecret").GetBoolean(), "secret absent de la requête : inchangé");
-            Ok(server, HttpMethod.Put, "/api/sources/easyvista", ProfileJson(node, "https://ev.example", ""));
-            Equal(false, Ok(server, HttpMethod.Get, "/api/sources/easyvista").GetProperty("hasSecret").GetBoolean(), "chaîne vide : effacé");
+            Ok(server, HttpMethod.Put, "/api/sources/cmdb-api", ProfileJson(node, "https://cmdb.example", null));
+            Equal(true, Ok(server, HttpMethod.Get, "/api/sources/cmdb-api").GetProperty("hasSecret").GetBoolean(), "secret absent de la requête : inchangé");
+            Ok(server, HttpMethod.Put, "/api/sources/cmdb-api", ProfileJson(node, "https://cmdb.example", ""));
+            Equal(false, Ok(server, HttpMethod.Get, "/api/sources/cmdb-api").GetProperty("hasSecret").GetBoolean(), "chaîne vide : effacé");
         });
 
         Test("secret : adresse http distante refusée à l'enregistrement, réglage inconnu non conservé", () =>
         {
             using var server = ServerWithModel();
             var node = TypeOf(server, "id-srv");
-            Equal(HttpStatusCode.BadRequest, Send(server, HttpMethod.Put, "/api/sources/easyvista", ProfileJson(node, "http://ev.example", "x")).Status, "http distant");
-            var extra = ProfileJson(node, "https://ev.example", null).Replace("\"login\"", "\"password\":\"" + Secret + "\",\"login\"");
-            var saved = Ok(server, HttpMethod.Put, "/api/sources/easyvista", extra);
+            Equal(HttpStatusCode.BadRequest, Send(server, HttpMethod.Put, "/api/sources/cmdb-api", ProfileJson(node, "http://cmdb.example", "x")).Status, "http distant");
+            var extra = ProfileJson(node, "https://cmdb.example", null).Replace("\"login\"", "\"password\":\"" + Secret + "\",\"login\"");
+            var saved = Ok(server, HttpMethod.Put, "/api/sources/cmdb-api", extra);
             True(!saved.GetRawText().Contains(Secret) && !File.ReadAllText(Path.Combine(server.DataDirectory, "sources.json")).Contains(Secret), "réglage inconnu ignoré");
         });
 
-        Test("EasyVista par l'API : test de connexion, rapprochement, identifiants refusés", () =>
+        Test("CMDB par l'API REST : test de connexion, rapprochement, identifiants refusés", () =>
         {
             using var server = ServerWithModel();
-            using var fake = new FakeEasyVista("svc-ae", "mot-de-passe-ev");
+            using var fake = new FakeCmdb("svc-ae", "mot-de-passe-cmdb");
             var node = TypeOf(server, "id-srv");
-            Ok(server, HttpMethod.Put, "/api/sources/easyvista", ProfileJson(node, fake.BaseUrl, "mot-de-passe-ev"));
+            Ok(server, HttpMethod.Put, "/api/sources/cmdb-api", ProfileJson(node, fake.BaseUrl, "mot-de-passe-cmdb"));
 
-            var test = Ok(server, HttpMethod.Post, "/api/sources/easyvista/test");
+            var test = Ok(server, HttpMethod.Post, "/api/sources/cmdb-api/test");
             Equal(true, test.GetProperty("ok").GetBoolean(), "test : ok");
             Equal(2, test.GetProperty("total").GetInt32(), "test : total annoncé");
 
-            var preview = Ok(server, HttpMethod.Post, "/api/sources/easyvista/preview");
+            var preview = Ok(server, HttpMethod.Post, "/api/sources/cmdb-api/preview");
             True(preview.GetProperty("columns").EnumerateArray().Any(c => c.GetString() == "LOCATION.LOCATION_PATH"), "colonne aplatie");
 
-            var run = Ok(server, HttpMethod.Post, "/api/sources/easyvista/run");
+            var run = Ok(server, HttpMethod.Post, "/api/sources/cmdb-api/run");
             Equal(1, run.GetProperty("counts").GetProperty("proposé").GetInt32(), "proposé");
             Equal(1, run.GetProperty("counts").GetProperty("nouveau").GetInt32(), "nouveau");
-            Ok(server, HttpMethod.Post, "/api/sources/easyvista/apply", "{\"acceptProposals\":true,\"decisions\":[{\"externalId\":\"502\",\"action\":\"creer\"}]}");
+            Ok(server, HttpMethod.Post, "/api/sources/cmdb-api/apply", "{\"acceptProposals\":true,\"decisions\":[{\"externalId\":\"502\",\"action\":\"creer\"}]}");
             Equal("Europe/Spain/Madrid", Objects(server).GetProperty("id-srv").GetProperty("Properties").EnumerateArray()
                 .Single(p => p.GetProperty("Key").GetString() == "cmdb:localisation").GetProperty("Value").GetString(), "localisation reprise");
             True(fake.OnlyGet, "l'outil n'a émis que des GET");
 
-            Ok(server, HttpMethod.Put, "/api/sources/easyvista", ProfileJson(node, fake.BaseUrl, "mauvais"));
-            var refused = Ok(server, HttpMethod.Post, "/api/sources/easyvista/test");
+            Ok(server, HttpMethod.Put, "/api/sources/cmdb-api", ProfileJson(node, fake.BaseUrl, "mauvais"));
+            var refused = Ok(server, HttpMethod.Post, "/api/sources/cmdb-api/test");
             Equal(false, refused.GetProperty("ok").GetBoolean(), "mauvais secret : test en échec");
-            Equal("Identifiants refusés par EasyVista.", refused.GetProperty("message").GetString(), "message traduit");
-            var (status, text) = Send(server, HttpMethod.Post, "/api/sources/easyvista/run");
+            Equal("Identifiants refusés par la source.", refused.GetProperty("message").GetString(), "message traduit");
+            var (status, text) = Send(server, HttpMethod.Post, "/api/sources/cmdb-api/run");
             Equal(HttpStatusCode.BadGateway, status, "run en échec : 502");
             True(text.Contains("Identifiants refusés") && !text.Contains("mauvais"), "message sans secret");
         });
@@ -208,9 +208,9 @@ public static class SourcesApiTests
         {
             using var first = ServerWithModel();
             var node = TypeOf(first, "id-srv");
-            using var fake = new FakeEasyVista("svc-ae", "mot-de-passe-ev");
-            Ok(first, HttpMethod.Put, "/api/sources/easyvista", ProfileJson(node, fake.BaseUrl, "mot-de-passe-ev"));
-            Ok(first, HttpMethod.Post, "/api/sources/easyvista/run");
+            using var fake = new FakeCmdb("svc-ae", "mot-de-passe-cmdb");
+            Ok(first, HttpMethod.Put, "/api/sources/cmdb-api", ProfileJson(node, fake.BaseUrl, "mot-de-passe-cmdb"));
+            Ok(first, HttpMethod.Post, "/api/sources/cmdb-api/run");
             Ok(first, HttpMethod.Put, "/api/sources/cmdb", FileProfile(node, TypeOf(first, "id-itsm")));
             Ok(first, HttpMethod.Post, "/api/sources/cmdb/run", Csv);
 
@@ -218,7 +218,7 @@ public static class SourcesApiTests
             Equal(2, Ok(second, HttpMethod.Get, "/api/sources").GetArrayLength(), "profils relus");
             Equal(2, Ok(second, HttpMethod.Get, "/api/sources/cmdb/report").GetProperty("counts").GetProperty("proposé").GetInt32(), "rapport relu");
             Equal(2, Ok(second, HttpMethod.Post, "/api/sources/cmdb/apply", "{\"acceptProposals\":true}").GetProperty("result").GetProperty("linked").GetInt32(), "décisions appliquées après redémarrage");
-            Equal(true, Ok(second, HttpMethod.Post, "/api/sources/easyvista/test").GetProperty("ok").GetBoolean(), "secret déchiffré par le nouveau processus");
+            Equal(true, Ok(second, HttpMethod.Post, "/api/sources/cmdb-api/test").GetProperty("ok").GetBoolean(), "secret déchiffré par le nouveau processus");
         });
 
         Test("suppression d'un profil : le profil et son rapport disparaissent, les liens posés restent", () =>
@@ -237,8 +237,9 @@ public static class SourcesApiTests
 
     private static string ProfileJson(string nodeType, string baseUrl, string? secret) => JsonSerializer.Serialize(new Dictionary<string, object?>
     {
-        ["label"] = "CMDB EasyVista", ["kind"] = "easyvista", ["sourceIsMaster"] = false,
-        ["connection"] = new Dictionary<string, string> { ["baseUrl"] = baseUrl, ["account"] = "demo", ["login"] = "svc-ae", ["authMode"] = "basic", ["pageSize"] = "100" },
+        ["label"] = "CMDB par API", ["kind"] = "api", ["sourceIsMaster"] = false,
+        ["connection"] = new Dictionary<string, string> { ["url"] = baseUrl + "/api/v1/demo/configuration-items", ["login"] = "svc-ae", ["authMode"] = "basic", ["pageSize"] = "100",
+            ["pageSizeParam"] = "max_rows", ["itemsField"] = "records", ["totalField"] = "total_record_count", ["nextField"] = "@next", ["idField"] = "HREF" },
         ["mapping"] = new
         {
             idField = "@id", nameField = "NETWORK_IDENTIFIER", defaultTypeKey = nodeType,
@@ -251,8 +252,8 @@ public static class SourcesApiTests
         ["secret"] = secret,
     }.Where(p => p.Key != "secret" || p.Value is not null).ToDictionary(p => p.Key, p => p.Value));
 
-    /// <summary>Faux serveur EasyVista local (HttpListener) : vérifie l'authentification Basic et sert deux éléments de configuration.</summary>
-    private sealed class FakeEasyVista : IDisposable
+    /// <summary>Fausse CMDB locale (HttpListener) : vérifie l'authentification Basic et sert deux éléments de configuration.</summary>
+    private sealed class FakeCmdb : IDisposable
     {
         private readonly HttpListener _listener = new();
         private readonly string _expected;
@@ -260,7 +261,7 @@ public static class SourcesApiTests
         public string BaseUrl { get; }
         public bool OnlyGet => _onlyGet;
 
-        public FakeEasyVista(string login, string password)
+        public FakeCmdb(string login, string password)
         {
             _expected = "Basic " + Convert.ToBase64String(Encoding.UTF8.GetBytes($"{login}:{password}"));
             var probe = new TcpListener(IPAddress.Loopback, 0);

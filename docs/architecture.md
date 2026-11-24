@@ -1,6 +1,6 @@
 # Dossier d'architecture de l'outil
 
-Version décrite : 0.13.0 (pilote). Ce document dit ce qu'est l'outil, comment il est construit et pourquoi.
+Version décrite : 0.14.0 (pilote). Ce document dit ce qu'est l'outil, comment il est construit et pourquoi.
 Les choix structurants sont détaillés dans [les décisions d'architecture](decisions/README.md).
 
 ## 1. Couche métier : à quoi sert l'outil
@@ -32,7 +32,7 @@ Processus de gouvernance outillés :
 | Portefeuille | notation, synthèse, décisions |
 | Trajectoires | scénarios et étapes des projets, changements, objets envisagés ; SI projeté à une étape, dans tous les écrans |
 | Échanges | import et export Archi (format d'échange Open Group), reprise du classeur d'urbanisation, import des dessins draw.io (rapprochés forme par forme), export CSV |
-| Sources externes | rapprochement avec un export de fichier ou la CMDB EasyVista : comparer, puis appliquer des décisions |
+| Sources externes | rapprochement avec un export de fichier ou une CMDB lue par son API REST : comparer, puis appliquer des décisions |
 | Validation et historique | états brouillon, proposé, validé ; journal filtrable ; avant et après de chaque modification |
 | Administration | comptes et rôles, sauvegardes et restauration, état du stockage |
 
@@ -50,7 +50,7 @@ Navigateur ── HTTPS ──► API REST (.NET, un seul processus) ──► d
    interface Angular        │
    (fichiers statiques      ├── AeTool.Core        domaine pur : modèle, métamodèle, transcodification, analyses,
     servis par l'API)       │                      notation, validation, historique, rapprochement
-                            ├── AeTool.Connectors  formats : Archi (XML), draw.io, classeur xlsx, CSV, client EasyVista
+                            ├── AeTool.Connectors  formats : Archi (XML), draw.io, classeur xlsx, CSV, client API REST générique
                             └── AeTool.Api         routes, sessions et habilitations, stockage, hébergement
 ```
 
@@ -70,7 +70,7 @@ Angular et leurs dépendances directes sont livrés ; leur liste est dans [nomen
 | Fichier Archi (XML) | entrant et sortant | manuel, par un administrateur | la matrice de transcodification fait la correspondance |
 | Classeur d'urbanisation (xlsx) | entrant | manuel | rapproché par nom avec les applications |
 | Export de fichier d'une source (CSV, xlsx) | entrant | manuel | rapprochement en deux temps : comparer, puis appliquer |
-| API REST EasyVista | sortant, **lecture seule** | manuel | seul flux sortant vers un système de l'entreprise ; aucun appel d'écriture n'existe dans le code |
+| API REST d'une source (CMDB…) | sortant, **lecture seule** | manuel | seul flux sortant vers un système de l'entreprise ; aucun appel d'écriture n'existe dans le code |
 | Microsoft Entra ID et Graph | sortant | à la connexion, si le mode « entra » est choisi | lecture de l'identité de la personne qui se connecte |
 
 L'outil n'appelle aucun service sur Internet en dehors de ces deux derniers flux, tous deux facultatifs.
@@ -141,7 +141,7 @@ Résumé ; le détail et les risques résiduels sont dans [securite.md](securite
 | Limite | Conséquence | Trajectoire |
 |---|---|---|
 | Stockage par fichier, une seule instance | pas de haute disponibilité ; convient à quelques dizaines d'utilisateurs | implémentation SQL de `IRepositoryStore` avant généralisation (décision 004) |
-| Connexion Entra ID et client EasyVista non essayés sur les plateformes réelles | à valider en recette avec la DSI | essai sur le locataire et sur la préproduction EasyVista |
+| Connexion Entra ID et client API REST non essayés sur les plateformes réelles | à valider en recette avec la DSI | essai sur le locataire et sur la préproduction de la CMDB |
 | Vues Archi importées en lecture seule | le dessin reste dans Archi | vues générées par cas d'usage, déjà engagées (décision 007) |
 | Pas d'interface de programmation documentée pour des tiers | les intégrations passent par les fichiers | contrat d'API publié si un besoin apparaît |
 | Rapprochement par nom | des homonymes demandent un choix manuel | clés de rapprochement supplémentaires par source |

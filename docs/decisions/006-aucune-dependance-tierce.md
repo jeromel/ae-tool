@@ -21,7 +21,7 @@ abandonnées.
 
 - La mise à jour de sécurité du serveur se réduit à celle du runtime .NET.
 - Certaines fonctions sont écrites à la main : lecture des classeurs Excel, rendu des diagrammes en SVG, lecture des CSV,
-  client de l'API EasyVista, flux de connexion OAuth. Elles sont courtes, testées, et documentées dans le code.
+  client API REST des sources, flux de connexion OAuth. Elles sont courtes, testées, et documentées dans le code.
 - Deux manques assumés aujourd'hui : pas de base SQL (décision 004), pas de bibliothèque OpenID Connect (décision 003).
 - Le registre des dépendances et la nomenclature logicielle (SBOM) ne portent que sur la chaîne de construction de l'interface.
 

@@ -8,7 +8,7 @@ interface Template { name: string; description: string; profile: any; }
 interface Row { profile: any; counts: Record<string, number> | null; }
 
 const KEY_PATTERN = /^[a-z0-9][a-z0-9-]{0,39}$/;
-const NATURE: Record<string, string> = { fichier: 'Fichier CSV ou Excel', easyvista: 'CMDB EasyVista' };
+const NATURE: Record<string, string> = { fichier: 'Fichier CSV ou Excel', api: 'API REST' };
 
 /** Sources externes : la liste des profils quand aucune clé n'est dans l'adresse, la page d'une source sinon. */
 @Component({
@@ -48,23 +48,17 @@ const NATURE: Record<string, string> = { fichier: 'Fichier CSV ou Excel', easyvi
               <input type="text" [value]="newKey()" maxlength="40" (input)="newKey.set($any($event.target).value); keyTouched = true" placeholder="export-cmdb" />
             </label>
           </div>
-          @if (isEasyVista()) {
-            <div class="pair3">
-              <label>Adresse du serveur
-                <input type="text" [value]="conn().baseUrl" placeholder="https://monserveur.easyvista.com" autocomplete="off" (input)="setConn('baseUrl', $event)" />
-              </label>
-              <label>Compte
-                <input type="text" [value]="conn().account" autocomplete="off" (input)="setConn('account', $event)" />
-              </label>
-              <label>Identifiant
-                <input type="text" [value]="conn().login" autocomplete="off" (input)="setConn('login', $event)" />
+          @if (isApi()) {
+            <div class="pair">
+              <label>Adresse de la ressource
+                <input type="text" [value]="conn().url" placeholder="https://cmdb.exemple.fr/api/elements" autocomplete="off" (input)="setConn('url', $event)" />
               </label>
             </div>
-            <p class="muted small hint">Le mot de passe se saisit ensuite, dans l'onglet Connexion de la source.</p>
+            <p class="muted small hint">Pagination, champs, authentification et secret se règlent ensuite, dans l'onglet Connexion de la source.</p>
           }
           @if (newKey() && !keyOk()) { <div class="error">La clé ne peut contenir que des minuscules, des chiffres et des tirets, et doit commencer par une lettre ou un chiffre.</div> }
           <div class="tools">
-            <button type="submit" [disabled]="!template() || !label().trim() || !keyOk() || busy() || (isEasyVista() && !(conn().baseUrl.trim() && conn().account.trim() && conn().login.trim()))">Créer et ouvrir</button>
+            <button type="submit" [disabled]="!template() || !label().trim() || !keyOk() || busy() || (isApi() && !conn().url.trim())">Créer et ouvrir</button>
             <button type="button" class="ghost" (click)="creating.set(false)">Annuler</button>
           </div>
         </form>
@@ -138,18 +132,18 @@ export class SourcesPage {
   label = signal('');
   newKey = signal('');
   keyTouched = false;
-  conn = signal({ baseUrl: '', account: '', login: '' });
+  conn = signal({ url: '' });
   keyOk = computed(() => KEY_PATTERN.test(this.newKey()));
 
   constructor() {
     void this.load();
   }
 
-  isEasyVista(): boolean {
-    return this.templates().find((t) => t.name === this.template())?.profile.kind === 'easyvista';
+  isApi(): boolean {
+    return this.templates().find((t) => t.name === this.template())?.profile.kind === 'api';
   }
 
-  setConn(field: 'baseUrl' | 'account' | 'login', event: Event): void {
+  setConn(field: 'url', event: Event): void {
     this.conn.update((c) => ({ ...c, [field]: (event.target as HTMLInputElement).value }));
   }
 
@@ -189,7 +183,7 @@ export class SourcesPage {
     try {
       const p = t.profile;
       await this.api.put(`/sources/${this.newKey()}`, {
-        label: this.label().trim(), kind: p.kind, connection: p.kind === 'easyvista' ? { ...p.connection, ...this.conn() } : {}, mapping: p.mapping, sourceIsMaster: false,
+        label: this.label().trim(), kind: p.kind, connection: p.kind === 'api' ? { ...p.connection, ...this.conn() } : {}, mapping: p.mapping, sourceIsMaster: false,
       });
       await this.router.navigate(['/sources', this.newKey()]);
     } catch (e) {

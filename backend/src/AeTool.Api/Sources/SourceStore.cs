@@ -31,6 +31,29 @@ public sealed class SourceStore
         _sources = File.Exists(_path)
             ? (JsonSerializer.Deserialize<List<StoredSource>>(File.ReadAllText(_path), Json) ?? new()).ToDictionary(s => s.Profile.Key)
             : new();
+        foreach (var s in _sources.Values) UpgradeApiProfile(s.Profile);
+    }
+
+    /// <summary>
+    /// Reprise des profils d'API enregistrés avant le connecteur générique (version 0.13 et avant) : adresse décomposée
+    /// en serveur, compte et ressource, et pagination implicite. On les traduit en réglages génériques équivalents.
+    /// </summary>
+    public static void UpgradeApiProfile(SourceProfile p)
+    {
+        var c = p.Connection;
+        if (p.Kind is SourceProfile.KindFile or SourceProfile.KindApi || !c.ContainsKey("baseUrl")) return;
+        string Get(string key) => c.TryGetValue(key, out var v) ? v.Trim() : "";
+        var resource = Get("resource") is { Length: > 0 } r ? r : "configuration-items";
+        var query = string.Join("&", new[] { ("fields", Get("fields")), ("search", Get("search")) }
+            .Where(x => x.Item2.Length > 0).Select(x => $"{x.Item1}={Uri.EscapeDataString(x.Item2)}"));
+        p.Kind = SourceProfile.KindApi;
+        p.Connection = new Dictionary<string, string>
+        {
+            ["url"] = $"{Get("baseUrl").TrimEnd('/')}/api/v1/{Get("account")}/{resource}", ["query"] = query,
+            ["pageSize"] = Get("pageSize") is { Length: > 0 } size ? size : "100", ["pageSizeParam"] = "max_rows", ["offsetParam"] = "offset",
+            ["itemsField"] = "records", ["totalField"] = "total_record_count", ["nextField"] = "@next", ["idField"] = "HREF",
+            ["authMode"] = Get("authMode") is { Length: > 0 } mode ? mode : "basic", ["login"] = Get("login"),
+        };
     }
 
     public List<SourceProfile> List()

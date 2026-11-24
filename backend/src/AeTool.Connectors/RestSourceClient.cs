@@ -15,44 +15,45 @@ public sealed class SourceAccessException : Exception
 }
 
 /// <summary>
-/// Adaptateur API REST d'EasyVista (EV Service Manager), en lecture seule : seules des requêtes GET sont émises.
-/// Adresse : https://{serveur}/api/v1/{compte}/{ressource}. Le client HTTP est injecté pour être testé avec des réponses simulées.
+/// Adaptateur « API REST » générique, en lecture seule : seules des requêtes GET sont émises. Il lit une ressource JSON
+/// paginée, comme en exposent la plupart des CMDB et outils de gestion de projet. Tout ce qui varie d'une API à l'autre
+/// se règle : adresse, paramètres de pagination, champ qui porte les éléments, le total, le lien de la page suivante et
+/// l'identifiant. Le client HTTP est injecté pour être testé avec des réponses simulées.
 /// </summary>
-public sealed partial class EasyVistaClient
+public sealed partial class RestSourceClient
 {
     public const int MaxPages = 500;
-    public const string DefaultResource = "configuration-items";
     public const string IdColumn = "@id";
     /// <summary>Réglages reconnus dans Connection ; tout autre réglage est ignoré à l'enregistrement.</summary>
-    public static readonly string[] ConnectionKeys = { "baseUrl", "account", "resource", "fields", "search", "pageSize", "authMode", "login" };
+    public static readonly string[] ConnectionKeys =
+        { "url", "query", "pageSize", "pageSizeParam", "offsetParam", "itemsField", "totalField", "nextField", "idField", "authMode", "login" };
 
     private readonly HttpClient _http;
 
     /// <summary>Délai d'attente par appel.</summary>
     public TimeSpan CallTimeout { get; set; } = TimeSpan.FromSeconds(30);
-    /// <summary>Pause minimale entre deux pages : la plateforme limite à environ 100 appels par minute.</summary>
+    /// <summary>Pause minimale entre deux pages, pour ménager les API qui limitent le nombre d'appels par minute.</summary>
     public TimeSpan MinInterval { get; set; } = TimeSpan.FromMilliseconds(600);
 
-    public EasyVistaClient(HttpClient http) => _http = http;
+    public RestSourceClient(HttpClient http) => _http = http;
 
-    [GeneratedRegex("^[A-Za-z0-9._-]+$")] private static partial Regex Segment();
-    [GeneratedRegex("^[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*$")] private static partial Regex ResourcePath();
+    [GeneratedRegex("^[A-Za-z0-9._@-]+$")] private static partial Regex Name();
 
     // ---------- Réglages ----------
 
     /// <summary>Contrôle des réglages ; renvoie le message d'erreur, ou null s'ils sont utilisables.</summary>
     public static string? Validate(IReadOnlyDictionary<string, string> connection)
     {
-        var baseUrl = Setting(connection, "baseUrl");
-        if (baseUrl is null) return "L'adresse du serveur EasyVista est obligatoire.";
-        if (!Uri.TryCreate(baseUrl, UriKind.Absolute, out var uri) || string.IsNullOrEmpty(uri.Host) || uri.UserInfo.Length > 0)
-            return "L'adresse du serveur EasyVista n'est pas valide.";
+        var url = Setting(connection, "url");
+        if (url is null) return "L'adresse de la ressource est obligatoire.";
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || string.IsNullOrEmpty(uri.Host) || uri.UserInfo.Length > 0 || uri.Query.Length > 0 || uri.Fragment.Length > 0)
+            return "L'adresse de la ressource n'est pas valide (sans identifiants ni paramètres : ceux-ci se règlent à part).";
         if (uri.Scheme != Uri.UriSchemeHttps && !(uri.Scheme == Uri.UriSchemeHttp && uri.IsLoopback))
-            return "L'adresse du serveur EasyVista doit être en https (http n'est accepté que pour localhost).";
-        var account = Setting(connection, "account");
-        if (account is null || !Segment().IsMatch(account)) return "Le compte EasyVista est obligatoire (lettres, chiffres, points, tirets).";
-        if (!ResourcePath().IsMatch(Setting(connection, "resource") ?? DefaultResource) || (Setting(connection, "resource") ?? "").Contains(".."))
-            return "La ressource EasyVista n'est pas valide.";
+            return "L'adresse de la ressource doit être en https (http n'est accepté que pour localhost).";
+        if (Setting(connection, "query") is { } query && (query.Contains('#') || query.Length > 1000 || query.StartsWith('?')))
+            return "Les paramètres de requête ne sont pas valides (forme attendue : champ=valeur&autre=valeur).";
+        foreach (var key in new[] { "pageSizeParam", "offsetParam", "itemsField", "totalField", "nextField", "idField" })
+            if (Setting(connection, key) is { } name && !Name().IsMatch(name)) return $"Le réglage « {key} » ne doit contenir que des lettres, chiffres, points, tirets ou @.";
         if (Setting(connection, "pageSize") is { } size && !int.TryParse(size, NumberStyles.None, CultureInfo.InvariantCulture, out _))
             return "La taille de page doit être un nombre entier.";
         var mode = AuthMode(connection);
@@ -64,20 +65,23 @@ public sealed partial class EasyVistaClient
     private static string? Setting(IReadOnlyDictionary<string, string> connection, string key) =>
         connection.TryGetValue(key, out var v) && !string.IsNullOrWhiteSpace(v) ? v.Trim() : null;
 
+    private static string AuthModeOrDefault(IReadOnlyDictionary<string, string> connection) => AuthMode(connection) ?? "basic";
+
     private static string? AuthMode(IReadOnlyDictionary<string, string> connection) =>
         (Setting(connection, "authMode") ?? "basic").ToLowerInvariant() is var m && (m == "basic" || m == "bearer") ? m : null;
 
     private static int PageSize(IReadOnlyDictionary<string, string> connection) =>
         Math.Clamp(int.TryParse(Setting(connection, "pageSize"), out var n) ? n : 100, 1, 1000);
 
-    private static Uri FirstUrl(IReadOnlyDictionary<string, string> c, int maxRows, int? offset = null)
+    private static string OffsetParam(IReadOnlyDictionary<string, string> c) => Setting(c, "offsetParam") ?? "offset";
+
+    private static Uri PageUrl(IReadOnlyDictionary<string, string> c, int pageSize, int? offset = null)
     {
-        var root = Setting(c, "baseUrl")!.TrimEnd('/');
-        var query = new StringBuilder($"max_rows={maxRows}");
-        if (Setting(c, "fields") is { } fields) query.Append("&fields=").Append(Uri.EscapeDataString(fields));
-        if (Setting(c, "search") is { } search) query.Append("&search=").Append(Uri.EscapeDataString(search));
-        if (offset is { } o) query.Append("&offset=").Append(o);
-        return new Uri($"{root}/api/v1/{Setting(c, "account")}/{Setting(c, "resource") ?? DefaultResource}?{query}");
+        var query = new StringBuilder();
+        if (Setting(c, "query") is { } extra) query.Append(extra).Append('&');
+        query.Append(Uri.EscapeDataString(Setting(c, "pageSizeParam") ?? "limit")).Append('=').Append(pageSize);
+        if (offset is { } o) query.Append('&').Append(Uri.EscapeDataString(OffsetParam(c))).Append('=').Append(o);
+        return new Uri($"{Setting(c, "url")!.TrimEnd('/')}?{query}");
     }
 
     // ---------- Appels ----------
@@ -86,7 +90,7 @@ public sealed partial class EasyVistaClient
     public async Task<long?> ProbeAsync(IReadOnlyDictionary<string, string> connection, string? secret, CancellationToken ct)
     {
         Check(connection, secret);
-        var page = await GetPageAsync(FirstUrl(connection, 1), connection, secret, ct);
+        var page = await GetPageAsync(PageUrl(connection, 1), connection, secret, ct);
         return page.Total;
     }
 
@@ -101,7 +105,7 @@ public sealed partial class EasyVistaClient
         var table = new SourceTable();
         var columns = new List<string>();
         var seenColumns = new HashSet<string>();
-        var url = FirstUrl(connection, size);
+        var url = PageUrl(connection, size);
         string? previousFirstId = null;
         var fetched = 0;
 
@@ -127,12 +131,12 @@ public sealed partial class EasyVistaClient
                 break;
             }
             if (!more) break;
-            // Version sans « @next » : on retente avec offset ; si la plateforme l'ignore, la première ligne se répète.
+            // API sans lien de page suivante : on retente avec le décalage ; si elle l'ignore, la première ligne se répète.
             if (page.NextOffset is null && firstId is not null && firstId == previousFirstId)
             {
                 table.Truncated = true;
                 table.Issues.Add(new SourceIssue("avertissement", "pagination-non-prise-en-charge",
-                    $"Cette version d'EasyVista ne pagine pas : seules les {fetched - page.Rows.Count} premières lignes ont été lues."));
+                    $"Cette API ne tient pas compte du décalage : seules les {fetched - page.Rows.Count} premières lignes ont été lues."));
                 table.Rows.RemoveRange(table.Rows.Count - page.Rows.Count, page.Rows.Count);
                 break;
             }
@@ -143,7 +147,7 @@ public sealed partial class EasyVistaClient
                 break;
             }
             previousFirstId = firstId;
-            url = FirstUrl(connection, size, page.NextOffset ?? fetched);
+            url = PageUrl(connection, size, page.NextOffset ?? fetched);
         }
         table.Columns = columns;
         return table;
@@ -161,7 +165,7 @@ public sealed partial class EasyVistaClient
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, url);
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-        request.Headers.Authorization = AuthMode(connection) == "bearer"
+        request.Headers.Authorization = AuthModeOrDefault(connection) == "bearer"
             ? new AuthenticationHeaderValue("Bearer", secret)
             : new AuthenticationHeaderValue("Basic", Convert.ToBase64String(Encoding.UTF8.GetBytes($"{Setting(connection, "login")}:{secret}")));
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
@@ -171,15 +175,15 @@ public sealed partial class EasyVistaClient
             using var response = await _http.SendAsync(request, timeout.Token);
             ThrowIfRefused(response.StatusCode);
             var json = await response.Content.ReadAsStringAsync(timeout.Token);
-            return Parse(json);
+            return Parse(json, connection);
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
-            throw new SourceAccessException("EasyVista n'a pas répondu dans le délai imparti.");
+            throw new SourceAccessException("La source n'a pas répondu dans le délai imparti.");
         }
         catch (HttpRequestException)
         {
-            throw new SourceAccessException("EasyVista est injoignable : vérifiez l'adresse du serveur et le réseau.");
+            throw new SourceAccessException("La source est injoignable : vérifiez l'adresse et le réseau.");
         }
     }
 
@@ -188,33 +192,45 @@ public sealed partial class EasyVistaClient
         if ((int)status is >= 200 and < 300) return;
         throw new SourceAccessException(status switch
         {
-            HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden => "Identifiants refusés par EasyVista.",
-            HttpStatusCode.NotFound => "Compte ou ressource introuvable.",
-            HttpStatusCode.TooManyRequests => "Limite d'appels d'EasyVista atteinte : réessayez dans une minute.",
-            _ => "EasyVista a répondu par une erreur.",
+            HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden => "Identifiants refusés par la source.",
+            HttpStatusCode.NotFound => "Ressource introuvable : vérifiez l'adresse.",
+            HttpStatusCode.TooManyRequests => "Limite d'appels de la source atteinte : réessayez dans une minute.",
+            _ => "La source a répondu par une erreur.",
         });
     }
 
     // ---------- Lecture de la réponse ----------
 
-    private static Page Parse(string json)
+    private static Page Parse(string json, IReadOnlyDictionary<string, string> c)
     {
         try
         {
             using var doc = JsonDocument.Parse(json);
             var root = doc.RootElement;
-            if (root.ValueKind != JsonValueKind.Object || !root.TryGetProperty("records", out var records) || records.ValueKind != JsonValueKind.Array)
-                throw new SourceAccessException("Réponse d'EasyVista illisible.");
-            var rows = records.EnumerateArray().Where(r => r.ValueKind == JsonValueKind.Object).Select(Flatten).ToList();
-            return new Page(rows, Counter(root, "total_record_count"), NextOffset(root));
+            var items = Items(root, Setting(c, "itemsField")) ?? throw new SourceAccessException("Réponse de la source illisible : liste d'éléments introuvable.");
+            var idField = Setting(c, "idField");
+            var rows = items.EnumerateArray().Where(r => r.ValueKind == JsonValueKind.Object).Select(r => Flatten(r, idField)).ToList();
+            var total = root.ValueKind == JsonValueKind.Object && Setting(c, "totalField") is { } tf ? Counter(root, tf) : null;
+            var next = root.ValueKind == JsonValueKind.Object && Setting(c, "nextField") is { } nf ? NextOffset(root, nf, OffsetParam(c)) : null;
+            return new Page(rows, total, next);
         }
         catch (JsonException)
         {
-            throw new SourceAccessException("Réponse d'EasyVista illisible.");
+            throw new SourceAccessException("Réponse de la source illisible.");
         }
     }
 
-    /// <summary>Les compteurs sont des chaînes dans la réponse ; un nombre JSON est aussi accepté.</summary>
+    /// <summary>Les éléments : la racine si c'est une liste, sinon le champ indiqué, sinon le premier champ de la racine qui est une liste.</summary>
+    private static JsonElement? Items(JsonElement root, string? field)
+    {
+        if (root.ValueKind == JsonValueKind.Array) return root;
+        if (root.ValueKind != JsonValueKind.Object) return null;
+        if (field is not null) return root.TryGetProperty(field, out var v) && v.ValueKind == JsonValueKind.Array ? v : null;
+        foreach (var p in root.EnumerateObject()) if (p.Value.ValueKind == JsonValueKind.Array) return p.Value;
+        return null;
+    }
+
+    /// <summary>Les compteurs sont souvent des chaînes dans les réponses ; un nombre JSON est aussi accepté.</summary>
     private static long? Counter(JsonElement root, string name)
     {
         if (!root.TryGetProperty(name, out var v)) return null;
@@ -223,33 +239,35 @@ public sealed partial class EasyVistaClient
     }
 
     /// <summary>
-    /// Décalage de la page suivante, lu dans le lien « @next ». On ne suit pas le lien lui-même : il peut porter un nom de serveur interne,
-    /// et surtout y envoyer les identifiants à un hôte non configuré serait une fuite.
+    /// Décalage de la page suivante, lu dans le lien de page suivante. On ne suit pas le lien lui-même : il peut porter un
+    /// nom de serveur interne, et surtout y envoyer les identifiants à un hôte non configuré serait une fuite.
     /// </summary>
-    private static int? NextOffset(JsonElement root)
+    private static int? NextOffset(JsonElement root, string field, string offsetParam)
     {
-        if (!root.TryGetProperty("@next", out var next) || next.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(next.GetString())) return null;
-        var match = OffsetParameter().Match(next.GetString()!);
+        if (!root.TryGetProperty(field, out var next) || next.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(next.GetString())) return null;
+        var match = Regex.Match(next.GetString()!, $@"[?&]{Regex.Escape(offsetParam)}=(\d+)");
         if (match.Success && int.TryParse(match.Groups[1].Value, NumberStyles.None, CultureInfo.InvariantCulture, out var offset)) return offset;
-        throw new SourceAccessException("Réponse d'EasyVista illisible : lien de pagination non reconnu.");
+        throw new SourceAccessException("Réponse de la source illisible : lien de page suivante non reconnu.");
     }
 
-    [GeneratedRegex(@"[?&]offset=(\d+)")] private static partial Regex OffsetParameter();
-
-    /// <summary>Enregistrement → colonnes : objets imbriqués en colonnes pointées, HREF imbriqués ignorés, « @id » tiré du HREF de l'enregistrement.</summary>
-    private static Dictionary<string, string?> Flatten(JsonElement record)
+    /// <summary>
+    /// Élément → colonnes : objets imbriqués en colonnes pointées. Le champ identifiant donne la colonne « @id » (dernier
+    /// segment quand c'est un lien) ; les champs du même nom dans les objets imbriqués, des liens, sont ignorés.
+    /// </summary>
+    private static Dictionary<string, string?> Flatten(JsonElement record, string? idField)
     {
         var row = new Dictionary<string, string?>();
-        if (record.TryGetProperty("HREF", out var href) && href.ValueKind == JsonValueKind.String) row[IdColumn] = LastSegment(href.GetString()!);
-        AddProperties(record, "", row);
+        if (idField is not null && record.TryGetProperty(idField, out var id) && id.ValueKind is JsonValueKind.String or JsonValueKind.Number)
+            row[IdColumn] = LastSegment(id.ValueKind == JsonValueKind.Number ? id.GetRawText() : id.GetString()!);
+        AddProperties(record, "", row, idField);
         return row;
     }
 
-    private static void AddProperties(JsonElement element, string prefix, Dictionary<string, string?> row)
+    private static void AddProperties(JsonElement element, string prefix, Dictionary<string, string?> row, string? idField)
     {
         foreach (var p in element.EnumerateObject())
         {
-            if (p.Name == "HREF") continue;
+            if (p.Name == idField) continue;
             var name = prefix + p.Name;
             row[name] = p.Value.ValueKind switch
             {
@@ -260,13 +278,13 @@ public sealed partial class EasyVistaClient
                 JsonValueKind.False => "false",
                 _ => p.Value.GetRawText(),
             };
-            if (p.Value.ValueKind == JsonValueKind.Object) { row.Remove(name); AddProperties(p.Value, name + ".", row); }
+            if (p.Value.ValueKind == JsonValueKind.Object) { row.Remove(name); AddProperties(p.Value, name + ".", row, idField); }
         }
     }
 
-    private static string? LastSegment(string href)
+    private static string? LastSegment(string value)
     {
-        var path = href.Split('?', '#')[0].TrimEnd('/');
+        var path = value.Split('?', '#')[0].TrimEnd('/');
         var segment = path[(path.LastIndexOf('/') + 1)..];
         return segment.Length > 0 ? segment : null;
     }

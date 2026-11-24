@@ -2,33 +2,43 @@ import { Component, inject, signal } from '@angular/core';
 import { Api } from '../../api';
 import { SourceState } from './model';
 
-/** Connexion d'un profil EasyVista. Le secret n'est jamais relu du serveur : on sait seulement s'il est défini. */
+/** Connexion d'un profil API REST. Le secret n'est jamais relu du serveur : on sait seulement s'il est défini. */
 @Component({
   selector: 'app-connection-tab',
   template: `
     @if (state.profile(); as p) {
       @if (error()) { <div class="error" role="alert">{{ error() }}</div> }
       <form class="card form" (submit)="save(); $event.preventDefault()">
-        <h2>Accès à la plateforme</h2>
-        <p class="muted small intro">Lecture seule : l'outil interroge l'API REST d'EasyVista et n'y écrit rien. Les noms de champs dépendent de votre plateforme ; l'aperçu de l'onglet Correspondances montre ce qui est réellement reçu.</p>
+        <h2>Accès à l'API</h2>
+        <p class="muted small intro">Lecture seule : l'outil interroge l'API et n'y écrit rien. Les réglages dépendent de l'API (voir sa documentation) ;
+          l'aperçu de l'onglet Correspondances montre ce qui est réellement reçu.</p>
         <div class="grid">
-          <label class="wide">Adresse du serveur
-            <input type="text" [value]="v('baseUrl')" (input)="set('baseUrl', $event)" placeholder="https://monserveur.easyvista.com" autocomplete="off" />
+          <label class="wide">Adresse de la ressource <span class="muted small">(sans paramètres)</span>
+            <input type="text" [value]="v('url')" (input)="set('url', $event)" placeholder="https://cmdb.exemple.fr/api/elements" autocomplete="off" />
           </label>
-          <label>Compte
-            <input type="text" [value]="v('account')" (input)="set('account', $event)" autocomplete="off" />
-          </label>
-          <label>Ressource
-            <input type="text" [value]="v('resource')" (input)="set('resource', $event)" autocomplete="off" />
-          </label>
-          <label class="wide">Champs demandés <span class="muted small">(séparés par des virgules)</span>
-            <input type="text" [value]="v('fields')" (input)="set('fields', $event)" autocomplete="off" />
-          </label>
-          <label class="wide">Filtre <span class="muted small">(facultatif)</span>
-            <input type="text" [value]="v('search')" (input)="set('search', $event)" autocomplete="off" />
+          <label class="wide">Paramètres de requête <span class="muted small">(facultatif, ex. fields=nom,site&amp;statut=actif)</span>
+            <input type="text" [value]="v('query')" (input)="set('query', $event)" autocomplete="off" />
           </label>
           <label>Taille de page
             <input type="text" inputmode="numeric" [value]="v('pageSize')" (input)="set('pageSize', $event)" autocomplete="off" />
+          </label>
+          <label>Paramètre de taille de page <span class="muted small">(défaut : limit)</span>
+            <input type="text" [value]="v('pageSizeParam')" (input)="set('pageSizeParam', $event)" autocomplete="off" />
+          </label>
+          <label>Paramètre de décalage <span class="muted small">(défaut : offset)</span>
+            <input type="text" [value]="v('offsetParam')" (input)="set('offsetParam', $event)" autocomplete="off" />
+          </label>
+          <label>Champ des éléments <span class="muted small">(vide : deviné)</span>
+            <input type="text" [value]="v('itemsField')" (input)="set('itemsField', $event)" autocomplete="off" />
+          </label>
+          <label>Champ du total <span class="muted small">(facultatif)</span>
+            <input type="text" [value]="v('totalField')" (input)="set('totalField', $event)" autocomplete="off" />
+          </label>
+          <label>Champ du lien de page suivante <span class="muted small">(facultatif)</span>
+            <input type="text" [value]="v('nextField')" (input)="set('nextField', $event)" autocomplete="off" />
+          </label>
+          <label>Champ identifiant <span class="muted small">(valeur ou lien ; donne la colonne @id)</span>
+            <input type="text" [value]="v('idField')" (input)="set('idField', $event)" autocomplete="off" />
           </label>
           <label>Mode d'authentification
             <select (change)="set('authMode', $event)">

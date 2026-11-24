@@ -38,9 +38,9 @@ public sealed class SourceMapping
 public sealed class SourceProfile
 {
     public const string KindFile = "fichier";
-    public const string KindEasyVista = "easyvista";
+    public const string KindApi = "api";
 
-    /// <summary>Identifiant court : « easyvista », « projets »… Sert de clé dans ExternalRefs des objets.</summary>
+    /// <summary>Identifiant court : « cmdb », « projets »… Sert de clé dans ExternalRefs des objets.</summary>
     public string Key { get; set; } = "";
     public string Label { get; set; } = "";
     public string Kind { get; set; } = KindFile;
@@ -62,27 +62,26 @@ public sealed class SourceProfile
     };
 
     /// <summary>
-    /// Profil de départ pour la CMDB EasyVista. Les noms de champs sont ceux d'une table AM_ASSET courante :
-    /// à confirmer sur la plateforme réelle grâce à l'aperçu. Aucun type n'est choisi : il dépend du métamodèle.
+    /// Profil de départ pour une CMDB lue par son API REST. Les réglages de pagination et les noms de champs sont des
+    /// valeurs courantes, à ajuster d'après la documentation de l'API et l'aperçu. Aucun type n'est choisi : il dépend du métamodèle.
     /// </summary>
-    public static SourceProfile EasyVistaTemplate() => new()
+    public static SourceProfile ApiTemplate() => new()
     {
-        Key = "easyvista", Label = "CMDB EasyVista", Kind = KindEasyVista, SourceIsMaster = false,
+        Key = "cmdb", Label = "CMDB par API REST", Kind = KindApi, SourceIsMaster = false,
         Connection = new Dictionary<string, string>
         {
-            ["baseUrl"] = "https://", ["account"] = "", ["resource"] = "configuration-items",
-            ["fields"] = "NETWORK_IDENTIFIER,SERIAL_NUMBER,ASSET_TAG,INSTALLATION_DATE,LOCATION.LOCATION_PATH",
-            ["pageSize"] = "100", ["authMode"] = "basic", ["login"] = "",
+            ["url"] = "https://", ["query"] = "", ["pageSize"] = "100", ["pageSizeParam"] = "limit", ["offsetParam"] = "offset",
+            ["itemsField"] = "", ["totalField"] = "total", ["nextField"] = "", ["idField"] = "id", ["authMode"] = "bearer", ["login"] = "",
         },
         Mapping = new SourceMapping
         {
-            IdField = "@id", NameField = "NETWORK_IDENTIFIER",
+            IdField = "@id", NameField = "name",
             Fields =
             {
-                new FieldMapping { SourceField = "SERIAL_NUMBER", PropertyKey = "cmdb:numero-serie", Label = "Numéro de série" },
-                new FieldMapping { SourceField = "ASSET_TAG", PropertyKey = "cmdb:etiquette", Label = "Étiquette (asset tag)" },
-                new FieldMapping { SourceField = "INSTALLATION_DATE", PropertyKey = "cmdb:date-installation", Label = "Date d'installation" },
-                new FieldMapping { SourceField = "LOCATION.LOCATION_PATH", PropertyKey = "cmdb:localisation", Label = "Localisation" },
+                new FieldMapping { SourceField = "serial_number", PropertyKey = "cmdb:numero-serie", Label = "Numéro de série" },
+                new FieldMapping { SourceField = "asset_tag", PropertyKey = "cmdb:etiquette", Label = "Étiquette d'inventaire" },
+                new FieldMapping { SourceField = "install_date", PropertyKey = "cmdb:date-installation", Label = "Date d'installation" },
+                new FieldMapping { SourceField = "location.name", PropertyKey = "cmdb:localisation", Label = "Localisation" },
             },
         },
     };
