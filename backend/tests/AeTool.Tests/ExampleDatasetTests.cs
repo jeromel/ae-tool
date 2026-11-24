@@ -18,9 +18,10 @@ public static class ExampleDatasetTests
         {
             using var s = File.OpenRead(Path.Combine(dir, "hydreane-referentiel.xml"));
             archi = ArchimateExchange.Import(s, repo);
-            Equal(0, archi.Anomalies.Count, "anomalies");
-            Equal(417, repo.ActiveObjects.Count(), "objets");
-            Equal(903, repo.ActiveRelationships.Count(), "relations");
+            // Seul signalement attendu : « Partage Exploitation », nœud nommé « Partage… » sans sous-type, laissé exprès.
+            Equal("partage-sans-sous-type", string.Join(",", archi.Anomalies.Select(a => a.Code)), "anomalies");
+            Equal(426, repo.ActiveObjects.Count(), "objets");
+            Equal(917, repo.ActiveRelationships.Count(), "relations");
             Equal(58, repo.ActiveDiagrams.Count(), "vues");
             Equal(0, repo.Objects.Values.Count(o => o.TypeKey == "autre"), "objets non classés");
         });
@@ -52,6 +53,7 @@ public static class ExampleDatasetTests
         });
         RunDrawing(repo, dir);
         RunTrajectory(repo);
+        CatalogueTests.RunOnExample(dir);
     }
 
     /// <summary>Le dessin draw.io du jeu se rattache au référentiel Hydréane : les chiffres annoncés dans le README d'exemple.</summary>
@@ -111,7 +113,7 @@ public static class ExampleDatasetTests
         });
     }
 
-    static string? Locate()
+    internal static string? Locate()
     {
         for (var d = new DirectoryInfo(AppContext.BaseDirectory); d is not null; d = d.Parent)
         {

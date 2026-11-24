@@ -246,7 +246,7 @@ public sealed class JournalEntry
 /// <summary>Tout l'état de l'outil. Sérialisable en un seul fichier JSON (réversibilité, exigence ED-01).</summary>
 public sealed class Repository
 {
-    public const int CurrentSchemaVersion = 3;
+    public const int CurrentSchemaVersion = 4;
 
     /// <summary>Version du format de stockage. Un fichier sans cette propriété est en version 1 (voir <see cref="RepositoryUpgrader"/>).</summary>
     public int SchemaVersion { get; set; } = CurrentSchemaVersion;
@@ -264,6 +264,12 @@ public sealed class Repository
     public List<JournalEntry> Journal { get; set; } = new();
     /// <summary>Scénarios et étapes de transition des projets.</summary>
     public Dictionary<string, Scenario> Scenarios { get; set; } = new();
+    /// <summary>Attributs métier des objets de données (catalogue) : identifiant de l'objet de données → attributs.</summary>
+    public Dictionary<string, List<DataAttribute>> DataAttributes { get; set; } = new();
+    /// <summary>Listes de valeurs de référence du catalogue (onglet « Listes ») : nom de liste → valeurs.</summary>
+    public Dictionary<string, List<string>> CatalogueLists { get; set; } = new();
+    /// <summary>Dernier comptage des postes de travail lus dans la CMDB, par profil de poste.</summary>
+    public WorkstationCensus? Workstations { get; set; }
 
     /// <summary>Référentiel projeté seulement : ce qui a changé à l'étape lue (identifiant → ajouté, modifié, retiré).</summary>
     [JsonIgnore] public Dictionary<string, string>? Projection { get; set; }

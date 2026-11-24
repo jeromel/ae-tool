@@ -16,8 +16,11 @@ public static class MetamodelTests
         {
             "noeud", "equipement", "logiciel-systeme", "collaboration-technique", "interface-technique", "chemin", "reseau", "fonction-technique",
             "traitement-technique", "interaction-technique", "evenement-technique", "service-technique", "equipement-industriel", "installation",
-            "reseau-distribution",
+            "reseau-distribution", "partage-fichiers", "profil-poste",
         },
+        [Roles.FileShare] = new[] { "partage-fichiers" },
+        [Roles.Workstation] = new[] { "profil-poste" },
+        [Roles.TechnicalFlow] = new[] { "flux-technique" },
         [Roles.Backdrop] = new[] { "capacite", "zone", "lieu", "jonction-et", "jonction-ou" },
     };
 

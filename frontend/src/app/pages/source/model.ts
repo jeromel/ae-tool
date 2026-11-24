@@ -14,6 +14,7 @@ export interface Profile {
   key: string; label: string; kind: 'fichier' | 'api';
   connection: Record<string, string>; mapping: any; sourceIsMaster: boolean;
   ignoredCount: number; lastRunAt: string | null; lastRunBy: string | null; hasSecret: boolean; hasReport: boolean;
+  workstations: { pivotField: string; siteField: string | null; entityField: string | null; modelField: string | null; filterField: string | null; filterValue: string | null } | null;
 }
 
 export interface Preview {

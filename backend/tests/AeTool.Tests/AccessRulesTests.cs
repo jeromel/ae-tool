@@ -30,6 +30,19 @@ public static class AccessRulesTests
             Expect(null, "GET", "/api/auth/entra/login");
         });
 
+        Test("catalogue des données et des flux : lecture pour tous, import, reclassement et comptage pour l'administrateur", () =>
+        {
+            Expect(Roles.Reader, "GET", "/api/parcours/id-1");
+            Expect(Roles.Reader, "GET", "/api/catalogue/qualite");
+            Expect(Roles.Reader, "GET", "/api/catalogue/registre");
+            Expect(Roles.Reader, "GET", "/api/postes");
+            Expect(Roles.Administrator, "POST", "/api/import/catalogue/analyse");
+            Expect(Roles.Administrator, "POST", "/api/import/catalogue");
+            Expect(Roles.Administrator, "POST", "/api/catalogue/partages/reclasser");
+            Expect(Roles.Administrator, "POST", "/api/sources/cmdb/postes");
+            Expect(Roles.Contributor, "POST", "/api/diagrams/parcours/id-1");
+        });
+
         Test("autres routes d'authentification : lecteur", () =>
         {
             Expect(Roles.Reader, "POST", "/api/auth/logout");

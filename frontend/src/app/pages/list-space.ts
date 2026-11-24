@@ -64,6 +64,7 @@ import { SpaceConfig } from '../spaces.config';
                   <td class="actions">
                     <a [routerLink]="['/objets', r[key]]">Contexte</a>
                     <a routerLink="/impact" [queryParams]="{ objet: r[key] }">Impact</a>
+                    <a [routerLink]="['/parcours', r[key]]">Parcours</a>
                   </td>
                 }
               </tr>

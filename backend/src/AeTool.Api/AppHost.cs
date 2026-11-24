@@ -57,6 +57,7 @@ public static class AppHost
         PortfolioEndpoints.Map(api);
         ExchangeEndpoints.Map(api);
         SourceEndpoints.Map(api);
+        CatalogueEndpoints.Map(api);
         AdminEndpoints.Map(api);
         if (app.Environment.IsDevelopment()) AdminEndpoints.MapDevelopment(api);
 

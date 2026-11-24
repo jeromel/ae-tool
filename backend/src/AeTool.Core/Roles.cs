@@ -16,6 +16,9 @@ public static class Roles
     public const string DataCarrier = "support-donnee";
     public const string Infrastructure = "infrastructure";
     public const string Backdrop = "fond-de-carte";
+    public const string TechnicalFlow = "flux-technique";
+    public const string FileShare = "partage";
+    public const string Workstation = "poste";
 
     public const string Flow = "flux";
     public const string Decomposition = "decomposition";
@@ -32,6 +35,9 @@ public static class Roles
         new(DataCarrier, "Support de donnée", "Artefact (fichier, base, message) qui matérialise une donnée"),
         new(Infrastructure, "Infrastructure", "Espace Infrastructure, socle technique d'une application"),
         new(Backdrop, "Fond de carte", "Présent dans une vue projet, il ne vaut pas impact"),
+        new(TechnicalFlow, "Flux technique", "Étape technique (extraction, transport…) qui réalise un flux applicatif ; parcours d'une donnée"),
+        new(FileShare, "Partage de fichiers", "Lieu de stockage de fichiers ; parcours d'une donnée, registre des données personnelles"),
+        new(Workstation, "Profil de poste", "Poste type d'une population ; accès utilisateurs, comptage des postes de la CMDB"),
     };
 
     public static readonly IReadOnlyList<RoleInfo> ForRelationships = new RoleInfo[]

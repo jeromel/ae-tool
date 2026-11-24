@@ -125,6 +125,8 @@ public sealed class SpaceReader
         {
             var (flowId, objectId) = ids.Contains(r.TargetId) ? (r.TargetId, r.SourceId) : ids.Contains(r.SourceId) ? (r.SourceId, r.TargetId) : (null, null);
             if (flowId is null || !IsActive(objectId!)) continue;
+            // Une étape technique (catalogue) réalise le flux, elle n'est pas transportée par lui.
+            if (_repo.Metamodel.IsA(TypeOf(objectId!), Roles.TechnicalFlow)) continue;
             if (!carried.TryGetValue(flowId, out var list)) carried[flowId] = list = new List<string>();
             list.Add(_repo.Objects[objectId!].Name);
         }

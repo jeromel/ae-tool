@@ -74,6 +74,7 @@ public static class ObjectEndpoints
             var o = new ArchObject { Id = "id-" + Guid.NewGuid().ToString("N"), TypeKey = input.TypeKey!, Name = input.Name.Trim(), Source = "saisie",
                 UpdatedAt = DateTime.UtcNow, UpdatedBy = User(req), ValidationStatus = Validation.Draft };
             Dto.Apply(o, input);
+            CatalogueModel.AssignCode(repo, o);
             repo.Objects[o.Id] = o;
             repo.Log(User(req), "Objet créé", JournalKinds.Object, o.Id, ChangeSet.Between(repo.Metamodel, null, ChangeSet.Capture(o)), o.Name);
             return Results.Ok(o);
@@ -92,6 +93,7 @@ public static class ObjectEndpoints
             if (!string.IsNullOrWhiteSpace(input.Name)) o.Name = input.Name.Trim();
             if (input.TypeKey is not null) o.TypeKey = input.TypeKey;
             Dto.Apply(o, input);
+            CatalogueModel.AssignCode(repo, o);
             if (input.ClearVisualOverride == true) o.VisualOverride = null;
             // Un non-valideur qui modifie le fond d'un objet validé le renvoie à la validation.
             var backToProposed = Validation.AfterChange(o, before, ValidationEndpoints.IsValidator(req), User(req), DateTime.UtcNow);

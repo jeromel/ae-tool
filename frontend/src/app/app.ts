@@ -57,6 +57,7 @@ import { ProjectionState } from './projection';
         <a routerLink="/applications" routerLinkActive="on">Applications</a>
         <a routerLink="/flux" routerLinkActive="on">Flux</a>
         <a routerLink="/donnees" routerLinkActive="on">Données</a>
+        <a routerLink="/donnees-personnelles" routerLinkActive="on">Données personnelles</a>
         <a routerLink="/infrastructure" routerLinkActive="on">Infrastructure</a>
 
         <div class="group">Décider</div>
@@ -70,6 +71,7 @@ import { ProjectionState } from './projection';
         <a routerLink="/vues" routerLinkActive="on">Vues</a>
         @if (session.can('contributeur')) { <a routerLink="/import-drawio" routerLinkActive="on">Importer un dessin</a> }
         @if (session.can('administrateur')) {
+          <a routerLink="/import-catalogue" routerLinkActive="on">Importer le catalogue</a>
           <a routerLink="/imports" routerLinkActive="on">Imports et exports</a>
           <a routerLink="/sources" routerLinkActive="on">Sources externes</a>
         }

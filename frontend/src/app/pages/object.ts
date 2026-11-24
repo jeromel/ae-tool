@@ -22,6 +22,7 @@ import { HistoryRefresh, ObjectHistory } from '../object-history';
         @if (updated(d.object); as u) { <span class="muted small" style="margin: 0 10px 0 4px">{{ u }}</span> }
         @if (d.hasAssessment) { <a [routerLink]="['/portefeuille', d.brief.id]" style="margin-right: 14px; white-space: nowrap">Voir la notation</a> }
         <a routerLink="/impact" [queryParams]="{ objet: d.brief.id }" style="white-space: nowrap">Analyser l'impact</a>
+        <a [routerLink]="['/parcours', d.brief.id]" style="margin-left: 14px; white-space: nowrap">Voir le parcours</a>
       </p>
       <app-object-validation [objectId]="d.brief.id" (changed)="load()" />
       @if (notice()) { <div class="note" role="status">{{ notice() }}</div> }

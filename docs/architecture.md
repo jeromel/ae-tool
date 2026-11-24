@@ -1,6 +1,6 @@
 # Dossier d'architecture de l'outil
 
-Version décrite : 0.14.0 (pilote). Ce document dit ce qu'est l'outil, comment il est construit et pourquoi.
+Version décrite : 0.15.0 (pilote). Ce document dit ce qu'est l'outil, comment il est construit et pourquoi.
 Les choix structurants sont détaillés dans [les décisions d'architecture](decisions/README.md).
 
 ## 1. Couche métier : à quoi sert l'outil
@@ -32,7 +32,8 @@ Processus de gouvernance outillés :
 | Portefeuille | notation, synthèse, décisions |
 | Trajectoires | scénarios et étapes des projets, changements, objets envisagés ; SI projeté à une étape, dans tous les écrans |
 | Échanges | import et export Archi (format d'échange Open Group), reprise du classeur d'urbanisation, import des dessins draw.io (rapprochés forme par forme), export CSV |
-| Sources externes | rapprochement avec un export de fichier ou une CMDB lue par son API REST : comparer, puis appliquer des décisions |
+| Sources externes | rapprochement avec un export de fichier ou une CMDB lue par son API REST : comparer, puis appliquer des décisions ; comptage des postes de travail par profil de poste |
+| Catalogue des données et des flux | import en deux temps (applications, objets de données et attributs, flux applicatifs, flux techniques, traçabilité) ; parcours d'une donnée ; contrôles de cohérence ; registre des données personnelles (décision 009) |
 | Validation et historique | états brouillon, proposé, validé ; journal filtrable ; avant et après de chaque modification |
 | Administration | comptes et rôles, sauvegardes et restauration, état du stockage |
 

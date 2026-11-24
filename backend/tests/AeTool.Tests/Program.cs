@@ -35,6 +35,7 @@ MetamodelInsightTests.Run();
 DrawioTests.Run();
 LayoutTests.Run();
 TrajectoryTests.Run();
+CatalogueTests.Run();
 ExampleDatasetTests.Run();
 RealFileTests.Run(args);
 return Harness.Finish();

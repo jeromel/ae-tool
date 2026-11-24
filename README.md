@@ -1,7 +1,7 @@
 # Référentiel d'architecture d'entreprise
 
 Un outil pour décrire le système d'information, informatique et industriel, et s'en servir : comprendre une couche,
-préparer un comité, tenir les données à jour. Version 0.14.0, pilote.
+préparer un comité, tenir les données à jour. Version 0.15.0, pilote.
 
 - **Un métamodèle à vous.** Types, relations, propriétés et couches sont des données de l'outil, réglables à l'écran.
   ArchiMate est un format d'échange, relié au métamodèle par une **matrice de transcodification** que vous réglez aussi.
@@ -56,7 +56,8 @@ n'a pas été validée et laisse les tests trancher ; pour revenir au SDK 8 s'il
 | Comprendre | espaces Capacités, Applications, Flux, Données, Infrastructure, interrogés par questions ; vues Archi en rendu soigné, avec calques |
 | Décider | portefeuille noté (criticité métier et critères C1 à C4), projets, impacts et adhérences, analyse d'impact amont et aval, matrices |
 | Tenir à jour | création et modification d'objets et de relations selon le métamodèle ; validation (brouillon, proposé, validé) ; historique ; qualité et conformité au métamodèle |
-| Sources externes | rapprochement en deux temps avec un export CSV ou Excel, ou avec une CMDB lue par son API REST, en lecture seule |
+| Sources externes | rapprochement en deux temps avec un export CSV ou Excel, ou avec une CMDB lue par son API REST, en lecture seule ; comptage des postes de travail par profil de poste |
+| Données et flux | import du catalogue des données et des flux ; parcours d'une donnée (applications, flux applicatifs, chaîne technique, serveurs, partages, postes) ; contrôles de cohérence ; registre des données personnelles |
 | Administration | comptes locaux ou Microsoft Entra ID, quatre rôles, journal, sauvegardes et restauration |
 
 ## Organisation du code

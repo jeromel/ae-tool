@@ -177,6 +177,41 @@ la CMDB pour les serveurs, l'outil de gestion de projet pour les projets.
 L'outil ne fait que lire la source. Un objet lié garde l'identifiant de la source : au rapprochement suivant il est
 retrouvé même si son nom a changé.
 
+### Compter les postes de travail par profil
+
+Un profil de poste (« PC bureautique », « PC métier exploitation ») est un Device d'Archi portant la propriété
+`asset.subtype` = « Profil de poste ». L'outil lui attribue un code `PP-001`, `PP-002`… visible sur sa fiche ; la CMDB le
+reprend dans un champ libre de chaque poste. Sur la source de la CMDB, onglet **Postes de travail** : indiquer ce champ
+pivot, et ceux du site, de l'entité et du modèle ; éventuellement ne garder que les lignes de la catégorie « poste de
+travail ». « Compter » range chaque poste dans son profil. Les postes sans profil ou avec un code inconnu sont listés, avec
+un profil proposé d'après leur entité. Seuls des effectifs sont gardés, aucun nom d'utilisateur.
+
+## 6 bis. Le catalogue des données et des flux
+
+**Tenir à jour › Importer le catalogue.** Le classeur décrit les applications, les objets de données (maître, relais,
+consommateurs, owner, steward, sensibilité, données personnelles), leurs attributs, les flux applicatifs, les flux
+techniques et la traçabilité entre les deux. L'analyse rapproche chaque ligne du référentiel par son code, puis par son
+nom, et propose des noms proches quand rien ne correspond : « Factures abonnés » du catalogue peut ainsi être liée à
+« Factures émises » d'Archi. Rien n'est écrit avant « Importer ». L'import se rejoue.
+
+Ensuite :
+
+- **le parcours d'une donnée** (lien « Parcours » dans les espaces, « Voir le parcours » sur une fiche) : la donnée, les
+  applications et les flux applicatifs entre elles, la chaîne technique du flux choisi (clic sur sa pastille), les serveurs
+  et partages où elle est stockée ou transite, les profils de poste qui y accèdent avec leur nombre de postes. Un clic
+  détaille, un double clic recentre le parcours sur l'élément (le bus d'intégration : tout ce qui s'arrête s'il tombe ; un
+  serveur : ce qui y est stocké). « Constaté seulement » cache ce qui n'est pas vérifié ; « Suivre les données dérivées »
+  prolonge vers les données produites à partir de celle-ci. Le parcours se télécharge en image et s'enregistre comme vue,
+  exportable vers Archi. Sous le dessin, ce que le parcours ne sait pas dire (hébergement inconnu, chaîne incomplète,
+  passage non vérifié) ;
+- **Qualité du référentiel › Cohérence du catalogue** : taux d'information constatée, et les incohérences (émetteur qui
+  n'est ni maître ni relais, sensibilité hors liste, chaîne qui n'atteint pas la cible, nœud « Partage… » à reclasser) ;
+- **Comprendre › Données personnelles** : les données à protéger, leurs flux (frontière IT/OT signalée) et les partages
+  de fichiers qui en hébergent.
+
+Un partage de fichiers est un Node portant `asset.subtype` = « Partage de fichiers » ; les fichiers qui y sont déposés
+sont des artefacts qui réalisent l'objet de données.
+
 ### Réorganiser une vue
 
 Dans **Vues**, le bouton **Réorganiser** (dès le rôle contributeur) passe la vue en mode édition :

@@ -4,13 +4,14 @@ import { SourceState } from './source/model';
 import { ConnectionTab } from './source/connection';
 import { MappingTab } from './source/mapping';
 import { ReconcileTab } from './source/reconcile';
+import { WorkstationsTab } from './source/workstations';
 
-type Tab = 'connexion' | 'correspondances' | 'rapprochement';
+type Tab = 'connexion' | 'correspondances' | 'rapprochement' | 'postes';
 
-/** Une source : sa connexion (API REST), sa matrice de correspondances et son rapprochement, en trois onglets portés par l'adresse. */
+/** Une source : sa connexion (API REST), sa matrice de correspondances, son rapprochement et le comptage des postes, en onglets portés par l'adresse. */
 @Component({
   selector: 'app-source',
-  imports: [RouterLink, ConnectionTab, MappingTab, ReconcileTab],
+  imports: [RouterLink, ConnectionTab, MappingTab, ReconcileTab, WorkstationsTab],
   providers: [SourceState],
   template: `
     <a routerLink="/sources">← Sources externes</a>
@@ -38,6 +39,7 @@ type Tab = 'connexion' | 'correspondances' | 'rapprochement';
         @case ('connexion') { <app-connection-tab /> }
         @case ('correspondances') { <app-mapping-tab /> }
         @case ('rapprochement') { <app-reconcile-tab /> }
+        @case ('postes') { <app-workstations-tab /> }
       }
     }
   `,
@@ -56,6 +58,7 @@ export class SourcePage {
   tabs = computed(() => {
     const all: { key: Tab; label: string }[] = [
       { key: 'connexion', label: 'Connexion' }, { key: 'correspondances', label: 'Correspondances' }, { key: 'rapprochement', label: 'Rapprochement' },
+      { key: 'postes', label: 'Postes de travail' },
     ];
     return this.state.profile()?.kind === 'api' ? all : all.slice(1);
   });

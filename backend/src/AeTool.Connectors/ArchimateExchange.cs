@@ -56,6 +56,12 @@ public static class ArchimateExchange
         }
         else report.Notes.Add("Premier import de ce modèle : aucun objet existant n'a été archivé.");
 
+        // Profils de poste sans code : l'outil leur en attribue un (PP-nnn), que la CMDB reprend dans son champ pivot.
+        var coded = repo.ActiveObjects.Select(o => (o, code: CatalogueModel.AssignCode(repo, o))).Where(x => x.code is not null).ToList();
+        if (coded.Count > 0) report.Notes.Add($"Code attribué à {coded.Count} profil(s) de poste : {string.Join(", ", coded.Select(x => $"{x.o.Name} ({x.code})"))}.");
+        var shares = repo.ActiveObjects.Count(o => repo.Metamodel.Transcoding.Elements.Any(r => r.TypeKey == o.TypeKey && r.ArchimateType == "Node" && !r.Conditional)
+                                                   && o.Name.TrimStart().StartsWith("Partage", StringComparison.OrdinalIgnoreCase));
+        if (shares > 0) report.Warn("partage-sans-sous-type", $"{shares} nœud(s) nommé(s) « Partage… » sans la propriété {CatalogueModel.Subtype} : à reclasser en partages de fichiers depuis la page Qualité.");
         var deduced = new Analyzer(repo).RefreshDeducedImpacts();
         report.Notes.Add($"{deduced} impact(s) projet déduit(s) des vues rangées dans « {repo.Metamodel.Settings.ProjectFolderLabel} », à qualifier.");
         repo.Log(user, "Import Archi", modelId, Summary(report));
@@ -117,7 +123,8 @@ public static class ArchimateExchange
                 continue;
             }
             // Les propriétés qui ne viennent pas d'Archi (reprise urbanisation, saisie) sont conservées.
-            var local = existing.Properties.Where(p => repo.Metamodel.Property(p.Key)?.Source != SourceTag
+            // Les propriétés tenues par le catalogue des données et des flux restent aussi, si Archi ne les porte pas.
+            var local = existing.Properties.Where(p => (repo.Metamodel.Property(p.Key)?.Source != SourceTag || CatalogueModel.IsOwned(p.Key))
                                                        && incoming.Properties.All(i => i.Key != p.Key)).ToList();
             incoming.Properties.AddRange(local);
             var changed = existing.Archived || existing.TypeKey != incoming.TypeKey || existing.ArchimateType != incoming.ArchimateType
@@ -182,6 +189,9 @@ public static class ArchimateExchange
                 && repo.Metamodel.CheckRelationship(incoming.TypeKey, s.TypeKey, t.TypeKey) is string problem)
                 report.Warn("relation-non-conforme", problem, id);
 
+            // Rôle vis-à-vis d'une donnée, code et caractéristiques d'un flux : posés par le catalogue, gardés si Archi ne les porte pas.
+            if (existing is not null)
+                incoming.Properties.AddRange(existing.Properties.Where(p => CatalogueModel.IsOwned(p.Key) && incoming.Properties.All(i => i.Key != p.Key)));
             if (existing is null) { repo.Relationships[id] = incoming; tally.Added++; }
             else if (Json(existing) == Json(incoming)) tally.Unchanged++;
             else { repo.Relationships[id] = incoming; tally.Updated++; }

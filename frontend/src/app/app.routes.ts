@@ -58,6 +58,8 @@ const protectedRoutes: Routes = [
   { path: 'flux', component: ListSpacePage, data: { config: FLOWS } },
   { path: 'donnees', component: ListSpacePage, data: { config: DATA } },
   { path: 'infrastructure', component: ListSpacePage, data: { config: INFRASTRUCTURE } },
+  { path: 'donnees-personnelles', loadComponent: () => import('./pages/personal-data').then((m) => m.PersonalDataPage) },
+  { path: 'parcours/:id', loadComponent: () => import('./pages/lineage').then((m) => m.LineagePage) },
   // Décider.
   { path: 'portefeuille', component: PortfolioPage },
   { path: 'portefeuille/:id', loadComponent: () => import('./pages/assessment').then((m) => m.AssessmentPage) },
@@ -70,6 +72,7 @@ const protectedRoutes: Routes = [
   { path: 'vues', component: ViewsPage },
   { path: 'vues/:id', component: ViewsPage },
   { path: 'import-drawio', loadComponent: () => import('./pages/drawio-import').then((m) => m.DrawioImportPage), canActivate: [requires('contributeur')] },
+  { path: 'import-catalogue', loadComponent: () => import('./pages/catalogue-import').then((m) => m.CatalogueImportPage), canActivate: [requires('administrateur')] },
   { path: 'imports', loadComponent: () => import('./pages/imports').then((m) => m.ImportsPage), canActivate: [requires('administrateur')] },
   { path: 'sources', loadComponent: () => import('./pages/sources').then((m) => m.SourcesPage), canActivate: [requires('administrateur')] },
   { path: 'sources/:key', loadComponent: () => import('./pages/sources').then((m) => m.SourcesPage), canActivate: [requires('administrateur')] },

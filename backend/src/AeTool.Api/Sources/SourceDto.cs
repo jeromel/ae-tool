@@ -6,17 +6,18 @@ namespace AeTool.Api.Sources;
 
 /// <summary>Corps de PUT /api/sources/{key}. Secret : absent = inchangé, chaîne vide = effacé. IgnoredIds absent = inchangé.</summary>
 public sealed record SourceInput(string? Label, string? Kind, Dictionary<string, string>? Connection, SourceMapping? Mapping,
-    bool? SourceIsMaster, List<string>? IgnoredIds, string? Secret);
+    bool? SourceIsMaster, List<string>? IgnoredIds, string? Secret, WorkstationSettings? Workstations = null);
 
 public sealed record SourceTemplate(string Name, string Description, SourceProfile Profile);
 
 /// <summary>Profil tel que l'interface le voit : jamais de secret, seulement le fait qu'il y en a un.</summary>
 public sealed record SourceView(string Key, string Label, string Kind, Dictionary<string, string> Connection, SourceMapping Mapping,
-    bool SourceIsMaster, List<string>? IgnoredIds, int IgnoredCount, DateTime? LastRunAt, string? LastRunBy, bool HasSecret, bool HasReport)
+    bool SourceIsMaster, List<string>? IgnoredIds, int IgnoredCount, DateTime? LastRunAt, string? LastRunBy, bool HasSecret, bool HasReport,
+    WorkstationSettings? Workstations)
 {
     public static SourceView Of(SourceProfile p, bool hasSecret, bool hasReport, bool withIgnored) =>
         new(p.Key, p.Label, p.Kind, p.Connection, p.Mapping, p.SourceIsMaster, withIgnored ? p.IgnoredIds : null, p.IgnoredIds.Count,
-            p.LastRunAt, p.LastRunBy, hasSecret, hasReport);
+            p.LastRunAt, p.LastRunBy, hasSecret, hasReport, p.Workstations);
 }
 
 /// <summary>Contrôle d'un profil reçu de l'interface ; renvoie le profil à enregistrer ou le message d'erreur.</summary>
@@ -45,11 +46,29 @@ public static partial class SourceValidator
             SourceIsMaster = input.SourceIsMaster ?? existing?.SourceIsMaster ?? false,
             IgnoredIds = input.IgnoredIds?.Distinct().ToList() ?? existing?.IgnoredIds ?? new(),
             LastRunAt = existing?.LastRunAt, LastRunBy = existing?.LastRunBy,
+            Workstations = Clean(input.Workstations) ?? existing?.Workstations,
         };
+        if (input.Workstations is not null && WorkstationError(input.Workstations) is { } wsError) return Fail(wsError);
         return (profile, null);
     }
 
     private static (SourceProfile?, string?) Fail(string error) => (null, error);
+
+    private static string? WorkstationError(WorkstationSettings w)
+    {
+        var fields = new[] { w.PivotField, w.SiteField, w.EntityField, w.ModelField, w.FilterField, w.FilterValue };
+        if (fields.Any(f => f is { Length: > 200 })) return "Un champ du comptage des postes dépasse 200 caractères.";
+        if (string.IsNullOrWhiteSpace(w.PivotField)) return "Le champ pivot (code du profil de poste) est obligatoire pour compter les postes.";
+        return null;
+    }
+
+    private static WorkstationSettings? Clean(WorkstationSettings? w) => w is null ? null : new WorkstationSettings
+    {
+        PivotField = w.PivotField.Trim(), SiteField = Blank(w.SiteField), EntityField = Blank(w.EntityField), ModelField = Blank(w.ModelField),
+        FilterField = Blank(w.FilterField), FilterValue = Blank(w.FilterValue),
+    };
+
+    private static string? Blank(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
 
     /// <summary>Seuls les réglages connus de l'adaptateur sont gardés, limités en taille : un mot de passe glissé ici ne serait pas stocké en clair.</summary>
     private static Dictionary<string, string> KnownSettings(string kind, Dictionary<string, string> connection) =>

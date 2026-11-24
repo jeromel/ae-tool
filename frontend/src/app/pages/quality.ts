@@ -1,6 +1,7 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { Api } from '../api';
+import { Session } from '../session';
 
 const CODE_LABELS: Record<string, string> = {
   'type-inconnu': 'Type inconnu',
@@ -32,6 +33,36 @@ const CODE_LABELS: Record<string, string> = {
         }
       </table>
     </div>
+    @if (catalogue(); as cat) {
+      @if (cat.hasCatalogue) {
+        <div class="card" id="catalogue">
+          <h2>Cohérence du catalogue des données et des flux</h2>
+          <p class="muted small">Ce que le catalogue dit, comparé à lui-même et au modèle Archi. Rien n'est corrigé automatiquement, sauf le reclassement des partages, sur demande.</p>
+          @if (cat.reliability.length) {
+            <div class="stats" style="margin-bottom: 12px">
+              @for (r of cat.reliability; track r.kind) {
+                <div class="stat" [title]="r.verified + ' constaté(s) sur ' + r.total"><b>{{ pct(r.verified, r.total) }}</b><span>{{ r.kind }} constatés ({{ r.verified }} / {{ r.total }})</span></div>
+              }
+            </div>
+          }
+          @for (f of cat.findings; track f.code) {
+            <details class="finding" style="border-top: 1px solid var(--line); padding: 8px 0">
+              <summary><span class="chip" [class.bad]="f.severity === 'erreur'" [class.warn]="f.severity === 'avertissement'" [class.info]="f.severity === 'information'">{{ f.items.length }}</span> {{ f.title }}</summary>
+              <p class="muted small" style="margin: 6px 0">{{ f.hint }}</p>
+              @if (f.code === 'partage-sans-sous-type' && session.can('administrateur')) {
+                <p><button type="button" class="btn" [disabled]="busy()" (click)="reclass()">Reclasser en partages de fichiers</button></p>
+              }
+              <table>
+                @for (i of f.items; track $index) {
+                  <tr><td><a [routerLink]="['/parcours', i.id]">{{ i.label }}</a></td><td class="small muted">{{ i.detail }}</td></tr>
+                }
+              </table>
+            </details>
+          } @empty { <p class="muted">Aucune incohérence relevée.</p> }
+          @if (message()) { <div class="note small" style="margin-top: 8px">{{ message() }}</div> }
+        </div>
+      }
+    }
     <div class="card">
       <h2>Conformité au métamodèle</h2>
       @if (conformity(); as c) {
@@ -83,6 +114,10 @@ const CODE_LABELS: Record<string, string> = {
 })
 export class QualityPage {
   private api = inject(Api);
+  session = inject(Session);
+  catalogue = signal<any>(null);
+  busy = signal(false);
+  message = signal('');
   quality = signal<any[]>([]);
   conformity = signal<any>(null);
   /** Nature de constat retenue pour filtrer la liste ; vide = toutes. */
@@ -112,10 +147,24 @@ export class QualityPage {
 
   constructor() {
     this.api.get('/quality/conformity').then((c) => this.conformity.set(c));
+    this.api.get('/catalogue/qualite').then((c) => this.catalogue.set(c));
     this.api.get('/quality').then((q) => this.quality.set(q));
     this.api.get('/spaces/applications').then((r) => this.applications.set(r));
     this.api.get('/spaces/flows').then((r) => this.flows.set(r));
     this.api.get('/spaces/data').then((r) => this.data.set(r));
+  }
+
+  async reclass(): Promise<void> {
+    this.busy.set(true);
+    try {
+      const r = await this.api.post<{ count: number; names: string[] }>('/catalogue/partages/reclasser', {});
+      this.message.set(r.count ? `${r.count} nœud(s) reclassé(s) en partages de fichiers : ${r.names.join(', ')}. Le prochain export vers Archi porte la propriété asset.subtype.` : 'Aucun nœud à reclasser.');
+      this.catalogue.set(await this.api.get('/catalogue/qualite'));
+    } catch (e) {
+      this.message.set((e as Error).message);
+    } finally {
+      this.busy.set(false);
+    }
   }
 
   codeLabel(code: string): string {

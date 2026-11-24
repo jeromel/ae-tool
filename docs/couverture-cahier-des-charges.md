@@ -1,6 +1,6 @@
 # Couverture du cahier des charges
 
-État de la version 0.14.0 face à chaque exigence du cahier des charges (révision du 13 novembre 2026).
+État de la version 0.15.0 face à chaque exigence du cahier des charges (révision du 13 novembre 2026).
 **Couvert** : fait et vérifié par un test ou par la recette dans un navigateur. **Partiel** : une partie manque, elle est nommée.
 **Non fait** : rien n'existe. **À la DSI** : ne relève pas du code.
 
@@ -19,6 +19,7 @@
 |---|---|---|---|---|
 | EV-01 Importer des schémas draw.io | 0 | 3 | Couvert (0.10.0), schémas BPMN (0.11.0) | fichiers `.drawio` (pages compressées ou non), formes ArchiMate de draw.io traduites par la matrice de transcodification, autres formes rapprochées du référentiel par leur libellé ; schéma conservé comme vue |
 | EV-02 Dessiner dans l'outil avec draw.io intégré, à partir des objets du référentiel | 1 | 3 | Non fait | éditeur draw.io hébergé avec l'outil (aucun appel extérieur), bibliothèque de formes tirée du référentiel ; répond à EF-60, 62, 65, 67 |
+| EV-04 Catalogue des données et des flux : où vit une donnée, par où elle passe | 1 | 2 | Couvert (0.15.0) | import du catalogue rapproché du référentiel ; parcours d'une donnée sur quatre bandes (données, applications et flux applicatifs, chaîne technique, hébergement) plus les profils de poste ; partages de fichiers ; comptage des postes de la CMDB par profil ; contrôles de cohérence ; registre des données personnelles |
 | EV-03 Étapes de transition et scénarios des projets, SI vu à chaque étape | 2 | 4 | Incrément 1 livré (0.13.0) : scénarios, étapes, changements sur toutes les couches, objets envisagés, SI projeté dans tous les écrans ; incréments 2 à 6 à venir | dessin des étapes et des scénarios par les chefs de projet et architectes ; vue du SI à une étape choisie ; scénarios par étape ; reprend EF-30 à 36 |
 
 ## Exigences fonctionnelles

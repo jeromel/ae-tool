@@ -20,11 +20,28 @@ public static class RepositoryUpgrader
         upgraded = version < Repository.CurrentSchemaVersion;
         if (version < 2) MigrateToV2(root);
         if (version < 3) MigrateToV3(root);
+        if (version < 4) MigrateToV4(root);
         return root.Deserialize<Repository>() ?? new Repository();
     }
 
     /// <summary>Indique si un métamodèle exporté est au format 1 (sans matrice de transcodification).</summary>
     public static bool IsV1Metamodel(JsonNode metamodel) => metamodel is JsonObject o && o["Transcoding"] is null;
+
+    // ------------------------------------------------------------ 3 -> 4
+
+    /// <summary>
+    /// Catalogue des données et des flux : le métamodèle reçoit les types partage de fichiers, profil de poste et flux technique,
+    /// leurs règles de transcodification (propriété « asset.subtype ») et les propriétés du catalogue. Rien d'existant n'est modifié.
+    /// </summary>
+    private static void MigrateToV4(JsonObject root)
+    {
+        if (root["Metamodel"] is JsonObject node && node.Deserialize<Metamodel>() is { } m)
+        {
+            CatalogueModel.Ensure(m);
+            root["Metamodel"] = JsonSerializer.SerializeToNode(m);
+        }
+        root["SchemaVersion"] = 4;
+    }
 
     // ------------------------------------------------------------ 2 -> 3
 
@@ -200,7 +217,7 @@ public static class RepositoryUpgrader
         public KeyMap()
         {
             var d = MetamodelDefault.Create();
-            _objects = d.Transcoding.Elements.Where(r => r.Principal).ToDictionary(r => r.ArchimateType, r => r.TypeKey);
+            _objects = d.Transcoding.Elements.Where(r => r.Principal && !r.Conditional).ToDictionary(r => r.ArchimateType, r => r.TypeKey);
             _relations = d.Transcoding.Relations.Where(r => r.Principal).ToDictionary(r => r.ArchimateType, r => r.TypeKey);
             _defaultObjectKeys = d.ObjectTypes.Select(t => t.Key).ToHashSet();
             _defaultRelationKeys = d.RelationshipTypes.Select(t => t.Key).ToHashSet();

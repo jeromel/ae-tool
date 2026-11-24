@@ -3073,6 +3073,81 @@
       <name xml:lang="fr">Écart de la facturation</name>
       <documentation xml:lang="fr">Retrait d'ONDINE et de RECOUVR ; reprise des données ; nouvelles interfaces.</documentation>
     </element>
+    <element identifier="id-hyd-partage-clientele" xsi:type="Node">
+      <name xml:lang="fr">Partage Clientèle</name>
+      <documentation xml:lang="fr">Partage de fichiers de la direction clientèle : duplicata de factures, courriers.</documentation>
+      <properties>
+        <property propertyDefinitionRef="propid-22">
+          <value xml:lang="fr">Partage de fichiers</value>
+        </property>
+      </properties>
+    </element>
+    <element identifier="id-hyd-partage-finance" xsi:type="Node">
+      <name xml:lang="fr">Partage Finance</name>
+      <documentation xml:lang="fr">Partage de fichiers de la direction financière : exports comptables.</documentation>
+      <properties>
+        <property propertyDefinitionRef="propid-22">
+          <value xml:lang="fr">Partage de fichiers</value>
+        </property>
+      </properties>
+    </element>
+    <element identifier="id-hyd-partage-exploitation" xsi:type="Node">
+      <name xml:lang="fr">Partage Exploitation</name>
+      <documentation xml:lang="fr">Partage historique de l’exploitation, modélisé avant la convention de sous-type.</documentation>
+    </element>
+    <element identifier="id-hyd-artefact-duplicata" xsi:type="Artifact">
+      <name xml:lang="fr">Duplicata des factures (PDF)</name>
+      <documentation xml:lang="fr">Copies PDF des factures déposées chaque nuit par ONDINE.</documentation>
+    </element>
+    <element identifier="id-hyd-artefact-ecritures" xsi:type="Artifact">
+      <name xml:lang="fr">Exports des écritures (CSV)</name>
+      <documentation xml:lang="fr">Extractions comptables mensuelles pour contrôle.</documentation>
+    </element>
+    <element identifier="id-hyd-pc-bureautique" xsi:type="Device">
+      <name xml:lang="fr">PC bureautique</name>
+      <documentation xml:lang="fr">Poste de travail standard de tous les agents.</documentation>
+      <properties>
+        <property propertyDefinitionRef="propid-22">
+          <value xml:lang="fr">Profil de poste</value>
+        </property>
+        <property propertyDefinitionRef="propid-23">
+          <value xml:lang="fr">PP-001</value>
+        </property>
+      </properties>
+    </element>
+    <element identifier="id-hyd-pc-clientele" xsi:type="Device">
+      <name xml:lang="fr">PC bureautique Direction clientèle</name>
+      <documentation xml:lang="fr">Poste standard, avec les applications de la relation abonnés.</documentation>
+      <properties>
+        <property propertyDefinitionRef="propid-22">
+          <value xml:lang="fr">Profil de poste</value>
+        </property>
+        <property propertyDefinitionRef="propid-23">
+          <value xml:lang="fr">PP-002</value>
+        </property>
+      </properties>
+    </element>
+    <element identifier="id-hyd-pc-finance" xsi:type="Device">
+      <name xml:lang="fr">PC bureautique Direction financière</name>
+      <documentation xml:lang="fr">Poste standard, avec les applications de gestion financière.</documentation>
+      <properties>
+        <property propertyDefinitionRef="propid-22">
+          <value xml:lang="fr">Profil de poste</value>
+        </property>
+        <property propertyDefinitionRef="propid-23">
+          <value xml:lang="fr">PP-003</value>
+        </property>
+      </properties>
+    </element>
+    <element identifier="id-hyd-pc-exploitation" xsi:type="Device">
+      <name xml:lang="fr">PC métier exploitation</name>
+      <documentation xml:lang="fr">Poste durci des salles de contrôle, en plus du poste bureautique.</documentation>
+      <properties>
+        <property propertyDefinitionRef="propid-22">
+          <value xml:lang="fr">Profil de poste</value>
+        </property>
+      </properties>
+    </element>
   </elements>
   <relationships>
     <relationship identifier="id-b74d501000425cf8bda97d30f3c59981" source="id-15cc4ada43ec5940a7eca80c975c5b24" target="id-a9541d2cadca58b1b36fd3596f18ac59" xsi:type="Composition" />
@@ -5096,6 +5171,20 @@
     </relationship>
     <relationship identifier="id-7e15088a49305f1d805dd388b697cb22" source="id-9b1cda3f09575e4eb78766141c3a8df8" target="id-51d7f20c91a052d4b23fe23e44dbe643" xsi:type="Association" />
     <relationship identifier="id-f28e581684c1599388e1b04cf663d7a5" source="id-9b1cda3f09575e4eb78766141c3a8df8" target="id-e6be7b52e093527b958342160078f50a" xsi:type="Association" />
+    <relationship identifier="id-hyd-rel-poste-01" source="id-hyd-partage-clientele" target="id-hyd-artefact-duplicata" xsi:type="Assignment" />
+    <relationship identifier="id-hyd-rel-poste-02" source="id-hyd-artefact-duplicata" target="id-4ac2378da3f3552a83c9151698d769f9" xsi:type="Realization" />
+    <relationship identifier="id-hyd-rel-poste-03" source="id-hyd-partage-finance" target="id-hyd-artefact-ecritures" xsi:type="Assignment" />
+    <relationship identifier="id-hyd-rel-poste-04" source="id-hyd-artefact-ecritures" target="id-4bf69d6bb9fa5acdb976ccc66fac52ba" xsi:type="Realization" />
+    <relationship identifier="id-hyd-rel-poste-05" source="id-3b9940df9a4c54c1acda1f5f5c0e5cce" target="id-hyd-partage-clientele" xsi:type="Aggregation" />
+    <relationship identifier="id-hyd-rel-poste-06" source="id-3b9940df9a4c54c1acda1f5f5c0e5cce" target="id-hyd-partage-finance" xsi:type="Aggregation" />
+    <relationship identifier="id-hyd-rel-poste-07" source="id-3b9940df9a4c54c1acda1f5f5c0e5cce" target="id-hyd-partage-exploitation" xsi:type="Aggregation" />
+    <relationship identifier="id-hyd-rel-poste-08" source="id-hyd-pc-bureautique" target="id-2d8e378a1b27555a9297708a8216df4b" xsi:type="Serving" />
+    <relationship identifier="id-hyd-rel-poste-09" source="id-hyd-pc-clientele" target="id-8983484e950e5ea78dd63130ffb138ea" xsi:type="Serving" />
+    <relationship identifier="id-hyd-rel-poste-10" source="id-hyd-pc-clientele" target="id-f2728b81387c5987b706845bf0811c97" xsi:type="Serving" />
+    <relationship identifier="id-hyd-rel-poste-11" source="id-hyd-pc-clientele" target="id-e11510bd2e205a7085dea02d9f62a691" xsi:type="Serving" />
+    <relationship identifier="id-hyd-rel-poste-12" source="id-hyd-pc-finance" target="id-bb67328581d75a34b04840953308a3d1" xsi:type="Serving" />
+    <relationship identifier="id-hyd-rel-poste-13" source="id-hyd-pc-exploitation" target="id-477097e44fed5cccb5a4a8f655e2338b" xsi:type="Serving" />
+    <relationship identifier="id-hyd-rel-poste-14" source="id-hyd-pc-exploitation" target="id-b4d23d415c2f51dea9ba085361f2c2c7" xsi:type="Serving" />
   </relationships>
   <organizations>
     <item>
@@ -6771,6 +6860,12 @@
     </propertyDefinition>
     <propertyDefinition identifier="propid-21" type="string">
       <name xml:lang="fr">wp.type</name>
+    </propertyDefinition>
+    <propertyDefinition identifier="propid-22" type="string">
+      <name xml:lang="fr">asset.subtype</name>
+    </propertyDefinition>
+    <propertyDefinition identifier="propid-23" type="string">
+      <name xml:lang="fr">asset.code</name>
     </propertyDefinition>
   </propertyDefinitions>
   <views>

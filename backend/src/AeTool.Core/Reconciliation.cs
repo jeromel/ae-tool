@@ -53,6 +53,8 @@ public sealed class SourceProfile
     public List<string> IgnoredIds { get; set; } = new();
     public DateTime? LastRunAt { get; set; }
     public string? LastRunBy { get; set; }
+    /// <summary>Comptage des postes de travail par profil de poste (CMDB) : champ pivot et champs de répartition. Null = non utilisé.</summary>
+    public WorkstationSettings? Workstations { get; set; }
 
     /// <summary>Profil de départ pour un export de fichier : colonnes génériques, aucun type choisi.</summary>
     public static SourceProfile FileTemplate() => new()
