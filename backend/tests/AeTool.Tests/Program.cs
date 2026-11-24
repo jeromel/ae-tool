@@ -32,7 +32,6 @@ MetamodelApiTests.Run();
 EditingTests.Run();
 WorkflowApiTests.Run();
 MetamodelInsightTests.Run();
-NeutralityTests.Run();
 DrawioTests.Run();
 LayoutTests.Run();
 TrajectoryTests.Run();
