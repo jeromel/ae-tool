@@ -105,6 +105,8 @@ Il n'y a ni base SQL ni interpréteur de commandes : les injections correspondan
 | Pas de test d'intrusion ni de revue externe du code | moyen | à prévoir avant d'ouvrir l'outil au-delà de l'équipe d'architecture |
 | Un administrateur peut tout exporter | accepté | peu d'administrateurs, nommés ; l'export complet est une lecture, il n'est pas journalisé |
 | Journal modifiable par qui a la main sur le serveur | accepté | droits du dossier ; copie quotidienne hors du serveur |
+| Décompression sans plafond (draw.io, xlsx) : un fichier piégé de 100 Mo peut saturer la mémoire et arrêter l'outil ; l'import draw.io est ouvert au contributeur | **élevé, à corriger** | lire les flux décompressés à travers une limite de taille (`DrawioReader`, `XlsxReader`) ; constaté le 25/11/2026, voir `review-maintenabilite-0.15-colbert` |
+| Code produit par une IA, jamais relu par un humain (ET-13) | élevé | revue humaine des lots 1 à 3 (authentification, entrées hostiles, stockage) avant toute ouverture |
 | Stockage par fichier, une seule instance | accepté pour le pilote | pas de haute disponibilité ; base SQL avant généralisation (décision 004) |
 | Chaîne de construction npm | faible | les paquets de construction ne sont pas livrés ; construire sur un poste maîtrisé, avec `npm ci` (versions figées par `package-lock.json`) |
 
@@ -118,4 +120,6 @@ Il n'y a ni base SQL ni interpréteur de commandes : les injections correspondan
 - [ ] Deux administrateurs nommés au moins, pour ne pas dépendre d'une seule personne.
 - [ ] `code-installation.txt` absent du dossier de données (il disparaît à la création du premier compte).
 - [ ] Sonde `/api/health` branchée sur la supervision.
+- [ ] Plafond de décompression en place à l'import draw.io et xlsx, avec un test sur un fichier piégé.
+- [ ] Revue humaine faite (ET-13) sur l'authentification, la lecture des fichiers reçus et le stockage.
 - [ ] Avis du RSSI sur la sensibilité du référentiel et sur le compte de lecture de la CMDB.
