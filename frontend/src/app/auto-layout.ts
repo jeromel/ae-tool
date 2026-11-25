@@ -5,8 +5,11 @@
  * place côte à côte ce qui est relié. Chaque niveau est traité de la même façon, du plus profond au plus haut :
  * 1. les enfants d'une zone sont ordonnés par voisinage (le plus relié d'abord, puis à chaque pas celui qui a le plus
  *    de liens avec ceux déjà placés) ;
- * 2. ils sont posés en lignes, retour à la ligne quand la largeur visée est atteinte (une grille un peu plus large
- *    que haute, à la mesure d'un écran) ;
+ * 2. quand les liens donnent une orientation lisible, ils sont posés en couches orientées (maquette « tracé des liens »,
+ *    étape 3) : rang = longueur du plus long chemin entrant, cycles cassés au lien le plus faible, ordre dans un rang
+ *    choisi pour limiter les croisements ; des cartes en colonnes de gauche à droite (émetteurs → relais → récepteurs),
+ *    des zones en rangées de haut en bas. Sinon (aucun lien, ou trop de cycles), ils sont posés en lignes, retour à la
+ *    ligne quand la largeur visée est atteinte (une grille un peu plus large que haute, à la mesure d'un écran) ;
  * 3. la zone prend la taille de son contenu, avec une marge et la place de son titre.
  * Les espaces entre cartes laissent la place aux libellés et pastilles des liens. Les tailles des cartes sont
  * harmonisées ; les petites formes de dessin (cercles, losanges) gardent la leur.
@@ -52,6 +55,21 @@ export function autoLayout(nodes: LayoutNode[], edges: LayoutEdge[]): Record<str
     return weights;
   };
 
+  /** Liens orientés entre enfants directs d'un même conteneur : poids de a vers b. */
+  const directed = (container: string | null, kids: LayoutNode[]): Map<string, Map<string, number>> => {
+    const kidIds = new Set(kids.map((k) => k.id));
+    const under = (id: string) => (chains.get(id) ?? []).find((a) => kidIds.has(a)) ?? null;
+    const weights = new Map<string, Map<string, number>>(kids.map((k) => [k.id, new Map()]));
+    for (const e of edges) {
+      const a = under(e.source);
+      const b = under(e.target);
+      if (!a || !b || a === b) continue;
+      if (container !== null && !(chains.get(e.source) ?? []).includes(container)) continue;
+      weights.get(a)!.set(b, (weights.get(a)!.get(b) ?? 0) + 1);
+    }
+    return weights;
+  };
+
   const order = (kids: LayoutNode[], weights: Map<string, Map<string, number>>): LayoutNode[] => {
     const degree = (id: string) => [...(weights.get(id)?.values() ?? [])].reduce((s, v) => s + v, 0);
     const left = [...kids].sort((a, b) => degree(b.id) - degree(a.id) || a.id.localeCompare(b.id));
@@ -80,6 +98,31 @@ export function autoLayout(nodes: LayoutNode[], edges: LayoutEdge[]): Record<str
     const zones = kids.some((k) => (children.get(k.id) ?? []).length);
     const gap = zones ? GAP_ZONE : GAP_CARD;
     const sorted = order(kids, lifted(container, kids));
+    const layered = layers(sorted.map((k) => k.id), directed(container, kids));
+    if (layered) {
+      // Couches orientées : des zones en rangées de haut en bas, des cartes en colonnes de gauche à droite.
+      const vertical = zones;
+      const along = (id: string) => (vertical ? size.get(id)!.w : size.get(id)!.h);
+      const across = (id: string) => (vertical ? size.get(id)!.h : size.get(id)!.w);
+      const gapAlong = vertical ? gap.x : gap.y;
+      const gapAcross = vertical ? gap.y : gap.x;
+      const spans = layered.map((l) => l.reduce((sum, id) => sum + along(id), 0) + gapAlong * (l.length - 1));
+      const widest = Math.max(...spans);
+      let main = 0;
+      layered.forEach((l, r) => {
+        let cross = (widest - spans[r]) / 2; // chaque couche centrée sur la plus longue
+        for (const id of l) {
+          rel.set(id, vertical ? { x: snap(cross), y: main } : { x: main, y: snap(cross) });
+          cross += along(id) + gapAlong;
+        }
+        main += Math.max(...l.map(across)) + gapAcross;
+      });
+      const w = vertical ? widest : main - gapAcross;
+      const h = vertical ? main - gapAcross : widest;
+      if (container === null) return { w, h };
+      const title = (byId.get(container)?.label.length ?? 0) * 9.5 + 2 * PAD.side;
+      return { w: snap(Math.max(w + 2 * PAD.side, 160, title)), h: snap(h + PAD.top + PAD.bottom) };
+    }
     // Largeur visée : une grille d'environ 1,6 fois plus large que haute.
     const area = sorted.reduce((s, k) => s + (size.get(k.id)!.w + gap.x) * (size.get(k.id)!.h + gap.y), 0);
     const widest = Math.max(0, ...sorted.map((k) => size.get(k.id)!.w));
@@ -113,6 +156,83 @@ export function autoLayout(nodes: LayoutNode[], edges: LayoutEdge[]): Record<str
     }
   };
   place(null, 0, 0);
+  return out;
+}
+
+/**
+ * Couches orientées, ou null si les liens ne donnent pas d'orientation lisible (aucun lien, une seule couche, ou plus
+ * d'un tiers du poids des liens à retourner pour casser les cycles).
+ * 1. Ordre des éléments qui casse les cycles au plus faible (heuristique d'Eades) : on retire les puits à droite, les
+ *    sources à gauche, sinon l'élément dont les liens sortants pèsent le plus ; les liens qui remontent cet ordre sont ignorés.
+ * 2. Rang = longueur du plus long chemin entrant.
+ * 3. Dans un rang, l'ordre suit la moyenne des positions des voisins du rang précédent puis du suivant (deux passes).
+ * « ids » arrive dans l'ordre de voisinage, qui sert d'ordre de départ et départage les égalités.
+ */
+export function layers(ids: string[], w: Map<string, Map<string, number>>): string[][] | null {
+  const weight = (a: string, b: string) => w.get(a)?.get(b) ?? 0;
+  const total = ids.reduce((sum, a) => sum + ids.reduce((s2, b) => s2 + weight(a, b), 0), 0);
+  if (ids.length < 3 || total === 0) return null;
+
+  const left: string[] = [];
+  const right: string[] = [];
+  const rest = new Set(ids);
+  const outOf = (a: string) => [...rest].reduce((s, b) => s + (b !== a ? weight(a, b) : 0), 0);
+  const into = (a: string) => [...rest].reduce((s, b) => s + (b !== a ? weight(b, a) : 0), 0);
+  while (rest.size) {
+    let moved = true;
+    while (moved) {
+      moved = false;
+      for (const a of ids) {
+        if (!rest.has(a)) continue;
+        if (outOf(a) === 0) { right.unshift(a); rest.delete(a); moved = true; }
+        else if (into(a) === 0) { left.push(a); rest.delete(a); moved = true; }
+      }
+    }
+    if (!rest.size) break;
+    let best = '';
+    let bestScore = -Infinity;
+    for (const a of ids) {
+      if (!rest.has(a)) continue;
+      const score = outOf(a) - into(a);
+      if (score > bestScore) { bestScore = score; best = a; }
+    }
+    left.push(best);
+    rest.delete(best);
+  }
+  const seq = [...left, ...right];
+  const pos = new Map(seq.map((a, i) => [a, i]));
+  let back = 0;
+  for (const a of ids) for (const b of ids) if (weight(a, b) && pos.get(a)! > pos.get(b)!) back += weight(a, b);
+  if (back * 3 > total) return null;
+
+  const rank = new Map<string, number>();
+  for (const a of seq) {
+    let r = 0;
+    for (const p of seq) if (pos.get(p)! < pos.get(a)! && weight(p, a)) r = Math.max(r, rank.get(p)! + 1);
+    rank.set(a, r);
+  }
+  const depth = Math.max(...rank.values());
+  if (depth === 0) return null;
+  const out: string[][] = Array.from({ length: depth + 1 }, () => []);
+  for (const a of ids) out[rank.get(a)!].push(a);
+
+  const near = (a: string, b: string) => weight(a, b) + weight(b, a);
+  const sweep = (r: number, ref: string[]) => {
+    const at = new Map(ref.map((b, i) => [b, i]));
+    const own = new Map(out[r].map((a, i) => [a, i]));
+    const centre = (a: string) => {
+      let sum = 0, count = 0;
+      for (const b of ref) { const k = near(a, b); if (k) { sum += at.get(b)! * k; count += k; } }
+      // Sans voisin dans la couche de référence : l'élément garde sa place relative.
+      return count ? sum / count : (own.get(a)! * Math.max(ref.length - 1, 1)) / Math.max(out[r].length - 1, 1);
+    };
+    const keys = new Map(out[r].map((a) => [a, centre(a)]));
+    out[r].sort((a, b) => keys.get(a)! - keys.get(b)! || own.get(a)! - own.get(b)!);
+  };
+  for (let pass = 0; pass < 2; pass++) {
+    for (let r = 1; r <= depth; r++) sweep(r, out[r - 1]);
+    for (let r = depth - 1; r >= 0; r--) sweep(r, out[r + 1]);
+  }
   return out;
 }
 

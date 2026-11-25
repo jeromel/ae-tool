@@ -8,7 +8,6 @@ import { HomePage } from './pages/home';
 import { PortfolioPage } from './pages/portfolio';
 import { ObjectsPage } from './pages/objects';
 import { ObjectPage } from './pages/object';
-import { ViewsPage } from './pages/views';
 import { ProjectsPage } from './pages/projects';
 import { CapabilitiesPage } from './pages/capabilities';
 import { ListSpacePage } from './pages/list-space';
@@ -80,8 +79,9 @@ const protectedRoutes: Routes = [
   // Contribuer.
   { path: 'qualite', component: QualityPage },
   { path: 'validations', loadComponent: () => import('./pages/validation').then((m) => m.ValidationPage), canActivate: [requires('valideur')] },
-  { path: 'vues', component: ViewsPage },
-  { path: 'vues/:id', component: ViewsPage },
+  // Les vues portent le tracé des liens (routing.ts) : chargées à leur première ouverture.
+  { path: 'vues', loadComponent: () => import('./pages/views').then((m) => m.ViewsPage) },
+  { path: 'vues/:id', loadComponent: () => import('./pages/views').then((m) => m.ViewsPage) },
   { path: 'import-drawio', loadComponent: () => import('./pages/drawio-import').then((m) => m.DrawioImportPage), canActivate: [requires('contributeur')] },
   { path: 'compte', component: AccountPage },
   // Hors menu : atteints par la recherche, par une fiche ou par un lien.

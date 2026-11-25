@@ -3,6 +3,7 @@ import { NgTemplateOutlet } from '@angular/common';
 import { glyphPath } from './glyphs';
 import { autoLayout, Box, snap } from './auto-layout';
 import { Point, Rect, Side, bezier, bezierMiddle, contains, facingSides, polylineMiddle, portPoint, roundedPath } from './geometry';
+import { RouteRequest, routeAll } from './routing';
 
 export interface DiagramNode {
   id: string; kind: string; elementId: string | null; name: string; typeLabel: string | null;
@@ -53,6 +54,7 @@ const DECISION_COLORS: Record<string, string> = {
   Maintenir: '#cdebc5', 'Moderniser / Migrer': '#f6d6a8', 'Éliminer': '#f1b3aa', 'Tolérer': '#bcdcf5', 'À instruire': '#d9cdf3',
 };
 const NEUTRAL = '#e9edee';
+const NORMAL: Record<Side, Point> = { N: { x: 0, y: -1 }, E: { x: 1, y: 0 }, S: { x: 0, y: 1 }, W: { x: -1, y: 0 } };
 
 /**
  * Affichage d'une vue en SVG, sur toute la surface disponible.
@@ -416,18 +418,24 @@ export class DiagramView implements OnDestroy {
     return { x, y, w: Math.max(...ns.map((n) => n.x + n.w)) - x, h: Math.max(...ns.map((n) => n.y + n.h)) - y };
   });
 
-  wires = computed<Wire[]>(() => {
+  /**
+   * Tracé des liens, calculé une fois par disposition (pas à chaque zoom).
+   * Rendu lisible : liens orthogonaux qui contournent les cartes par les couloirs (voir routing.ts) ; pendant un
+   * déplacement, un coude simple, recalculé à chaque mouvement sans coût. Rendu exact : géométrie d'Archi.
+   */
+  private traced = computed<Wire[]>(() => {
     const byId = new Map(this.nodes().map((n) => [n.id, n]));
     const dark = this.dark();
     const exact = this.exact();
     const moved = this.draft();
+    const dragging = this.movingIds().size > 0;
     const drawn = (this.diagram().connections as Connection[])
       // Un nœud déplacé rend caducs les points de passage dessinés pour l'ancienne position.
       .map((c) => (moved[c.sourceNodeId] || moved[c.targetNodeId] ? { ...c, bendpoints: [] } : c))
       .map((c) => ({ c, s: byId.get(c.sourceNodeId), t: byId.get(c.targetNodeId) }))
       .filter((e): e is { c: Connection; s: NodeView; t: NodeView } => !!e.s && !!e.t); // extrémité portée par une autre connexion : non dessinée
 
-    // Rendu soigné : chaque lien s'accroche au côté qui fait face à l'autre extrémité, et les liens d'un même côté s'y répartissent.
+    // Rendu lisible : chaque lien s'accroche au côté qui fait face à l'autre extrémité, et les liens d'un même côté s'y répartissent.
     const sides = new Map<string, [Side, Side]>();
     const slots = new Map<string, { id: string; along: number }[]>();
     if (!exact) {
@@ -449,27 +457,56 @@ export class DiagramView implements OnDestroy {
       return portPoint(node, side, list.findIndex((e) => e.id === id), list.length);
     };
 
-    const list: Wire[] = drawn.map(({ c, s, t }) => {
+    // Lignes brisées de tous les liens, d'un seul calcul pour que les liens d'un même couloir s'écartent.
+    let routed: Map<string, Point[]> | null = null;
+    if (!exact && !dragging) {
+      const requests: RouteRequest[] = [];
+      for (const { c, s, t } of drawn) {
+        if (s.id === t.id) continue;
+        const [a, b] = sides.get(c.id)!;
+        if (contains(s, t) || contains(t, s)) {
+          // Lien vers la zone qui contient l'élément : il sort par le côté le plus proche du bord et suit le couloir jusqu'au bord.
+          const innerIsSource = contains(t, s);
+          const inner = innerIsSource ? s : t;
+          const outer = innerIsSource ? t : s;
+          const at = port(inner, a, c.id + (innerIsSource ? '>' : '<'));
+          const edge = a === 'W' ? { x: outer.x, y: at.y } : a === 'E' ? { x: outer.x + outer.w, y: at.y } : a === 'N' ? { x: at.x, y: outer.y } : { x: at.x, y: outer.y + outer.h };
+          const out = NORMAL[a];
+          const innerEnd = { at, dir: out };
+          const outerEnd = { at: edge, dir: { x: -out.x, y: -out.y } };
+          requests.push({ id: c.id, from: innerIsSource ? innerEnd : outerEnd, to: innerIsSource ? outerEnd : innerEnd });
+        } else {
+          requests.push({ id: c.id, from: { at: port(s, a, c.id + '>'), dir: NORMAL[a] }, to: { at: port(t, b, c.id + '<'), dir: NORMAL[b] } });
+        }
+      }
+      routed = routeAll(requests, this.boxNodes());
+    }
+
+    return drawn.map(({ c, s, t }) => {
       let path: string;
       let mid: Point;
-      if (c.orthogonal && c.bendpoints.length === 0) {
-        // Tracé à angles droits de draw.io, sans point de passage enregistré : un coude au milieu, comme draw.io le calcule.
-        const points = elbow(s, t);
+      const points = routed?.get(c.id);
+      if (points) {
         path = roundedPath(points, 6);
         mid = polylineMiddle(points);
+      } else if (!exact && (dragging || c.orthogonal) && s.id !== t.id) {
+        // Pendant un déplacement : un coude simple, sans recherche de chemin.
+        const pts = elbow(s, t);
+        path = roundedPath(pts, 6);
+        mid = polylineMiddle(pts);
       } else if (exact) {
         const centre = (n: DiagramNode) => ({ x: n.x + n.w / 2, y: n.y + n.h / 2 });
         const via = c.bendpoints;
-        const points = [borderPoint(s, via[0] ?? centre(t)), ...via, borderPoint(t, via[via.length - 1] ?? centre(s))];
-        path = roundedPath(points, 8);
-        mid = polylineMiddle(points);
+        const pts = [borderPoint(s, via[0] ?? centre(t)), ...via, borderPoint(t, via[via.length - 1] ?? centre(s))];
+        path = roundedPath(pts, 8);
+        mid = polylineMiddle(pts);
       } else {
+        // Lien d'une forme vers elle-même : la courbe d'origine.
         const [a, b] = sides.get(c.id)!;
         const p = port(s, a, c.id + '>');
         const q = port(t, b, c.id + '<');
-        const nested = contains(s, t) || contains(t, s);
-        path = bezier(p, a, q, b, nested);
-        mid = bezierMiddle(p, a, q, b, nested);
+        path = bezier(p, a, q, b, true);
+        mid = bezierMiddle(p, a, q, b, true);
       }
       const custom = luminance(c.color) > 0.25; // couleur choisie dans Archi : on la garde
       const line = exact ? c.lineStyle : c.softLine;
@@ -493,8 +530,12 @@ export class DiagramView implements OnDestroy {
         crowded: false,
       };
     });
+  });
+
+  wires = computed<Wire[]>(() => {
+    const list = this.traced().map((w) => ({ ...w }));
     // Libellé ou pastille posés sur une carte : on les garde pour le moment où le lien est mis en avant.
-    const cards = this.nodes().filter((n) => n.look !== 'zone');
+    const cards = this.boxNodes();
     const k = this.tagScale();
     for (const w of list) {
       const tagW = w.tag ? this.tagWidth(w) * k : 8 * k;

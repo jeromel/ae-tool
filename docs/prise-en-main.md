@@ -216,8 +216,10 @@ sont des artefacts qui réalisent l'objet de données.
 
 Ouvrir une vue lui donne la place : le menu se réduit à un rail (« » » le rouvre) et l'arborescence se replie (le bouton
 **Vues** la rouvre). Une vue ne s'ouvre jamais sous 70 % : si elle ne tient pas à l'écran à ce zoom, elle s'ouvre sur son
-coin haut gauche, et **Tout voir** (ou un double clic sur le fond) la montre en entier. Les liens passent sous les cartes :
-un trait ne barre jamais un nom ; cliquer sur une carte fait ressortir ses liens au premier plan. Au-delà de 150 éléments,
+coin haut gauche, et **Tout voir** (ou un double clic sur le fond) la montre en entier. En rendu lisible, les liens
+suivent les couloirs entre les cartes, à angles droits, et ne passent jamais sur une carte qui n'est pas l'une de leurs
+extrémités ; plusieurs liens dans un même couloir sont écartés pour rester distincts. Cliquer sur une carte fait
+ressortir ses liens au premier plan. Le rendu « Comme dans Archi » garde le tracé et les points de passage d'Archi. Au-delà de 150 éléments,
 une note invite à repérer un élément ou à ouvrir une zone.
 
 Lecteurs et contributeurs voient la vue en rendu lisible, aux couleurs du type d'élément. Les **Réglages avancés**
@@ -229,8 +231,10 @@ ainsi que « Exporter vers Archi » et « Réorganiser ».
 Dans **Vues**, **Réglages avancés › Réorganiser** (valideur et administrateur) passe la vue en mode édition :
 
 - glisser une forme la déplace, avec tout ce qu'elle contient ; la poignée en bas à droite la redimensionne ;
-- **Organiser automatiquement** range la vue : chaque zone garde son contenu, les cartes reliées sont posées côte à côte,
-  les zones s'alignent en grille, les cartes prennent une taille commune assez large pour leur nom ;
+- **Organiser automatiquement** range la vue : chaque zone garde son contenu ; quand les liens donnent un sens de
+  lecture, les cartes sont posées en colonnes de gauche à droite (émetteurs, relais, récepteurs) et les zones en
+  rangées de haut en bas, dans l'ordre qui limite les croisements ; sinon (aucun lien, trop de boucles), en grille, les
+  cartes reliées côte à côte ; les cartes prennent une taille commune assez large pour leur nom ;
 - rien n'est gardé avant **Enregistrer** ; **Annuler** rend la vue telle qu'elle était.
 
 La disposition enregistrée se superpose à celle d'Archi ou de draw.io : elle survit à leurs réimports et part vers
