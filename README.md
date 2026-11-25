@@ -53,9 +53,9 @@ n'a pas été validée et laisse les tests trancher ; pour revenir au SDK 8 s'il
 | Métamodèle | types d'objets et de relations avec rôles fonctionnels et visuel, propriétés typées, couches, couples source → cible autorisés, fusion de types ; export et import en JSON |
 | Transcodification ArchiMate | règles par type, règles conditionnelles sur une propriété, concept de repli et propriété marqueur pour les types sans équivalent ; simulation puis réapplication aux objets déjà importés |
 | Échanges | import Archi rejouable avec rapport d'anomalies ; export du référentiel ou d'une vue ; reprise du classeur d'urbanisation ; export JSON complet et CSV |
-| Comprendre | espaces Capacités, Applications, Flux, Données, Infrastructure, interrogés par questions ; vues Archi en rendu soigné, avec calques |
+| Explorer | espaces Capacités, Applications, Données, Flux, Infrastructure, interrogés par questions ; vues Archi en rendu lisible, avec calques |
 | Décider | portefeuille noté (criticité métier et critères C1 à C4), projets, impacts et adhérences, analyse d'impact amont et aval, matrices |
-| Tenir à jour | création et modification d'objets et de relations selon le métamodèle ; validation (brouillon, proposé, validé) ; historique ; qualité et conformité au métamodèle |
+| Contribuer | création et modification d'objets et de relations selon le métamodèle ; validation (brouillon, proposé, validé) ; historique ; qualité et conformité au métamodèle |
 | Sources externes | rapprochement en deux temps avec un export CSV ou Excel, ou avec une CMDB lue par son API REST, en lecture seule ; comptage des postes de travail par profil de poste |
 | Données et flux | import du catalogue des données et des flux ; parcours d'une donnée (applications, flux applicatifs, chaîne technique, serveurs, partages, postes) ; contrôles de cohérence ; registre des données personnelles |
 | Administration | comptes locaux ou Microsoft Entra ID, quatre rôles, journal, sauvegardes et restauration |

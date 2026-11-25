@@ -94,6 +94,7 @@ const ENTRIES: Entry[] = [
           }
         </div>
       </div>
+      <p><a routerLink="/referentiel">Voir tous les objets du référentiel</a></p>
     }
   `,
   styles: `

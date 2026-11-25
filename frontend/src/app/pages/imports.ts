@@ -21,6 +21,11 @@ import { Api } from '../api';
         <label class="btn">Choisir le fichier XLSX<input type="file" accept=".xlsx" hidden (change)="run('/import/urba', $event)" /></label>
       </div>
       <div class="card">
+        <h2>Catalogue des données et des flux</h2>
+        <p class="muted small">Classeur Excel des applications, objets de données, flux et chaînes techniques. Chaque ligne est rapprochée du référentiel avant tout import.</p>
+        <a class="btn" routerLink="/import-catalogue">Importer le catalogue</a>
+      </div>
+      <div class="card">
         <h2>Dessin draw.io</h2>
         <p class="muted small">Chaque page devient une vue ; les formes sont rapprochées des objets du référentiel, forme par forme, avant tout import.</p>
         <a class="btn" routerLink="/import-drawio">Importer un dessin</a>

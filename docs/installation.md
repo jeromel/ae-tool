@@ -134,7 +134,7 @@ Les rôles restent gérés dans l'outil : Entra ID dit qui est la personne, l'ad
 
 ## Mettre à jour
 
-1. Sauvegarder (menu Administrer › Sauvegardes › « Sauvegarder maintenant »), ou copier le dossier de données.
+1. Sauvegarder (menu Administration › Sauvegardes › « Sauvegarder maintenant »), ou copier le dossier de données.
 2. Arrêter l'application.
 3. Remplacer le contenu du dossier du programme par la nouvelle livraison. **Ne pas toucher au dossier de données.**
 4. Redémarrer. Si le format des données a évolué, la migration se fait à la première lecture, après copie de l'original
@@ -147,5 +147,5 @@ Revenir en arrière : remettre l'ancienne livraison **et** l'ancien fichier (la 
 ## Vérifier l'installation
 
 - `GET /api/health` répond `{"status":"ok","version":"…"}` sans connexion.
-- La page d'accueil demande une connexion ; après connexion, Administrer › Sauvegardes montre le dossier de données attendu.
+- La page d'accueil demande une connexion ; après connexion, Administration › Sauvegardes montre le dossier de données attendu.
 - Le journal de démarrage ne contient aucun des deux avertissements cités plus haut.

@@ -1,5 +1,7 @@
 import { Component, effect, inject, signal, untracked } from '@angular/core';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { NgTemplateOutlet } from '@angular/common';
+import { isAdminUrl } from './pages/admin';
 import { Api, Brief } from './api';
 import { Session } from './session';
 import { ObjectSearch } from './object-search';
@@ -7,17 +9,21 @@ import { NavState } from './nav';
 import { ProjectionState } from './projection';
 
 /**
- * Le menu suit l'intention, pas les objets de l'outil : comprendre le système d'information couche par couche,
- * décider en comité, tenir le référentiel à jour, administrer l'outil. Les cas d'usage vivent dans chaque espace, sous forme de questions.
+ * Le menu suit l'intention, pas les objets de l'outil : explorer le système d'information couche par couche,
+ * décider en comité, contribuer au référentiel ; l'administration est une seule entrée, à onglets.
+ * Quatre rubriques au plus, douze entrées visibles au plus (maquette de navigation de Camille, ratifiée le 24/11).
+ * Les cas d'usage vivent dans chaque espace, sous forme de questions.
  */
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, ObjectSearch],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, ObjectSearch, NgTemplateOutlet],
   host: { '[class.nav-closed]': 'closed()' },
   styles: `
-    .etat { margin: 4px 12px 10px; }
-    .etat label { display: block; font-size: 11.5px; color: #a9c0c7; margin-bottom: 3px; }
-    .etat select { width: 100%; font-size: 12.5px; }
+    /* Bandeau « SI regardé » : hors du menu, parce qu'il change le contenu de toutes les pages. */
+    .regarde { padding: 5px 18px; border-bottom: 1px solid var(--line); background: var(--bg); font-size: 13px; color: var(--muted); }
+    .regarde select { margin-left: 6px; font-size: 12.5px; max-width: 520px; }
+    .projected .change select { margin-left: 6px; font-size: 12.5px; max-width: 360px; }
+    nav.side a.admin { margin-top: 12px; padding-top: 9px; border-top: 1px solid #2a5a69; }
     .projected { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 18px; background: #fff4d6; border-bottom: 1px solid #ecd28a; font-size: 13.5px; }
     .projected b { font-weight: 650; }
     .projected details { position: relative; }
@@ -36,54 +42,27 @@ import { ProjectionState } from './projection';
         <div class="brand">Référentiel<br /><span>d'architecture</span></div>
         <a routerLink="/" routerLinkActive="on" [routerLinkActiveOptions]="{ exact: true }">Accueil</a>
         <div class="find"><app-object-search placeholder="Rechercher un objet" (picked)="open($event)" (all)="openAll($event)" /></div>
-        @if (states().length > 0 || projection.etat) {
-          <div class="etat">
-            <label for="etat-si">État du SI regardé</label>
-            <select id="etat-si" (change)="choose($any($event.target).value)">
-              <option value="" [selected]="!projection.etat">Aujourd'hui (existant)</option>
-              @for (s of states(); track s.scenarioId) {
-                <optgroup [label]="s.projectName + ' · ' + s.scenarioName + (s.status === 'Brouillon' ? ' (brouillon)' : '')">
-                  @for (st of s.steps; track st.id) {
-                    <option [value]="s.scenarioId + ':' + st.id" [selected]="projection.etat?.stepId === st.id">{{ st.order }}. {{ st.name }}</option>
-                  }
-                </optgroup>
-              }
-            </select>
-          </div>
-        }
 
-        <div class="group">Comprendre</div>
+        <div class="group">Explorer</div>
         <a routerLink="/capacites" routerLinkActive="on">Capacités</a>
         <a routerLink="/applications" routerLinkActive="on">Applications</a>
-        <a routerLink="/flux" routerLinkActive="on">Flux</a>
         <a routerLink="/donnees" routerLinkActive="on">Données</a>
         <a routerLink="/donnees-personnelles" routerLinkActive="on">Données personnelles</a>
+        <a routerLink="/flux" routerLinkActive="on">Flux</a>
         <a routerLink="/infrastructure" routerLinkActive="on">Infrastructure</a>
+        <a routerLink="/vues" routerLinkActive="on">Vues</a>
 
         <div class="group">Décider</div>
         <a routerLink="/portefeuille" routerLinkActive="on">Portefeuille</a>
         <a routerLink="/projets" routerLinkActive="on">Projets</a>
-        <a routerLink="/impact" routerLinkActive="on">Analyse d'impact</a>
 
-        <div class="group">Tenir à jour</div>
-        <a routerLink="/qualite" routerLinkActive="on">Qualité du référentiel</a>
-        @if (session.can('valideur')) { <a routerLink="/validations" routerLinkActive="on">Validations@if (toValidate() > 0) { <span class="count" aria-label="objets à valider">{{ toValidate() }}</span> }</a> }
-        <a routerLink="/vues" routerLinkActive="on">Vues</a>
+        <div class="group">Contribuer</div>
+        @if (session.can('valideur')) { <a routerLink="/validations" routerLinkActive="on">À valider@if (toValidate() > 0) { <span class="count" aria-label="objets à valider">{{ toValidate() }}</span> }</a> }
+        <a routerLink="/qualite" routerLinkActive="on">Qualité</a>
         @if (session.can('contributeur')) { <a routerLink="/import-drawio" routerLinkActive="on">Importer un dessin</a> }
-        @if (session.can('administrateur')) {
-          <a routerLink="/import-catalogue" routerLinkActive="on">Importer le catalogue</a>
-          <a routerLink="/imports" routerLinkActive="on">Imports et exports</a>
-          <a routerLink="/sources" routerLinkActive="on">Sources externes</a>
-        }
 
         @if (session.can('valideur')) {
-          <div class="group">Administrer</div>
-          @if (session.can('administrateur')) {
-            <a routerLink="/metamodele" routerLinkActive="on">Métamodèle</a>
-            <a routerLink="/utilisateurs" routerLinkActive="on">Utilisateurs</a>
-          }
-          <a routerLink="/journal" routerLinkActive="on">Journal</a>
-          @if (session.can('administrateur')) { <a routerLink="/sauvegardes" routerLinkActive="on">Sauvegardes</a> }
+          <a class="admin" routerLink="/administration" [class.on]="inAdmin()">⚙ Administration</a>
         }
         @if (session.user(); as u) {
           <div class="me">
@@ -104,6 +83,11 @@ import { ProjectionState } from './projection';
       @if (projection.etat; as e) {
         <div class="projected" role="status">
           <span>SI projeté : <b>{{ e.label }}</b>. Lecture seule.</span>
+          <label class="change">Changer
+            <select (change)="choose($any($event.target).value)" aria-label="SI regardé">
+              <ng-container [ngTemplateOutlet]="stateOptions" />
+            </select>
+          </label>
           @if (projection.summary(); as s) {
             <details>
               <summary>{{ count(s, 'ajouté') }} ajouté(s), {{ count(s, 'modifié') }} modifié(s), {{ count(s, 'retiré') }} retiré(s)@if (s.issues.length) {, <span class="issue">{{ s.issues.length }} point(s) à revoir</span>}</summary>
@@ -122,7 +106,27 @@ import { ProjectionState } from './projection';
           @if (projection.error()) { <span class="issue">{{ projection.error() }}</span> }
           <button type="button" class="ghost" (click)="projection.leave()">Revenir à l'existant</button>
         </div>
+      } @else if (session.user() && states() === null) {
+        <div class="regarde"><label>SI regardé : <select disabled><option>Chargement des scénarios…</option></select></label></div>
+      } @else if (session.user() && states()!.length > 0) {
+        <div class="regarde">
+          <label>SI regardé :
+            <select (change)="choose($any($event.target).value)">
+              <ng-container [ngTemplateOutlet]="stateOptions" />
+            </select>
+          </label>
+        </div>
       }
+      <ng-template #stateOptions>
+        <option value="" [selected]="!projection.etat">Aujourd'hui (existant)</option>
+        @for (s of states() ?? []; track s.scenarioId) {
+          <optgroup [label]="s.projectName + ' · ' + s.scenarioName + (s.status === 'Brouillon' ? ' (brouillon)' : '')">
+            @for (st of s.steps; track st.id) {
+              <option [value]="s.scenarioId + ':' + st.id" [selected]="projection.etat?.stepId === st.id">{{ st.order }}. {{ st.name }}</option>
+            }
+          </optgroup>
+        }
+      </ng-template>
       <router-outlet />
     </main>
   `,
@@ -132,8 +136,10 @@ export class App {
   private api = inject(Api);
   session = inject(Session);
   projection = inject(ProjectionState);
-  /** Étapes des scénarios visibles, proposées au sélecteur d'état. */
-  states = signal<any[]>([]);
+  /** Étapes des scénarios visibles, proposées au sélecteur d'état ; null tant que le premier chargement n'a pas répondu. */
+  states = signal<any[] | null>(null);
+  /** Page d'administration ouverte : l'entrée « Administration » est active. */
+  inAdmin = signal(false);
   /** Objets proposés et en attente de validation, affichés à côté de « Validations ». Relu à chaque navigation. */
   toValidate = signal(0);
   /** Version livrée, lue auprès du serveur : utile au support (« quelle version avez-vous ? »). */
@@ -150,7 +156,11 @@ export class App {
       untracked(() => this.refreshStates());
     });
     this.router.events.subscribe((e) => {
-      if (e instanceof NavigationEnd) { this.refreshCount(); this.refreshStates(); }
+      if (e instanceof NavigationEnd) {
+        this.inAdmin.set(isAdminUrl(e.urlAfterRedirects));
+        this.refreshCount();
+        this.refreshStates();
+      }
     });
     this.api.get('/health').then((h) => this.version.set(h.version)).catch(() => undefined);
   }
@@ -166,18 +176,21 @@ export class App {
   }
 
   private async refreshStates(): Promise<void> {
-    if (!this.session.user() || this.session.user()?.mustChangePassword) return;
+    if (!this.session.user()) return;
+    // Mot de passe temporaire : le serveur refuse tout sauf le compte ; pas de bandeau.
+    if (this.session.user()?.mustChangePassword) return this.states.set([]);
     try {
       this.states.set(await this.api.get('/trajectoires/etats'));
     } catch {
-      /* le sélecteur est un confort */
+      /* le sélecteur est un confort : en cas d'erreur, le bandeau disparaît */
+      if (this.states() === null) this.states.set([]);
     }
   }
 
   choose(value: string): void {
     if (!value) return this.projection.leave();
     const [scenarioId, stepId] = value.split(':');
-    const s = this.states().find((x) => x.scenarioId === scenarioId);
+    const s = (this.states() ?? []).find((x) => x.scenarioId === scenarioId);
     const st = s?.steps.find((x: any) => x.id === stepId);
     this.projection.enter(scenarioId, stepId, `${s.projectName} › ${s.scenarioName} › ${st.name}`);
   }

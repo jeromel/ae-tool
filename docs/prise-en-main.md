@@ -18,7 +18,7 @@ console et dans `donnees\code-installation.txt`.
 
 ## 2. Mettre le référentiel
 
-**Tenir à jour › Imports et exports** :
+**Administration › Imports** :
 
 1. le modèle Archi, exporté par Fichier › Exporter › Modèle au format d'échange Open Group ;
 2. puis le classeur d'urbanisation, rapproché par nom avec les applications.
@@ -28,7 +28,7 @@ qui a disparu. Ce qui a été saisi dans l'outil est conservé. Une sauvegarde e
 
 ### Les dessins draw.io
 
-**Tenir à jour › Importer un dessin** (dès le rôle contributeur) : choisissez un fichier .drawio, .xml ou .drawio.svg
+**Contribuer › Importer un dessin** (dès le rôle contributeur) : choisissez un fichier .drawio, .xml ou .drawio.svg
 (« SVG modifiable »). L'outil propose, forme par forme, avant d'écrire quoi que ce soit :
 
 | Ce que porte la forme | Proposition |
@@ -71,7 +71,7 @@ jeu complet d'une entreprise fictive : modèle Archi, classeur d'urbanisation, d
 
 ## 3. Régler le métamodèle
 
-**Administrer › Métamodèle.** C'est le cœur de l'outil : les types d'objets, de relations et de propriétés sont les
+**Administration › Métamodèle.** C'est le cœur de l'outil : les types d'objets, de relations et de propriétés sont les
 vôtres, pas ceux d'ArchiMate. ArchiMate n'est plus qu'un format d'échange, relié au métamodèle par une matrice.
 
 | Onglet | Ce qu'on y règle |
@@ -135,7 +135,7 @@ Le bandeau en tête de l'onglet résume l'état de la matrice : concepts transco
 ### Propriétés
 
 Une propriété déclarée « liste » avec ses valeurs permises devient une liste déroulante à la saisie ; une propriété
-« obligatoire » pour un type est signalée sur la fiche tant qu'elle manque, et comptée dans **Qualité du référentiel ›
+« obligatoire » pour un type est signalée sur la fiche tant qu'elle manque, et comptée dans **Qualité ›
 Conformité au métamodèle**. Cocher « Calque sur les vues » la propose en pastille et en couleur sur les diagrammes.
 
 ## 4. Saisir dans l'outil
@@ -155,7 +155,7 @@ seule. On peut toujours, dans l'outil, changer le type d'un tel objet, lui ajout
 | État | Qui | Comment |
 |---|---|---|
 | Brouillon → Proposé | contributeur | « Proposer à la validation » sur la fiche |
-| Proposé → Validé | valideur | « Valider » sur la fiche, ou en nombre dans **Tenir à jour › Validations** |
+| Proposé → Validé | valideur | « Valider » sur la fiche, ou en nombre dans **Contribuer › À valider** |
 | Proposé → Brouillon | valideur | « Refuser », avec un commentaire obligatoire |
 | Validé → Proposé | automatique | dès qu'un contributeur modifie le fond d'un objet validé |
 
@@ -164,7 +164,7 @@ proposés. La fiche de chaque objet montre son **historique** : qui, quand, et p
 
 ## 6. Rapprocher la CMDB et les autres sources
 
-**Tenir à jour › Sources externes.** Une source est un outil qui maîtrise une partie de ce que le référentiel décrit :
+**Administration › Sources externes.** Une source est un outil qui maîtrise une partie de ce que le référentiel décrit :
 la CMDB pour les serveurs, l'outil de gestion de projet pour les projets.
 
 1. « Nouvelle source » : partir du modèle « Fichier » (un export CSV ou Excel suffit) ou « API REST » (lecture par l'API de la CMDB ; adresse, pagination et noms de champs se règlent dans l'onglet Connexion).
@@ -188,7 +188,7 @@ un profil proposé d'après leur entité. Seuls des effectifs sont gardés, aucu
 
 ## 6 bis. Le catalogue des données et des flux
 
-**Tenir à jour › Importer le catalogue.** Le classeur décrit les applications, les objets de données (maître, relais,
+**Administration › Imports › Importer le catalogue.** Le classeur décrit les applications, les objets de données (maître, relais,
 consommateurs, owner, steward, sensibilité, données personnelles), leurs attributs, les flux applicatifs, les flux
 techniques et la traçabilité entre les deux. L'analyse rapproche chaque ligne du référentiel par son code, puis par son
 nom, et propose des noms proches quand rien ne correspond : « Factures abonnés » du catalogue peut ainsi être liée à
@@ -204,9 +204,9 @@ Ensuite :
   prolonge vers les données produites à partir de celle-ci. Le parcours se télécharge en image et s'enregistre comme vue,
   exportable vers Archi. Sous le dessin, ce que le parcours ne sait pas dire (hébergement inconnu, chaîne incomplète,
   passage non vérifié) ;
-- **Qualité du référentiel › Cohérence du catalogue** : taux d'information constatée, et les incohérences (émetteur qui
+- **Qualité › Cohérence du catalogue** : taux d'information constatée, et les incohérences (émetteur qui
   n'est ni maître ni relais, sensibilité hors liste, chaîne qui n'atteint pas la cible, nœud « Partage… » à reclasser) ;
-- **Comprendre › Données personnelles** : les données à protéger, leurs flux (frontière IT/OT signalée) et les partages
+- **Explorer › Données personnelles** : les données à protéger, leurs flux (frontière IT/OT signalée) et les partages
   de fichiers qui en hébergent.
 
 Un partage de fichiers est un Node portant `asset.subtype` = « Partage de fichiers » ; les fichiers qui y sont déposés
@@ -250,7 +250,7 @@ Sur la fiche d'un projet, la section **Trajectoires** décrit comment le SI évo
 - **Voir le SI à cette étape** ouvre tous les écrans sur le SI projeté : espaces, vues, matrices, qualité, analyse
   d'impact. Un bandeau rappelle l'état regardé et résume ce qui change ; les objets portent une pastille *ajouté*,
   *modifié* ou *retiré* ; dans les vues, un objet remplacé est dessiné sous les traits de son remplaçant. Le sélecteur
-  **État du SI regardé**, sous la recherche, permet de passer d'une étape à l'autre ou de revenir à l'existant.
+  **SI regardé**, en haut de chaque page, permet de passer d'une étape à l'autre ou de revenir à l'existant.
 
 Le SI projeté est en lecture seule : rien de ce qu'on y voit ne modifie le référentiel. Quand l'existant a bougé
 depuis la saisie d'un changement (une propriété déjà modifiée, un objet déjà retiré), le changement est signalé sous
@@ -260,21 +260,21 @@ suivants (voir la spécification EV-03).
 
 ## 7. Se protéger d'une erreur
 
-**Administrer › Sauvegardes** : une sauvegarde automatique par jour d'activité et avant chaque opération risquée,
+**Administration › Sauvegardes** : une sauvegarde automatique par jour d'activité et avant chaque opération risquée,
 « Sauvegarder maintenant » à la demande, restauration en deux clics, elle-même réversible.
-**Administrer › Journal** : tout ce qui a été fait, par qui, avec l'avant et l'après.
+**Administration › Journal** : tout ce qui a été fait, par qui, avec l'avant et l'après.
 
 ## 8. Où trouver quoi
 
 | Je veux | Où |
 |---|---|
-| comprendre une couche du SI | Comprendre › Capacités, Applications, Flux, Données, Infrastructure : les questions en tête de page |
-| préparer un comité | Décider › Portefeuille, Projets, Analyse d'impact |
-| savoir ce qui manque au référentiel | Tenir à jour › Qualité du référentiel |
-| retrouver un dessin d'Archi ou de draw.io | Tenir à jour › Vues |
-| importer un dessin draw.io | Tenir à jour › Importer un dessin |
-| voir le SI à une étape d'un projet | Décider › Projets › un projet › Trajectoires, ou le sélecteur « État du SI regardé » |
-| changer le métamodèle ou la matrice | Administrer › Métamodèle |
-| ouvrir l'outil à un collègue | Administrer › Utilisateurs |
+| comprendre une couche du SI | Explorer › Capacités, Applications, Données, Flux, Infrastructure : les questions en tête de page |
+| préparer un comité | Décider › Portefeuille, Projets ; l'analyse d'impact depuis la fiche d'un objet |
+| savoir ce qui manque au référentiel | Contribuer › Qualité |
+| retrouver un dessin d'Archi ou de draw.io | Explorer › Vues |
+| importer un dessin draw.io | Contribuer › Importer un dessin |
+| voir le SI à une étape d'un projet | Décider › Projets › un projet › Trajectoires, ou le bandeau « SI regardé » |
+| changer le métamodèle ou la matrice | Administration › Métamodèle |
+| ouvrir l'outil à un collègue | Administration › Utilisateurs |
 
 Pour installer l'outil sur un serveur : [installation.md](installation.md). Pour l'exploiter : [exploitation.md](exploitation.md).
