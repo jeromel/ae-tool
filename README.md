@@ -15,7 +15,7 @@ préparer un comité, tenir les données à jour. Version 0.15.0, pilote.
 
 ## Lancer
 
-Il faut un SDK .NET (10 recommandé ; 8 et 10 sont validés) et Node.js 22.22.3 ou plus récent.
+Il faut un SDK .NET (10 recommandé ; 8 et 10 sont validés) et Node.js 22.22.3 ou plus récent en 22, 24.15.0 ou plus récent en 24, ou 26 et plus (exigence d'Angular).
 
 ```powershell
 .\lancer.ps1          # Windows

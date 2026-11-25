@@ -212,9 +212,21 @@ Ensuite :
 Un partage de fichiers est un Node portant `asset.subtype` = « Partage de fichiers » ; les fichiers qui y sont déposés
 sont des artefacts qui réalisent l'objet de données.
 
+### Lire une vue
+
+Ouvrir une vue lui donne la place : le menu se réduit à un rail (« » » le rouvre) et l'arborescence se replie (le bouton
+**Vues** la rouvre). Une vue ne s'ouvre jamais sous 70 % : si elle ne tient pas à l'écran à ce zoom, elle s'ouvre sur son
+coin haut gauche, et **Tout voir** (ou un double clic sur le fond) la montre en entier. Les liens passent sous les cartes :
+un trait ne barre jamais un nom ; cliquer sur une carte fait ressortir ses liens au premier plan. Au-delà de 150 éléments,
+une note invite à repérer un élément ou à ouvrir une zone.
+
+Lecteurs et contributeurs voient la vue en rendu lisible, aux couleurs du type d'élément. Les **Réglages avancés**
+(valideur et administrateur) proposent le rendu « Comme dans Archi », les couleurs d'Archi, le calque et le fond sombre,
+ainsi que « Exporter vers Archi » et « Réorganiser ».
+
 ### Réorganiser une vue
 
-Dans **Vues**, le bouton **Réorganiser** (dès le rôle contributeur) passe la vue en mode édition :
+Dans **Vues**, **Réglages avancés › Réorganiser** (valideur et administrateur) passe la vue en mode édition :
 
 - glisser une forme la déplace, avec tout ce qu'elle contient ; la poignée en bas à droite la redimensionne ;
 - **Organiser automatiquement** range la vue : chaque zone garde son contenu, les cartes reliées sont posées côte à côte,

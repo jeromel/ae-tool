@@ -3,7 +3,7 @@ import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } fro
 import { Api, Brief } from './api';
 import { Session } from './session';
 import { ObjectSearch } from './object-search';
-import { readPref, writePref } from './prefs';
+import { NavState } from './nav';
 import { ProjectionState } from './projection';
 
 /**
@@ -138,8 +138,9 @@ export class App {
   toValidate = signal(0);
   /** Version livrée, lue auprès du serveur : utile au support (« quelle version avez-vous ? »). */
   version = signal('');
-  /** Menu replié : la place gagnée va aux vues et aux tableaux. */
-  closed = signal(readPref('menu.replie', false));
+  /** Menu replié en rail : la place gagnée va aux vues et aux tableaux. */
+  private nav = inject(NavState);
+  closed = this.nav.closed;
 
   constructor() {
     // Au démarrage la session arrive après la première navigation : on relit le compteur dès qu'un utilisateur est connu.
@@ -186,8 +187,7 @@ export class App {
   }
 
   toggle(): void {
-    this.closed.update((c) => !c);
-    writePref('menu.replie', this.closed());
+    this.nav.toggle();
   }
 
   logout(): void {

@@ -1,4 +1,5 @@
 import { Component, ElementRef, OnDestroy, computed, effect, input, output, signal, viewChild } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { glyphPath } from './glyphs';
 import { autoLayout, Box, snap } from './auto-layout';
 import { Point, Rect, Side, bezier, bezierMiddle, contains, facingSides, polylineMiddle, portPoint, roundedPath } from './geometry';
@@ -45,6 +46,7 @@ interface Overlay { id: string; x: number; y: number; font: number; vertical: bo
 const MARGIN = 32;
 const CHAR = 0.56;          // largeur moyenne d'un caractère, en fraction de la taille de police
 const MIN_SCREEN_TEXT = 9;  // en dessous, un texte est masqué plutôt qu'affiché illisible
+const MIN_OPEN_SCALE = 0.7; // zoom d'ouverture minimal : en dessous, les noms des cartes ne se lisent plus
 const NOTE_COLORS = ['#cfe6d6', '#f4e6a6', '#f4bd86', '#e58a78'];
 const CATEGORY_COLORS = ['#bcdcf5', '#f6d6a8', '#cdebc5', '#f3c4d3', '#d9cdf3', '#f5efaa', '#bfe8e4', '#e3d5c5'];
 const DECISION_COLORS: Record<string, string> = {
@@ -60,11 +62,14 @@ const NEUTRAL = '#e9edee';
  * un style par type de relation, une pastille sur les flux, et aucun texte affiché sous 9 px à l'écran.
  * Rendu exact : géométrie, polices et points de cassure d'Archi, pour vérifier une vue.
  *
+ * Ordre de dessin : zones, traits des liens, boîtes, puis pastilles et lien sélectionné : un lien ne barre jamais une boîte.
  * Navigation : molette pour zoomer autour du pointeur, glisser pour déplacer, double-clic sur le fond pour recadrer.
+ * À l'ouverture, jamais sous 70 % : une vue trop grande s'ouvre sur son coin haut gauche.
  * Lecture seule dans ce lot ; l'édition graphique relève du lot « modélisation ».
  */
 @Component({
   selector: 'app-diagram-view',
+  imports: [NgTemplateOutlet],
   host: { '[class.dark]': 'dark()' },
   template: `
     <div class="stage" #stage [class.editing]="editing()" [class.grabbing]="panning()" [style.background-size]="gridSize()" [style.background-position]="gridPosition()"
@@ -91,9 +96,10 @@ const NEUTRAL = '#e9edee';
             <circle cx="4" cy="4" r="3" fill="context-stroke" />
           </marker>
         </defs>
-        <g [attr.transform]="transform()">
-          @for (n of nodes(); track n.id) {
-            <g class="node" [class]="n.look" [class.link]="n.elementId || n.viewRefId" [class.selected]="n.elementId && n.elementId === selectedId()"
+        <!-- Ordre des calques, du fond vers le dessus : zones, traits, boîtes, pastilles et lien sélectionné, surcouches.
+             Un lien passe sous une boîte qui n'est pas l'une de ses extrémités, jamais dessus. -->
+        <ng-template #nodeShape let-n>
+            <svg:g class="node" [class]="n.look" [class.link]="n.elementId || n.viewRefId" [class.selected]="n.elementId && n.elementId === selectedId()"
               [class.dim]="isDimmed(n)" [class.moving]="movingIds().has(n.id)" [attr.data-mark]="n.mark || null" (click)="pick(n, $event)" (dblclick)="open(n, $event)"
               (pointerdown)="onNodeDown(n, $event, 'move')">
               @if (n.look === 'carte' || n.look === 'rond') {
@@ -131,21 +137,35 @@ const NEUTRAL = '#e9edee';
                   <text [attr.x]="-badgeWidth(n) / 2" y="3.6" text-anchor="middle">{{ n.badge }}</text>
                 </g>
               }
-            </g>
-          }
+            </svg:g>
+        </ng-template>
+        <g [attr.transform]="transform()">
+          @for (n of zoneNodes(); track n.id) { <ng-container [ngTemplateOutlet]="nodeShape" [ngTemplateOutletContext]="{ $implicit: n }" /> }
           @for (c of wires(); track c.id) {
-            <g class="wire" [attr.data-mark]="c.mark" [class.flow]="c.flow" [class.on]="isAttached(c)" [class.dim]="selectedNodeIds().size > 0 && !isAttached(c)">
+            <g class="wire" [attr.data-mark]="c.mark" [class.flow]="c.flow" [class.dim]="selectedNodeIds().size > 0 && !isAttached(c)">
               <path [attr.d]="c.path" fill="none" [style.stroke]="c.color" [attr.stroke-dasharray]="c.dash"
                 [attr.marker-end]="c.head ? 'url(#m-' + c.head + ')' : null" [attr.marker-start]="c.tail ? 'url(#m-' + c.tail + ')' : null">
                 <title>{{ c.title }}</title>
               </path>
+            </g>
+          }
+          @for (n of boxNodes(); track n.id) { <ng-container [ngTemplateOutlet]="nodeShape" [ngTemplateOutletContext]="{ $implicit: n }" /> }
+          @for (c of wires(); track c.id) {
+            <g class="wire top" [attr.data-mark]="c.mark" [class.flow]="c.flow" [class.on]="isAttached(c)" [class.dim]="selectedNodeIds().size > 0 && !isAttached(c)">
+              @if (isAttached(c)) {
+                <path [attr.d]="c.path" fill="none" [style.stroke]="c.color" [attr.stroke-dasharray]="c.dash"
+                  [attr.marker-end]="c.head ? 'url(#m-' + c.head + ')' : null" [attr.marker-start]="c.tail ? 'url(#m-' + c.tail + ')' : null">
+                  <title>{{ c.title }}</title>
+                </path>
+              }
               @if (c.flow && !exact()) {
                 <g [attr.transform]="'translate(' + c.mid.x + ' ' + c.mid.y + ') scale(' + tagScale() + ')'">
                   @if (c.tag && showTags() && (!c.crowded || isAttached(c))) {
-                    <rect class="tag" [attr.x]="-tagWidth(c) / 2" y="-8" [attr.width]="tagWidth(c)" height="16" rx="8" [style.fill]="c.color" />
-                    @if (c.lock) { <path class="lock" [attr.transform]="'translate(' + (-tagWidth(c) / 2 + 5) + ' -5)'" d="M2 4.5h6v5H2zM3.5 4.5V3a1.5 1.5 0 0 1 3 0v1.5" /> }
-                    <text class="tagtext" [attr.x]="c.lock ? 5 : 0" y="3.4" text-anchor="middle">{{ c.tag }}</text>
-                  } @else {
+                    <rect class="tag pill" [attr.x]="-tagWidth(c) / 2" y="-8" [attr.width]="tagWidth(c)" height="16" rx="8" [style.stroke]="c.color" />
+                    @if (c.lock) { <path class="lock" [style.stroke]="c.color" [attr.transform]="'translate(' + (-tagWidth(c) / 2 + 5) + ' -5)'" d="M2 4.5h6v5H2zM3.5 4.5V3a1.5 1.5 0 0 1 3 0v1.5" /> }
+                    <text class="tagtext" [style.fill]="c.color" [attr.x]="c.lock ? 5 : 0" y="3.4" text-anchor="middle">{{ c.tag }}</text>
+                  } @else if (!c.crowded || isAttached(c)) {
+                    <!-- Point de flux sans protocole : comme une pastille, il ne se pose pas sur une carte que le trait contourne par-dessous. -->
                     <circle class="tag" r="4" [style.fill]="c.color" />
                   }
                   @if (showFlowLabel(c)) {
@@ -233,10 +253,11 @@ const NEUTRAL = '#e9edee';
     .wire.flow path { stroke-width: 1.9; }
     .hollow { fill: var(--stage); }
     .tag { stroke: var(--stage); stroke-width: 1.5; }
-    .tagtext { font: 700 8.5px 'Segoe UI', system-ui, sans-serif; fill: #fff; letter-spacing: .02em; }
-    :host(.dark) .tagtext { fill: #0f1e24; }
-    .lock { fill: none; stroke: #fff; stroke-width: 1.2; }
-    :host(.dark) .lock { stroke: #0f1e24; }
+    /* Pastille de flux : fond clair, bordure et texte de la couleur du lien, pour se détacher du trait comme des cartes. */
+    .tag.pill { fill: var(--card, #fff); stroke-width: 1.4; }
+    :host(.dark) .tag.pill { fill: var(--stage); }
+    .tagtext { font: 700 8.5px 'Segoe UI', system-ui, sans-serif; letter-spacing: .02em; }
+    .lock { fill: none; stroke-width: 1.2; }
     .flowlabel { font: 10px 'Segoe UI', system-ui, sans-serif; fill: var(--zone-ink); paint-order: stroke; stroke: var(--stage); stroke-width: 3.5px; stroke-linejoin: round; }
     .wire.on path { stroke: var(--signal, #e5a50a) !important; stroke-width: 2.6; }
     .wire.dim { opacity: .22; }
@@ -306,8 +327,11 @@ export class DiagramView implements OnDestroy {
 
   private stage = viewChild.required<ElementRef<HTMLElement>>('stage');
   private observer?: ResizeObserver;
-  /** Vrai tant que l'utilisateur n'a ni zoomé ni déplacé : la vue se recadre alors seule quand la surface change. */
-  private autoFit = true;
+  /**
+   * Cadrage à refaire seul quand la surface change, tant que l'utilisateur n'a ni zoomé ni déplacé :
+   * « ouverture » (cadrage d'ouverture, jamais sous 70 %) ou « tout » (toute la vue, demandé par l'utilisateur).
+   */
+  private framing: 'ouverture' | 'tout' | null = 'ouverture';
   private drag: { x: number; y: number; origin: Point; moved: boolean } | null = null;
   private justDragged = false;
 
@@ -373,6 +397,11 @@ export class DiagramView implements OnDestroy {
     for (const z of views) if (zones.has(z.id)) z.innerCards = inside(z).filter((k) => !zones.has(k.id)).map((k) => k.id);
     return views;
   });
+
+  /** Calque 1 : les zones (groupements, fonds), sous les liens. */
+  zoneNodes = computed(() => this.nodes().filter((n) => n.look === 'zone'));
+  /** Calque 3 : les boîtes (cartes, ronds, notes), au-dessus des liens. */
+  boxNodes = computed(() => this.nodes().filter((n) => n.look !== 'zone'));
 
   selectedNodeIds = computed(() => {
     const id = this.selectedId();
@@ -510,17 +539,18 @@ export class DiagramView implements OnDestroy {
   });
 
   constructor() {
-    // À l'ouverture d'une vue, on la cadre en entier dans la surface disponible.
+    // À l'ouverture d'une vue : toute la vue si elle reste lisible, sinon son coin haut gauche à 70 %.
     effect(() => {
       this.diagram();
       this.draft.set({});
-      this.autoFit = true;
-      requestAnimationFrame(() => this.fit());
+      this.framing = 'ouverture';
+      requestAnimationFrame(() => this.frame());
     });
     effect(() => {
       this.observer?.disconnect();
       this.observer = new ResizeObserver(() => {
-        if (this.autoFit) this.fit();
+        if (this.framing === 'ouverture') this.frame();
+        else if (this.framing === 'tout') this.fit();
       });
       this.observer.observe(this.stage().nativeElement);
     });
@@ -575,15 +605,36 @@ export class DiagramView implements OnDestroy {
     return glyphPath(n.glyph);
   }
 
-  /** Cadre toute la vue, sans jamais l'agrandir au-delà de 125 %. */
+  /** Échelle qui cadre toute la vue, plafonnée à 125 %. */
+  private fitScale(): number {
+    const el = this.stage().nativeElement;
+    const b = this.box();
+    return Math.max(0.05, Math.min(1.25, (el.clientWidth - 2 * MARGIN) / b.w, (el.clientHeight - 2 * MARGIN) / b.h));
+  }
+
+  /** Cadre toute la vue (« Tout voir », double-clic sur le fond), sans jamais l'agrandir au-delà de 125 %. */
   fit(): void {
     const el = this.stage().nativeElement;
     const b = this.box();
-    const k = Math.min(1.25, (el.clientWidth - 2 * MARGIN) / b.w, (el.clientHeight - 2 * MARGIN) / b.h);
-    const scale = Math.max(0.05, k);
+    const scale = this.fitScale();
     this.scale.set(scale);
     this.offset.set({ x: (el.clientWidth - b.w * scale) / 2 - b.x * scale, y: (el.clientHeight - b.h * scale) / 2 - b.y * scale });
-    this.autoFit = true;
+    this.framing = 'tout';
+  }
+
+  /**
+   * Cadrage d'ouverture : on n'ouvre jamais une vue sous le zoom où les noms restent lisibles (70 %).
+   * Si elle ne tient pas à ce zoom, on l'ouvre en haut à gauche ; « Tout voir » montre l'ensemble.
+   */
+  frame(): void {
+    if (this.fitScale() >= MIN_OPEN_SCALE) {
+      this.fit();
+    } else {
+      const b = this.box();
+      this.scale.set(MIN_OPEN_SCALE);
+      this.offset.set({ x: MARGIN - b.x * MIN_OPEN_SCALE, y: MARGIN - b.y * MIN_OPEN_SCALE });
+    }
+    this.framing = 'ouverture';
   }
 
   actualSize(): void {
@@ -603,7 +654,7 @@ export class DiagramView implements OnDestroy {
     const o = this.offset();
     this.offset.set({ x: px - ((px - o.x) * after) / before, y: py - ((py - o.y) * after) / before });
     this.scale.set(after);
-    this.autoFit = false;
+    this.framing = null;
   }
 
   onWheel(event: WheelEvent): void {
@@ -649,7 +700,7 @@ export class DiagramView implements OnDestroy {
       this.stage().nativeElement.setPointerCapture(event.pointerId);
     }
     this.offset.set({ x: d.origin.x + dx, y: d.origin.y + dy });
-    this.autoFit = false;
+    this.framing = null;
   }
 
   onUp(event: PointerEvent): void {

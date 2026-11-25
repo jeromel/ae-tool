@@ -7,7 +7,7 @@ programme, un autre pour les données**. Le premier se remplace à chaque mise �
 
 | Pour | Il faut |
 |---|---|
-| Construire | un SDK .NET (8, ou 10 recommandé) et Node.js 22.22.3 ou plus récent |
+| Construire | un SDK .NET (8, ou 10 recommandé) et Node.js 22.22.3 ou plus récent en 22, 24.15.0 ou plus récent en 24, ou 26 et plus (exigence d'Angular) |
 | Exécuter sur un serveur | le runtime ASP.NET Core de la même version majeure que le SDK de construction ; sous IIS, le « Hosting Bundle » |
 | Utiliser | un navigateur récent (Edge, Chrome, Firefox) |
 

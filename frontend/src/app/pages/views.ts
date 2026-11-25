@@ -1,10 +1,11 @@
-import { Component, ElementRef, computed, effect, inject, input, signal, untracked, viewChild } from '@angular/core';
+import { Component, ElementRef, OnDestroy, computed, effect, inject, input, signal, untracked, viewChild } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import { Api, SOURCE_LABELS } from '../api';
 import { DiagramNode, DiagramView } from '../diagram-view';
 import { NoteGauge } from '../note-gauge';
 import { Session } from '../session';
+import { NavState } from '../nav';
 import { readPref, readText, writePref, writeText } from '../prefs';
 
 /**
@@ -26,22 +27,22 @@ import { readPref, readText, writePref, writeText } from '../prefs';
           <div class="pane-body">
             @if (treeFilter().trim()) {
               @for (d of matches(); track d.id) {
-                <a [routerLink]="['/vues', d.id]" [class.on]="d.id === id()">{{ d.name }}<span class="path">{{ d.path }}</span></a>
+                <a [routerLink]="['/vues', d.id]" [class.on]="d.id === id()">{{ clean(d.name) }}<span class="path">{{ d.path }}</span></a>
               } @empty {
                 <p class="muted small">Aucune vue ne porte ce nom.</p>
               }
             } @else {
               <ng-template #folder let-f>
                 <details [open]="isOpen(f)">
-                  <summary>{{ f.label || '(racine)' }} <span class="count">{{ count(f) }}</span></summary>
-                  @for (d of f.diagrams; track d.id) { <a [routerLink]="['/vues', d.id]" [class.on]="d.id === id()">{{ d.name }}</a> }
+                  <summary>{{ clean(f.label) || '(racine)' }} <span class="count">{{ count(f) }}</span></summary>
+                  @for (d of f.diagrams; track d.id) { <a [routerLink]="['/vues', d.id]" [class.on]="d.id === id()">{{ clean(d.name) }}</a> }
                   @for (c of f.children; track $index) { <ng-container [ngTemplateOutlet]="folder" [ngTemplateOutletContext]="{ $implicit: c }" /> }
                 </details>
               </ng-template>
-              @for (f of tree()?.folders ?? []; track $index) {
+              @for (f of roots().folders; track $index) {
                 @if (count(f) > 0) { <ng-container [ngTemplateOutlet]="folder" [ngTemplateOutletContext]="{ $implicit: f }" /> }
               }
-              @for (d of tree()?.unfiled ?? []; track d.id) { <a [routerLink]="['/vues', d.id]" [class.on]="d.id === id()">{{ d.name }}</a> }
+              @for (d of roots().unfiled; track d.id) { <a [routerLink]="['/vues', d.id]" [class.on]="d.id === id()">{{ clean(d.name) }}</a> }
             }
           </div>
         </aside>
@@ -49,46 +50,52 @@ import { readPref, readText, writePref, writeText } from '../prefs';
 
       <section class="plan">
         <header class="bar">
-          @if (!treeOpen()) { <button type="button" class="ghost" (click)="setTree(true)">Vues</button> }
           @if (diagram(); as d) {
             <div class="title">
               <h1 [title]="d.documentation || d.name">{{ d.name }}</h1>
               <span class="muted small">{{ d.nodes.length }} éléments, {{ d.connections.length }} connexions</span>
             </div>
+          } @else {
+            <div class="title"><h1>Vues</h1></div>
+          }
+          @if (!treeOpen()) { <button type="button" class="ghost" (click)="setTree(true)">Vues</button> }
+          @if (diagram(); as d) {
             <input type="search" class="find" placeholder="Repérer un élément" [value]="find()" (input)="find.set($any($event.target).value)" />
+          }
+          <button type="button" (click)="toggleFullscreen()">{{ fullscreen() ? 'Quitter le plein écran' : 'Plein écran' }}</button>
+          @if (diagram() && advanced()) {
             <details class="menu" #display>
-              <summary class="btn ghost">Affichage</summary>
+              <summary class="btn ghost">Réglages avancés</summary>
               <div class="panel">
                 <label>Rendu
                   <select (change)="setExact($any($event.target).value === 'exact')">
-                    <option value="soigne" [selected]="!exact()">Soigné (liens courbes)</option>
-                    <option value="exact" [selected]="exact()">Géométrie Archi exacte</option>
+                    <option value="soigne" [selected]="!exact()">Lisible (recommandé)</option>
+                    <option value="exact" [selected]="exact()">Comme dans Archi</option>
                   </select>
                 </label>
                 <label>Couleurs
                   <select (change)="mode.set($any($event.target).value)">
-                    <option value="diagramme">de la vue (Archi)</option>
-                    <option value="metamodele">du métamodèle</option>
+                    <option value="diagramme" [selected]="mode() === 'diagramme'">Comme dans Archi</option>
+                    <option value="metamodele" [selected]="mode() === 'metamodele'">Par type d'élément</option>
                   </select>
                 </label>
                 <label>Calque
                   <select [disabled]="exact()" (change)="setLayer($any($event.target).value)">
                     <option value="" [selected]="layer() === ''">Aucun</option>
-                    @for (l of d.layers; track l.key) { <option [value]="l.key" [selected]="layer() === l.key">{{ l.label }}</option> }
+                    @for (l of diagram().layers; track l.key) { <option [value]="l.key" [selected]="layer() === l.key">{{ l.label }}</option> }
                   </select>
                 </label>
                 <label class="check"><input type="checkbox" [checked]="colorize()" [disabled]="exact() || layer() === ''" (change)="setColorize($any($event.target).checked)" />
                   Colorer les cartes selon le calque</label>
                 <label class="check"><input type="checkbox" [checked]="dark()" (change)="setDark($any($event.target).checked)" /> Fond sombre</label>
                 <p class="muted small">Le calque affiche une propriété en pastille sur les cartes. Les propriétés proposées se règlent dans le métamodèle.</p>
+                <div class="actions">
+                  <a class="btn ghost" [href]="api.url('/export/archimate?diagram=' + diagram().id)">Exporter vers Archi</a>
+                  @if (!editing()) { <button type="button" class="ghost" (click)="startEditing()">Réorganiser</button> }
+                </div>
               </div>
             </details>
-            <a class="btn ghost" [href]="api.url('/export/archimate?diagram=' + d.id)">Exporter vers Archi</a>
-            @if (session.can('contributeur') && !editing()) { <button type="button" class="ghost" (click)="startEditing()">Réorganiser</button> }
-          } @else {
-            <div class="title"><h1>Vues</h1></div>
           }
-          <button type="button" (click)="toggleFullscreen()">{{ fullscreen() ? 'Quitter le plein écran' : 'Plein écran' }}</button>
         </header>
 
         @if (editing() && diagram(); as d) {
@@ -100,9 +107,26 @@ import { readPref, readText, writePref, writeText } from '../prefs';
             <button type="button" [disabled]="saving() || !plan()?.dirty()" (click)="saveLayout()">Enregistrer</button>
           </div>
         }
-        @if (diagram(); as d) {
-          <app-diagram-view #plan [editing]="editing()" [diagram]="d" [selectedId]="selected()" [find]="find()" [dark]="dark()" [exact]="exact()" [layer]="layer()" [colorize]="colorize()"
-            (select)="onSelect($event)" (openObject)="go(['/objets', $event])" (openView)="go(['/vues', $event])" />
+        @if (loading()) {
+          <div class="empty stagelike"><p class="muted">Chargement de la vue…</p></div>
+        } @else if (failed()) {
+          <div class="empty">
+            <p><b>La vue n'a pas pu être chargée.</b></p>
+            <p><button type="button" (click)="reload()">Réessayer</button></p>
+          </div>
+        } @else if (diagram(); as d) {
+          @if (d.nodes.length === 0) {
+            <div class="empty">
+              <p><b>Cette vue ne contient aucun élément.</b></p>
+              <p><button type="button" class="ghost" (click)="setTree(true)">Voir la liste des vues</button></p>
+            </div>
+          } @else {
+            @if (d.nodes.length > denseThreshold) {
+              <p class="dense small" role="note">Vue très chargée : utilisez « Repérer un élément » ou ouvrez une zone.</p>
+            }
+            <app-diagram-view #plan [editing]="editing()" [diagram]="d" [selectedId]="selected()" [find]="find()" [dark]="shownDark()" [exact]="shownExact()" [layer]="shownLayer()" [colorize]="shownColorize()"
+              (select)="onSelect($event)" (openObject)="go(['/objets', $event])" (openView)="go(['/vues', $event])" />
+          }
         } @else {
           <div class="empty">
             <p><b>Choisissez une vue dans l'arborescence.</b></p>
@@ -203,8 +227,9 @@ import { readPref, readText, writePref, writeText } from '../prefs';
 
     .plan { flex: 1; min-width: 0; display: flex; flex-direction: column; }
     .bar { display: flex; align-items: center; gap: 10px; padding: 8px 14px; background: var(--card); border-bottom: 1px solid var(--line); flex-wrap: wrap; }
-    .bar .title { flex: 1 1 170px; min-width: 0; }
-    .bar h1 { margin: 0; font-size: 17px; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .bar .title { flex: 1 1 260px; min-width: 0; }
+    /* Le titre passe en premier et s'affiche en entier, sur deux lignes si besoin. */
+    .bar h1 { margin: 0; font-size: 17px; line-height: 1.2; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
     .bar .title span { display: block; white-space: nowrap; }
     .bar .find { width: 150px; }
     .menu { position: relative; }
@@ -217,6 +242,8 @@ import { readPref, readText, writePref, writeText } from '../prefs';
     .menu label.check { display: flex; align-items: center; gap: 7px; color: var(--ink); font-size: 13.5px; }
     .menu select { width: 100%; }
     .menu p { margin: 0; }
+    .menu .actions { display: flex; gap: 8px; flex-wrap: wrap; padding-top: 6px; border-top: 1px solid var(--line); }
+    .dense { margin: 0; padding: 6px 14px; background: #fff4d6; border-bottom: 1px solid #ecd28a; }
     app-diagram-view { flex: 1; }
     .editbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 14px; background: #e8f3f6; border-bottom: 1px solid #c5dde4; }
     .editbar span { flex: 1; min-width: 240px; }
@@ -235,14 +262,19 @@ import { readPref, readText, writePref, writeText } from '../prefs';
     .inspector .line { padding: 3px 0; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
   `,
 })
-export class ViewsPage {
+export class ViewsPage implements OnDestroy {
   api = inject(Api);
   private router = inject(Router);
   private workspace = viewChild.required<ElementRef<HTMLElement>>('workspace');
   private display = viewChild<ElementRef<HTMLDetailsElement>>('display');
   plan = viewChild<DiagramView>('plan');
   session = inject(Session);
+  private nav = inject(NavState);
   editing = signal(false);
+  loading = signal(false);
+  failed = signal(false);
+  /** Au-delà, une note invite à repérer un élément ou à ouvrir une zone (seuil à confirmer, maquette du tracé des liens). */
+  readonly denseThreshold = 150;
   saving = signal(false);
 
   id = input<string>();
@@ -264,16 +296,41 @@ export class ViewsPage {
   score = signal<any>(null);
   sources = SOURCE_LABELS;
 
+  /**
+   * Réglages avancés (rendu, couleurs, calque, export, réorganisation) : profil architecte, que l'outil n'a pas encore ;
+   * valideur et administrateur en tiennent lieu. Lecteur et contributeur voient le rendu lisible aux couleurs du métamodèle.
+   */
+  advanced = computed(() => this.session.can('valideur'));
+  shownExact = computed(() => this.advanced() && this.exact());
+  shownDark = computed(() => this.advanced() && this.dark());
+  shownColorize = computed(() => this.advanced() && this.colorize());
+  shownLayer = computed(() => (this.advanced() ? this.layer() : 'cm'));
+  private visual = computed(() => (this.advanced() ? this.mode() : 'metamodele'));
+
+  /** Arborescence affichée : la racine « Views » d'Archi est masquée, ses dossiers remontent d'un niveau. */
+  roots = computed(() => {
+    const t = this.tree();
+    const folders: any[] = [];
+    const unfiled: any[] = [...(t?.unfiled ?? [])];
+    for (const f of t?.folders ?? []) {
+      if (/^(views?|vues)$/i.test((f.label ?? '').trim())) {
+        folders.push(...f.children);
+        unfiled.push(...f.diagrams);
+      } else folders.push(f);
+    }
+    return { folders, unfiled };
+  });
+
   /** Toutes les vues à plat, avec leur chemin de dossiers, pour la recherche par nom. */
   private flat = computed(() => {
     const out: { id: string; name: string; path: string }[] = [];
     const walk = (f: any, path: string[]) => {
-      const here = f.label ? [...path, f.label] : path;
+      const here = f.label ? [...path, this.clean(f.label)] : path;
       for (const d of f.diagrams) out.push({ id: d.id, name: d.name, path: here.join(' / ') });
       for (const c of f.children) walk(c, here);
     };
-    for (const f of this.tree()?.folders ?? []) walk(f, []);
-    for (const d of this.tree()?.unfiled ?? []) out.push({ id: d.id, name: d.name, path: '' });
+    for (const f of this.roots().folders) walk(f, []);
+    for (const d of this.roots().unfiled) out.push({ id: d.id, name: d.name, path: '' });
     return out;
   });
   matches = computed(() => {
@@ -285,10 +342,19 @@ export class ViewsPage {
     this.api.get('/folders').then((t) => this.tree.set(t));
     effect(() => {
       const id = this.id();
-      const mode = this.mode();
-      untracked(() => this.editing.set(false));
-      if (!id) return this.diagram.set(null);
-      this.api.get(`/diagrams/${id}?visuel=${mode}`).then((d) => this.diagram.set(d));
+      this.visual();
+      untracked(() => {
+        this.editing.set(false);
+        this.load();
+      });
+    });
+    // Une vue ouverte prend la place : le menu passe en rail et l'arborescence se replie ; « Vues » la rouvre.
+    effect(() => {
+      const open = !!this.id();
+      untracked(() => {
+        this.nav.force(open);
+        this.treeOpen.set(open ? false : readPref('vues.arbre', true));
+      });
     });
     // Changer de vue vide la recherche et la sélection, sauf si l'objet sélectionné y figure aussi.
     effect(() => {
@@ -310,6 +376,41 @@ export class ViewsPage {
     });
   }
 
+  ngOnDestroy(): void {
+    this.nav.force(false);
+  }
+
+  /** Charge la vue demandée ; l'état « chargement » ne montre jamais une carte partielle. */
+  private async load(): Promise<void> {
+    const id = this.id();
+    this.failed.set(false);
+    if (!id) {
+      this.loading.set(false);
+      return this.diagram.set(null);
+    }
+    this.loading.set(true);
+    try {
+      const d = await this.api.get(`/diagrams/${id}?visuel=${this.visual()}`);
+      if (this.id() === id) this.diagram.set(d);
+    } catch {
+      if (this.id() === id) {
+        this.diagram.set(null);
+        this.failed.set(true);
+      }
+    } finally {
+      if (this.id() === id) this.loading.set(false);
+    }
+  }
+
+  reload(): void {
+    this.load();
+  }
+
+  /** Libellé affiché sans le préfixe numérique (« 01 - ») qui ne sert qu'au tri dans Archi. */
+  clean(label: string | null | undefined): string {
+    return (label ?? '').replace(/^\s*\d+(\.\d+)*\s*[-–—._)]\s*/, '');
+  }
+
   startEditing(): void {
     this.selected.set(null);
     this.editing.set(true);
@@ -328,7 +429,7 @@ export class ViewsPage {
     try {
       await this.api.put(`/diagrams/${d.id}/layout`, { boxes: view.layoutToSave() });
       this.editing.set(false);
-      this.diagram.set(await this.api.get(`/diagrams/${d.id}?visuel=${this.mode()}`));
+      this.diagram.set(await this.api.get(`/diagrams/${d.id}?visuel=${this.visual()}`));
     } finally {
       this.saving.set(false);
     }
@@ -341,7 +442,7 @@ export class ViewsPage {
     try {
       await this.api.delete(`/diagrams/${d.id}/layout`);
       this.editing.set(false);
-      this.diagram.set(await this.api.get(`/diagrams/${d.id}?visuel=${this.mode()}`));
+      this.diagram.set(await this.api.get(`/diagrams/${d.id}?visuel=${this.visual()}`));
     } finally {
       this.saving.set(false);
     }
