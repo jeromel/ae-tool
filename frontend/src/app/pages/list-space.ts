@@ -29,6 +29,7 @@ import { SpaceConfig } from '../spaces.config';
           </div>
         }
         <span class="muted right">{{ shown().length }} sur {{ rows().length }} {{ c.noun }}</span>
+        <!-- Droit serveur : AccessRules.cs, écriture sous /api/objects → contributeur. -->
         @if (c.createRole && createType() && session.can('contributeur')) {
           <a class="btn" routerLink="/objets/nouveau" [queryParams]="{ type: createType() }">{{ c.createLabel ?? 'Nouvel objet' }}</a>
         }

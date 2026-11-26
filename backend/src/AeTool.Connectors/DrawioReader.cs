@@ -44,7 +44,10 @@ public sealed class DrawioPage
 /// </summary>
 public static class DrawioReader
 {
-    public static List<DrawioPage> Read(Stream stream)
+    public static List<DrawioPage> Read(Stream stream) => Read(stream, new DecompressionBudget());
+
+    /// <summary>Lecture avec un plafond de décompression partagé par toutes les pages du fichier.</summary>
+    public static List<DrawioPage> Read(Stream stream, DecompressionBudget budget)
     {
         XElement root;
         try { root = SafeXml.Load(stream).Root ?? throw new InvalidDataException("Fichier vide."); }
@@ -59,7 +62,7 @@ public static class DrawioReader
         }
         return root.Name.LocalName switch
         {
-            "mxfile" => root.Elements("diagram").Select((d, i) => Page(d, i)).ToList(),
+            "mxfile" => root.Elements("diagram").Select((d, i) => Page(d, i, budget)).ToList(),
             "mxGraphModel" => new List<DrawioPage> { Model(root, "page-1", "Page 1") },
             _ => throw new InvalidDataException($"Racine « {root.Name.LocalName} » inattendue : ce fichier n'est pas un dessin draw.io."),
         };
@@ -71,7 +74,7 @@ public static class DrawioReader
         return SafeXml.Load(reader).Root ?? throw new InvalidDataException("Dessin vide.");
     }
 
-    private static DrawioPage Page(XElement diagram, int index)
+    private static DrawioPage Page(XElement diagram, int index, DecompressionBudget budget)
     {
         var id = (string?)diagram.Attribute("id") is { Length: > 0 } i ? i : $"page-{index + 1}";
         var name = (string?)diagram.Attribute("name") is { Length: > 0 } n ? n : $"Page {index + 1}";
@@ -80,22 +83,23 @@ public static class DrawioReader
         {
             var packed = diagram.Value.Trim();
             if (packed.Length == 0) return new DrawioPage { Id = id, Name = name };
-            model = Parse(Unpack(packed));
+            model = Parse(Unpack(packed, budget));
         }
         return Model(model, id, name);
     }
 
-    /// <summary>Page compressée : base64, puis deflate brut, puis encodage d'URL.</summary>
-    public static string Unpack(string packed)
+    /// <summary>Page compressée : base64, puis deflate brut, puis encodage d'URL. Le texte décompressé est plafonné.</summary>
+    public static string Unpack(string packed, DecompressionBudget? budget = null)
     {
+        budget ??= new DecompressionBudget();
         byte[] bytes;
         try { bytes = Convert.FromBase64String(packed); }
         catch (FormatException) { throw new InvalidDataException("Page draw.io compressée illisible (base64 invalide)."); }
-        using var input = new DeflateStream(new MemoryStream(bytes), CompressionMode.Decompress);
+        using var input = budget.Wrap(new DeflateStream(new MemoryStream(bytes), CompressionMode.Decompress));
         using var text = new StreamReader(input, Encoding.UTF8);
         string inflated;
         try { inflated = text.ReadToEnd(); }
-        catch (InvalidDataException) { throw new InvalidDataException("Page draw.io compressée illisible (données compressées invalides)."); }
+        catch (InvalidDataException e) when (!DecompressionBudget.IsLimit(e)) { throw new InvalidDataException("Page draw.io compressée illisible (données compressées invalides)."); }
         return Uri.UnescapeDataString(inflated);
     }
 

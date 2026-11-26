@@ -49,6 +49,7 @@ const CODE_LABELS: Record<string, string> = {
             <details class="finding" style="border-top: 1px solid var(--line); padding: 8px 0">
               <summary><span class="chip" [class.bad]="f.severity === 'erreur'" [class.warn]="f.severity === 'avertissement'" [class.info]="f.severity === 'information'">{{ f.items.length }}</span> {{ f.title }}</summary>
               <p class="muted small" style="margin: 6px 0">{{ f.hint }}</p>
+              <!-- Droit serveur : AccessRules.cs, écriture sous /api/catalogue → administrateur (refus par défaut). -->
               @if (f.code === 'partage-sans-sous-type' && session.can('administrateur')) {
                 <p><button type="button" class="btn" [disabled]="busy()" (click)="reclass()">Reclasser en partages de fichiers</button></p>
               }

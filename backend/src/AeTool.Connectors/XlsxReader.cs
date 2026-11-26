@@ -15,13 +15,16 @@ public static class XlsxReader
     private static readonly XNamespace Rel = "http://schemas.openxmlformats.org/package/2006/relationships";
 
     /// <summary>Retourne, par nom de feuille, les lignes sous forme de tableaux de cellules (null = cellule vide).</summary>
-    public static Dictionary<string, List<string?[]>> Read(Stream stream)
+    public static Dictionary<string, List<string?[]>> Read(Stream stream) => Read(stream, new DecompressionBudget());
+
+    /// <summary>Lecture avec un plafond de décompression partagé par tous les fichiers du classeur.</summary>
+    public static Dictionary<string, List<string?[]>> Read(Stream stream, DecompressionBudget budget)
     {
         using var zip = new ZipArchive(stream, ZipArchiveMode.Read, leaveOpen: true);
-        var shared = ReadSharedStrings(zip);
-        var dateStyles = ReadDateStyles(zip);
-        var workbook = Load(zip, "xl/workbook.xml") ?? throw new InvalidDataException("Classeur Excel invalide : xl/workbook.xml absent.");
-        var rels = Load(zip, "xl/_rels/workbook.xml.rels")?.Root?.Elements(Rel + "Relationship")
+        var shared = ReadSharedStrings(zip, budget);
+        var dateStyles = ReadDateStyles(zip, budget);
+        var workbook = Load(zip, "xl/workbook.xml", budget) ?? throw new InvalidDataException("Classeur Excel invalide : xl/workbook.xml absent.");
+        var rels = Load(zip, "xl/_rels/workbook.xml.rels", budget)?.Root?.Elements(Rel + "Relationship")
             .ToDictionary(r => (string)r.Attribute("Id")!, r => (string)r.Attribute("Target")!) ?? new();
 
         var result = new Dictionary<string, List<string?[]>>();
@@ -31,7 +34,7 @@ public static class XlsxReader
             var target = rels.GetValueOrDefault((string?)sheet.Attribute(R + "id") ?? "");
             if (target is null) continue;
             var path = target.StartsWith('/') ? target[1..] : "xl/" + target;
-            var doc = Load(zip, path);
+            var doc = Load(zip, path, budget);
             if (doc is not null) result[name] = ReadSheet(doc, shared, dateStyles);
         }
         return result;
@@ -85,10 +88,10 @@ public static class XlsxReader
     /// Index des styles de cellule dont le format est une date : formats prédéfinis 14 à 22 et 45 à 47, ou format
     /// personnalisé contenant un jour ou une année hors des parties entre guillemets et entre crochets.
     /// </summary>
-    private static HashSet<int> ReadDateStyles(ZipArchive zip)
+    private static HashSet<int> ReadDateStyles(ZipArchive zip, DecompressionBudget budget)
     {
         var result = new HashSet<int>();
-        var doc = Load(zip, "xl/styles.xml");
+        var doc = Load(zip, "xl/styles.xml", budget);
         if (doc?.Root is null) return result;
         var custom = doc.Root.Element(M + "numFmts")?.Elements(M + "numFmt")
             .ToDictionary(f => (int)f.Attribute("numFmtId")!, f => (string?)f.Attribute("formatCode") ?? "") ?? new();
@@ -120,20 +123,21 @@ public static class XlsxReader
         return index - 1;
     }
 
-    private static List<string> ReadSharedStrings(ZipArchive zip)
+    private static List<string> ReadSharedStrings(ZipArchive zip, DecompressionBudget budget)
     {
-        var doc = Load(zip, "xl/sharedStrings.xml");
+        var doc = Load(zip, "xl/sharedStrings.xml", budget);
         if (doc is null) return new List<string>();
         // Une chaîne peut être découpée en fragments de mise en forme ; les annotations phonétiques (rPh) sont ignorées.
         return doc.Root!.Elements(M + "si").Select(si => string.Concat(
             si.Descendants(M + "t").Where(t => t.Ancestors(M + "rPh").FirstOrDefault() is null).Select(t => t.Value))).ToList();
     }
 
-    private static XDocument? Load(ZipArchive zip, string path)
+    private static XDocument? Load(ZipArchive zip, string path, DecompressionBudget budget)
     {
         var entry = zip.GetEntry(path);
         if (entry is null) return null;
-        using var s = entry.Open();
+        // La taille annoncée par l'archive n'est pas fiable : on compte ce qui sort réellement du flux.
+        using var s = budget.Wrap(entry.Open());
         return SafeXml.Load(s);
     }
 }

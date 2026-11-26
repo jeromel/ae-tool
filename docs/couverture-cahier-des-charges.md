@@ -79,7 +79,7 @@
 | ET-04 Base relationnelle | **Dérogation** | stockage par fichier pour le pilote (décision 004) ; à lever avant généralisation |
 | ET-05 Pas de composant lourd | Couvert | un processus, un dossier |
 | ET-10 Spécifications et tests dans Git | Couvert | |
-| ET-11 Tests automatisés | Couvert | 315 tests ; les scripts échouent si un test échoue ; pas de chaîne d'intégration continue |
+| ET-11 Tests automatisés | Couvert | 361 tests ; les scripts échouent si un test échoue ; pas de chaîne d'intégration continue |
 | ET-12 Analyse statique et formatage | Partiel | avertissements du compilateur bloquants ; pas de règle de formatage automatisée |
 | ET-13 Revue par une seconde personne | **À la DSI** | le code a été produit avec une IA : la revue humaine reste entièrement à faire |
 | ET-14 Documentation minimale | Couvert | prise en main, architecture, décisions, exploitation, installation, sécurité |
@@ -123,4 +123,5 @@
 | Import rejoué sans doublon | vérifié par les tests, sur le modèle Archi réel |
 | Export complet puis réimport | vérifié le 14 novembre 2026 |
 | Restauration de sauvegarde | vérifiée dans un navigateur : la restauration rend l'état d'avant l'opération |
+| Fichier piégé à l'import (draw.io, xlsx) | refusé au-delà de 50 Mo décompressés, plafond cumulé sur tout le fichier : vérifié par les tests sur des fichiers fabriqués (0.15.4) ; revue humaine à faire (ET-13) |
 | Rapport de vulnérabilités | `npm audit` : aucune faille connue au 14 novembre 2026 ; serveur sans dépendance tierce |

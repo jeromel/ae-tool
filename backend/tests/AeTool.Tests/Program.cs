@@ -22,6 +22,7 @@ AnalysisTests.Run();
 UrbaTests.Run();
 ReconciliationTests.Run();
 TabularTests.Run();
+DecompressionTests.Run();
 RestSourceClientTests.Run();
 SourcesApiTests.Run();
 HostingTests.Run();

@@ -40,6 +40,7 @@ interface ValidationState {
         @if (s.comment) { <div class="refusal"><b>Proposition refusée :</b> {{ s.comment }}</div> }
         @if (!s.archived) {
           <div class="actions">
+            <!-- Droit serveur : AccessRules.cs, écriture sous /api/objects (proposer) → contributeur ; sous /api/validation → valideur. -->
             @if (s.status === 'Brouillon' && session.can('contributeur')) {
               <button type="button" [disabled]="busy()" (click)="propose()">Proposer à la validation</button>
             }

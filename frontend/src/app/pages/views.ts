@@ -63,7 +63,7 @@ import { readPref, readText, writePref, writeText } from '../prefs';
             <input type="search" class="find" placeholder="Repérer un élément" [value]="find()" (input)="find.set($any($event.target).value)" />
           }
           <button type="button" (click)="toggleFullscreen()">{{ fullscreen() ? 'Quitter le plein écran' : 'Plein écran' }}</button>
-          @if (diagram() && advanced()) {
+          @if (diagram()) {
             <details class="menu" #display>
               <summary class="btn ghost">Réglages avancés</summary>
               <div class="panel">
@@ -91,7 +91,8 @@ import { readPref, readText, writePref, writeText } from '../prefs';
                 <p class="muted small">Le calque affiche une propriété en pastille sur les cartes. Les propriétés proposées se règlent dans le métamodèle.</p>
                 <div class="actions">
                   <a class="btn ghost" [href]="api.url('/export/archimate?diagram=' + diagram().id)">Exporter vers Archi</a>
-                  @if (!editing()) { <button type="button" class="ghost" (click)="startEditing()">Réorganiser</button> }
+                  <!-- Droit serveur : AccessRules.cs, écriture sous /api/diagrams → contributeur. L'export est une lecture (lecteur). -->
+                  @if (canArrange() && !editing()) { <button type="button" class="ghost" (click)="startEditing()">Réorganiser</button> }
                 </div>
               </div>
             </details>
@@ -124,7 +125,7 @@ import { readPref, readText, writePref, writeText } from '../prefs';
             @if (d.nodes.length > denseThreshold) {
               <p class="dense small" role="note">Vue très chargée : utilisez « Repérer un élément » ou ouvrez une zone.</p>
             }
-            <app-diagram-view #plan [editing]="editing()" [diagram]="d" [selectedId]="selected()" [find]="find()" [dark]="shownDark()" [exact]="shownExact()" [layer]="shownLayer()" [colorize]="shownColorize()"
+            <app-diagram-view #plan [editing]="editing()" [diagram]="d" [selectedId]="selected()" [find]="find()" [dark]="dark()" [exact]="exact()" [layer]="layer()" [colorize]="colorize()"
               (select)="onSelect($event)" (openObject)="go(['/objets', $event])" (openView)="go(['/vues', $event])" />
           }
         } @else {
@@ -280,7 +281,8 @@ export class ViewsPage implements OnDestroy {
   id = input<string>();
   tree = signal<any>(null);
   diagram = signal<any>(null);
-  mode = signal('diagramme');
+  /** Couleurs du métamodèle par défaut, comme le lecteur les voyait depuis 0.15.1 (maquette de navigation, C5). */
+  mode = signal('metamodele');
   find = signal('');
   treeFilter = signal('');
   treeOpen = signal(readPref('vues.arbre', true));
@@ -297,15 +299,12 @@ export class ViewsPage implements OnDestroy {
   sources = SOURCE_LABELS;
 
   /**
-   * Réglages avancés (rendu, couleurs, calque, export, réorganisation) : profil architecte, que l'outil n'a pas encore ;
-   * valideur et administrateur en tiennent lieu. Lecteur et contributeur voient le rendu lisible aux couleurs du métamodèle.
+   * Réorganiser écrit la disposition : c'est le seul droit du menu « Réglages avancés ». Il suit la table du serveur
+   * (AccessRules.cs, écriture sous /api/diagrams → contributeur). Rendu, couleurs, calque et fond sombre sont des
+   * préférences d'affichage ouvertes à tous ; l'export vers Archi est une lecture (note-role-architecte-colbert).
    */
-  advanced = computed(() => this.session.can('valideur'));
-  shownExact = computed(() => this.advanced() && this.exact());
-  shownDark = computed(() => this.advanced() && this.dark());
-  shownColorize = computed(() => this.advanced() && this.colorize());
-  shownLayer = computed(() => (this.advanced() ? this.layer() : 'cm'));
-  private visual = computed(() => (this.advanced() ? this.mode() : 'metamodele'));
+  canArrange = computed(() => this.session.can('contributeur'));
+  private visual = computed(() => this.mode());
 
   /** Arborescence affichée : la racine « Views » d'Archi est masquée, ses dossiers remontent d'un niveau. */
   roots = computed(() => {

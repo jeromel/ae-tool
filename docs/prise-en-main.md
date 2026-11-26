@@ -222,13 +222,13 @@ extrémités ; plusieurs liens dans un même couloir sont écartés pour rester 
 ressortir ses liens au premier plan. Le rendu « Comme dans Archi » garde le tracé et les points de passage d'Archi. Au-delà de 150 éléments,
 une note invite à repérer un élément ou à ouvrir une zone.
 
-Lecteurs et contributeurs voient la vue en rendu lisible, aux couleurs du type d'élément. Les **Réglages avancés**
-(valideur et administrateur) proposent le rendu « Comme dans Archi », les couleurs d'Archi, le calque et le fond sombre,
-ainsi que « Exporter vers Archi » et « Réorganiser ».
+La vue s'ouvre en rendu lisible, aux couleurs du type d'élément. Les **Réglages avancés**, ouverts à tous, proposent le
+rendu « Comme dans Archi », les couleurs d'Archi, le calque et le fond sombre, ainsi que « Exporter vers Archi » ; à
+partir du rôle contributeur, ils proposent aussi « Réorganiser ».
 
 ### Réorganiser une vue
 
-Dans **Vues**, **Réglages avancés › Réorganiser** (valideur et administrateur) passe la vue en mode édition :
+Dans **Vues**, **Réglages avancés › Réorganiser** (à partir du rôle contributeur) passe la vue en mode édition :
 
 - glisser une forme la déplace, avec tout ce qu'elle contient ; la poignée en bas à droite la redimensionne ;
 - **Organiser automatiquement** range la vue : chaque zone garde son contenu ; quand les liens donnent un sens de

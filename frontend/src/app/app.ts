@@ -57,10 +57,13 @@ import { ProjectionState } from './projection';
         <a routerLink="/projets" routerLinkActive="on">Projets</a>
 
         <div class="group">Contribuer</div>
+        <!-- Droit serveur : AccessRules.cs, écriture sous /api/validation → valideur. -->
         @if (session.can('valideur')) { <a routerLink="/validations" routerLinkActive="on">À valider@if (toValidate() > 0) { <span class="count" aria-label="objets à valider">{{ toValidate() }}</span> }</a> }
         <a routerLink="/qualite" routerLinkActive="on">Qualité</a>
+        <!-- Droit serveur : AccessRules.cs, écriture sous /api/import/drawio → contributeur. -->
         @if (session.can('contributeur')) { <a routerLink="/import-drawio" routerLinkActive="on">Importer un dessin</a> }
 
+        <!-- Premier onglet permis : le Journal (lecture sous /api/journal → valideur) ; les autres, /api/admin → administrateur. -->
         @if (session.can('valideur')) {
           <a class="admin" routerLink="/administration" [class.on]="inAdmin()">⚙ Administration</a>
         }
@@ -167,6 +170,7 @@ export class App {
 
   private async refreshCount(): Promise<void> {
     // Tant que le mot de passe temporaire n'est pas changé, le serveur refuse tout sauf la page du compte.
+    // Le compteur ne sert qu'à l'entrée « À valider » : même seuil (AccessRules.cs, /api/validation → valideur).
     if (!this.session.can('valideur') || this.session.user()?.mustChangePassword) return;
     try {
       this.toValidate.set((await this.api.get('/summary')).toValidate ?? 0);

@@ -25,6 +25,7 @@ import { Session } from '../session';
         <input type="search" placeholder="Nom ou valeur de propriété" [value]="q()" (input)="q.set($any($event.target).value); load()" />
         <span class="muted">{{ total() }} objet(s)@if (total() > items().length) {, {{ items().length }} affichés}</span>
         <span class="right tools-right">
+          <!-- Droit serveur : AccessRules.cs, écriture sous /api/objects → contributeur. -->
           @if (session.can('contributeur')) { <a class="btn" routerLink="/objets/nouveau" [queryParams]="type() ? { type: type() } : {}">Nouvel objet</a> }
           <a class="btn ghost" [href]="api.url('/export/objects.csv')">Exporter en CSV</a>
         </span>

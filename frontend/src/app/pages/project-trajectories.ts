@@ -244,6 +244,7 @@ export class ProjectTrajectories {
   propValue = signal('');
   note = signal('');
 
+  // Droit serveur : AccessRules.cs, écriture sous /api/projects et /api/scenarios → contributeur.
   canEdit = computed(() => this.session.can('contributeur'));
 
   constructor() {

@@ -2,7 +2,11 @@ import { Component, computed, inject } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { Role, Session } from '../session';
 
-/** Onglets de l'administration. Les adresses de chaque page restent les mêmes : un ancien lien ouvre son onglet. */
+/**
+ * Onglets de l'administration. Les adresses de chaque page restent les mêmes : un ancien lien ouvre son onglet.
+ * Rôle de chaque onglet : celui qu'exige le serveur (AccessRules.cs : /api/users, /api/admin, /api/sources et toute écriture
+ * non listée, dont imports et métamodèle → administrateur ; lecture de /api/journal → valideur).
+ */
 export const ADMIN_TABS: { label: string; path: string; role: Role; also?: string[] }[] = [
   { label: 'Imports', path: '/imports', role: 'administrateur', also: ['/import-catalogue'] },
   { label: 'Sources externes', path: '/sources', role: 'administrateur' },

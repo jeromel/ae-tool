@@ -151,6 +151,7 @@ export class ObjectPage {
   editing = signal(false);
   confirmArchive = signal(false);
   notice = signal('');
+  // Droit serveur : AccessRules.cs, écriture sous /api/objects → contributeur.
   canEdit = computed(() => this.session.can('contributeur') && !this.d()?.object.archived);
   impact = signal<any[]>([]);
   depth = signal(2);

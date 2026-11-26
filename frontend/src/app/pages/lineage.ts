@@ -151,6 +151,7 @@ const verified = (s: string | null | undefined) => !s || s.trim().toLowerCase() 
           @if (l.focus.kind === 'donnee') {
             <label class="small"><input type="checkbox" [checked]="derived()" (change)="toggleDerived()" /> Suivre les données dérivées</label>
           }
+          <!-- Droit serveur : AccessRules.cs, écriture sous /api/diagrams → contributeur. -->
           @if (session.can('contributeur') && !api.etat) {
             <button type="button" class="btn ghost right" [disabled]="saving()" (click)="saveView()" title="Crée ou régénère une vue du référentiel, exportable vers Archi">Enregistrer comme vue</button>
             <button type="button" class="btn ghost" (click)="download()">Télécharger l'image (SVG)</button>

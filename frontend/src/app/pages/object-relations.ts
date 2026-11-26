@@ -175,6 +175,7 @@ export class ObjectRelations {
   allowed = signal<{ outgoing: Allowed[]; incoming: Allowed[] }>({ outgoing: [], incoming: [] });
   sources = signal<Record<string, string>>({});
   notice = signal('');
+  // Droit serveur : AccessRules.cs, écriture sous /api/relationships → contributeur.
   canEdit = computed(() => this.session.can('contributeur') && !this.archived());
 
   adding = signal(false);
