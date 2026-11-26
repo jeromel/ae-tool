@@ -73,13 +73,13 @@
 
 | Exigence | État | Précision |
 |---|---|---|
-| ET-01 .NET à support long, OpenAPI, Angular supporté | Partiel | .NET 10 et Angular 22 ; pas de description OpenAPI |
+| ET-01 .NET à support long, OpenAPI, Angular supporté | Couvert | .NET 10 et Angular 22 ; description OpenAPI 3.1 produite par l'outil, `GET /api/openapi.json` (décision 013) : 121 opérations avec leur rôle minimal ; preuve : tests « Description OpenAPI » (chaque route décrite, rôle identique à la table des habilitations). Réponses non typées tant qu'une route ne déclare pas `Produces<T>()` |
 | ET-02 Un module par domaine | Couvert | |
 | ET-03 Cœur indépendant | Couvert | |
 | ET-04 Base relationnelle | **Dérogation** | dérogation maintenue, seuils suivis (décision 011, qui remplace la 004) : stockage par fichier conservé pour la généralisation ; l'administrateur suit les quatre seuils de révision |
 | ET-05 Pas de composant lourd | Couvert | un processus, un dossier |
 | ET-10 Spécifications et tests dans Git | Couvert | |
-| ET-11 Tests automatisés | Couvert | 367 tests du serveur et 47 de l'interface ; les scripts échouent si un test échoue ; pas de chaîne d'intégration continue |
+| ET-11 Tests automatisés | Couvert | 372 tests du serveur et 52 de l'interface ; les scripts échouent si un test échoue ; pas de chaîne d'intégration continue |
 | ET-12 Analyse statique et formatage | Partiel | avertissements du compilateur bloquants ; pas de règle de formatage automatisée |
 | ET-13 Revue par une seconde personne | **À la DSI** | le code a été produit avec une IA : la revue humaine reste entièrement à faire |
 | ET-14 Documentation minimale | Couvert | prise en main, architecture, décisions, exploitation, installation, sécurité |

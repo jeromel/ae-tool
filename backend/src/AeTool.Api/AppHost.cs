@@ -41,6 +41,8 @@ public static class AppHost
         // Tout ce que fait l'interface passe par les routes de /api, regroupées par domaine dans Endpoints/.
         var api = app.MapGroup("/api");
         Hosting.MapHealth(api);
+        // Description OpenAPI des routes ci-dessous, produite à partir d'elles (décision 013).
+        AeTool.Api.Endpoints.OpenApiEndpoints.Map(api);
         AuthEndpoints.Map(api);
         UserEndpoints.Map(api);
         SummaryEndpoints.Map(api);

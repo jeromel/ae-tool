@@ -16,7 +16,7 @@ public static class ProjectionContext
     private static readonly string[] Ignored =
     {
         "/api/scenarios", "/api/trajectoires", "/api/auth", "/api/users", "/api/admin", "/api/journal",
-        "/api/metamodel", "/api/import", "/api/export", "/api/sources", "/api/validation", "/api/health",
+        "/api/metamodel", "/api/import", "/api/export", "/api/sources", "/api/validation", "/api/health", "/api/openapi.json",
     };
 
     /// <summary>

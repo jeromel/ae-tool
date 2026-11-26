@@ -20,6 +20,8 @@ public static class ApiTests
         public HttpClient Client { get; }
         public string DataDirectory { get; }
         public Uri BaseAddress { get; }
+        /// <summary>Services de l'application démarrée (liste des routes, par exemple).</summary>
+        public IServiceProvider Services => _app.Services;
 
         /// <summary>
         /// Par défaut : environnement Development et mode ouvert (aucune connexion), pour les tests qui ne portent pas sur les comptes.

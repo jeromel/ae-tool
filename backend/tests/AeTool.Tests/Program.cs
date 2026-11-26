@@ -27,6 +27,7 @@ RestSourceClientTests.Run();
 SourcesApiTests.Run();
 HostingTests.Run();
 AccessRulesTests.Run();
+OpenApiTests.Run();
 AuthTests.Run();
 ApiTests.Run();
 MetamodelApiTests.Run();
