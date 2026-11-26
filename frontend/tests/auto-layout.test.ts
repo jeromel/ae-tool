@@ -117,3 +117,31 @@ test('autoLayout, 300 vues tirées au hasard : enfants dans leur zone, frères s
     }
   }
 });
+
+test('autoLayout, déterminisme : même dessin quel que soit l\'ordre des éléments et des liens (bascule, règle 8)', () => {
+  const random = rng(3);
+  const shuffle = <T>(a: T[]): T[] => {
+    const b = [...a];
+    for (let i = b.length - 1; i > 0; i--) { const j = Math.floor(random() * (i + 1)); [b[i], b[j]] = [b[j], b[i]]; }
+    return b;
+  };
+  for (let n = 0; n < 200; n++) {
+    const nodes: LayoutNode[] = [];
+    const zones: string[] = [];
+    const count = 3 + Math.floor(random() * 20);
+    for (let i = 0; i < count; i++) {
+      const parent = zones.length && random() < 0.6 ? zones[Math.floor(random() * zones.length)] : null;
+      if (random() < 0.2) { nodes.push(zone(`z${i}`, parent)); zones.push(`z${i}`); }
+      else nodes.push(card(`c${i}`, parent, 'Composant ' + i));
+    }
+    const ids = nodes.map((x) => x.id);
+    const edges: LayoutEdge[] = Array.from({ length: Math.floor(random() * count * 1.5) }, () =>
+      ({ source: ids[Math.floor(random() * ids.length)], target: ids[Math.floor(random() * ids.length)] }));
+    const reference = autoLayout(nodes, edges);
+    for (let k = 0; k < 3; k++) {
+      // Tout est mélangé, parents et enfants compris.
+      const again = autoLayout(shuffle(nodes), shuffle(edges));
+      assert.deepEqual(again, reference, JSON.stringify({ nodes, edges }));
+    }
+  }
+});
