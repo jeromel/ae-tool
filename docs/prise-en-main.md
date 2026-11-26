@@ -213,9 +213,14 @@ Ensuite :
 
 - **le parcours d'une donnée** (lien « Parcours » dans les espaces, « Voir le parcours » sur une fiche) : la donnée, les
   applications et les flux applicatifs entre elles, la chaîne technique du flux choisi (clic sur sa pastille), les serveurs
-  et partages où elle est stockée ou transite, les profils de poste qui y accèdent avec leur nombre de postes. Un clic
-  détaille, un double clic recentre le parcours sur l'élément (le bus d'intégration : tout ce qui s'arrête s'il tombe ; un
-  serveur : ce qui y est stocké). « Constaté seulement » cache ce qui n'est pas vérifié ; « Suivre les données dérivées »
+  et partages où elle est stockée ou transite, les profils de poste qui y accèdent avec leur nombre de postes. Rien n'est
+  choisi à l'ouverture. Un clic (ou Entrée) choisit une case ou la pastille d'un flux : ce qui lui est relié reste en plein
+  contraste dans toutes les bandes, le reste s'estompe, et le titre de chaque bande dit ce qu'elle montre (« 3 données
+  transportées par FA-003 »). Un flux choisi est relié par un trait jaune aux données qu'il transporte ; sa pastille
+  porte son code, ou un numéro, et le nombre de données transportées (« FA-003 · 3 », « · ? » si rien n'est renseigné).
+  Dans le panneau, les données, applications et flux cités se choisissent d'un clic. Échap ou un clic sur le fond
+  efface le choix. Un double clic (ou Maj+Entrée) recentre le parcours sur l'élément (le bus d'intégration : tout ce
+  qui s'arrête s'il tombe ; un serveur : ce qui y est stocké). « Constaté seulement » cache ce qui n'est pas vérifié ; « Suivre les données dérivées »
   prolonge vers les données produites à partir de celle-ci. Le parcours se télécharge en image et s'enregistre comme vue,
   exportable vers Archi. Sous le dessin, ce que le parcours ne sait pas dire (hébergement inconnu, chaîne incomplète,
   passage non vérifié) ;

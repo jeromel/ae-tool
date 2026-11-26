@@ -1,7 +1,9 @@
-import { Component, ElementRef, computed, effect, inject, signal, viewChild } from '@angular/core';
+import { Component, ElementRef, DestroyRef, afterNextRender, computed, effect, inject, signal, viewChild } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Api } from '../api';
 import { Session } from '../session';
+import { Kind, Lit, Selection, flowPill, flowTag, key, lit, stillThere } from '../lineage-selection';
+import { Measure, canvasMeasure, fitLabel } from '../label-fit';
 
 interface Role { appId: string; appName: string; role: string; catalogue: boolean; }
 interface Attribute { name: string; nature: string | null; sourceApplication: string | null; sourceTable: string | null; sourceField: string | null;
@@ -19,15 +21,21 @@ interface Profile { id: string; name: string; code: string | null; appIds: strin
 interface Lineage { focus: { id: string; name: string; kind: string; typeLabel: string; supported: boolean; message: string | null };
   data: DataItem[]; applications: AppItem[]; flows: FlowItem[]; technical: Technical[]; hosts: Host[]; profiles: Profile[]; gaps: string[]; censusAt: string | null; }
 
-type Kind = 'donnee' | 'application' | 'flux' | 'etape' | 'hote' | 'poste';
 interface Box { id: string; kind: Kind; x: number; y: number; w: number; h: number; title: string; sub: string; full: string; fill: string; stroke: string;
-  dashed: boolean; strong: boolean; }
-interface Edge { id: string; d: string; dashed: boolean; selected: boolean; lx: number; ly: number; label: string; full: string; }
-interface Leader { x1: number; y1: number; x2: number; y2: number; }
+  dashed: boolean; strong: boolean; dim: boolean; }
+interface Edge { id: string; d: string; dashed: boolean; selected: boolean; dim: boolean; lx: number; ly: number; label: string; full: string; aria: string; }
+interface Leader { x1: number; y1: number; x2: number; y2: number; dim: boolean; }
+/** Lien d'une ligne du panneau : un clic sélectionne dans le dessin. */
+interface PanelLink { label: string; kind: Kind; id: string; }
 interface Band { key: string; label: string; y: number; h: number; }
-interface Layout { width: number; height: number; bands: Band[]; boxes: Box[]; edges: Edge[]; chain: Edge[]; leaders: Leader[]; }
+interface Layout { width: number; height: number; bands: Band[]; boxes: Box[]; edges: Edge[]; chain: Edge[]; leaders: Leader[]; ties: Leader[]; }
 
-const W = 1180;
+/** Police du dessin : celle que mesure l'ajustement des libellés. */
+const FONT = "'Segoe UI', system-ui, sans-serif";
+/** Largeur du dessin : celle du cadre (P1), bornée pour rester lisible. */
+const MIN_W = 720, MAX_W = 1600;
+/** Estompé : hors de la sélection (maquette « parcours et sélection », 35 %). */
+const DIM = 0.35;
 const PAD = 16;
 const BAND_GAP = 26;
 const LABEL_H = 22;
@@ -38,10 +46,21 @@ const COLORS: Record<Kind, [string, string]> = {
 const USAGE: Record<string, string> = { stockage: 'stockage', fichiers: 'fichiers', transit: 'transit' };
 const TRAIL_KEY = 'ae.parcours.fil';
 
-/** Coupe un libellé pour qu'il tienne dans une largeur donnée (police de 12,5 px environ). */
+/**
+ * Libellé sur une ligne, dans une largeur donnée : abrégé par « … » à la fin d'un mot, jamais au milieu (charte §2.1).
+ * Le nom complet reste au survol et dans le nom accessible de la case.
+ */
 function fit(text: string, width: number, size = 12.5): string {
-  const max = Math.max(4, Math.floor(width / (size * 0.56)));
-  return text.length <= max ? text : text.slice(0, max - 1) + '…';
+  const f = fitLabel(text, width, size * 2, { max: size, min: size, floor: size, maxLines: 1, measure: measureFor(size === 12.5 ? 600 : 400) });
+  return f.lines[0] ?? '';
+}
+
+/** Largeur mesurée dans la police réellement affichée par le navigateur (Segoe UI manque hors de Windows). */
+const measures = new Map<number, Measure>();
+function measureFor(weight: number): Measure {
+  let m = measures.get(weight);
+  if (!m) measures.set(weight, (m = canvasMeasure(weight, FONT)));
+  return m;
 }
 
 const verified = (s: string | null | undefined) => !s || s.trim().toLowerCase() === 'constaté';
@@ -57,10 +76,12 @@ const verified = (s: string | null | undefined) => !s || s.trim().toLowerCase() 
     .lin-main { flex: 1; min-width: 0; }
     .lin-aside { width: 340px; flex: none; position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow: auto; }
     .canvas { background: #fff; border: 1px solid var(--line); border-radius: 8px; overflow: auto; }
-    .canvas svg { display: block; width: 100%; min-width: 900px; height: auto; font-family: 'Segoe UI', system-ui, sans-serif; user-select: none; }
+    .canvas svg { display: block; width: 100%; height: auto; font-family: 'Segoe UI', system-ui, sans-serif; user-select: none; }
     .canvas .box { cursor: pointer; }
     .canvas .box:hover rect { filter: brightness(.97); }
     .canvas .pill { cursor: pointer; }
+    .canvas .box:focus-visible, .canvas .pill:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .aside-links { padding-left: 18px; } .aside-links button { background: none; border: 0; padding: 0; color: var(--accent); text-align: left; cursor: pointer; font: inherit; }
     .trail { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; font-size: 12.5px; margin-bottom: 8px; }
     .trail a { cursor: pointer; }
     dl.props { display: grid; grid-template-columns: max-content 1fr; gap: 3px 10px; margin: 0 0 8px; font-size: 13px; }
@@ -166,9 +187,10 @@ const verified = (s: string | null | undefined) => !s || s.trim().toLowerCase() 
 
         <div class="lin-split">
           <div class="lin-main">
-            <div class="canvas" #canvas>
+            @if (notice()) { <div class="note small">{{ notice() }}</div> }
+            <div class="canvas" #canvas (keydown.escape)="clear()">
               @if (layout(); as g) {
-                <svg [attr.viewBox]="'0 0 ' + g.width + ' ' + g.height" role="img" [attr.aria-label]="'Parcours de ' + l.focus.name" xmlns="http://www.w3.org/2000/svg">
+                <svg [attr.viewBox]="'0 0 ' + g.width + ' ' + g.height" role="group" [attr.aria-label]="'Parcours de ' + l.focus.name" xmlns="http://www.w3.org/2000/svg">
                   <defs>
                     <marker id="lin-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
                       <path d="M1 1L9 5L1 9" fill="none" stroke="#0c5a70" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
@@ -177,22 +199,29 @@ const verified = (s: string | null | undefined) => !s || s.trim().toLowerCase() 
                       <path d="M1 1L9 5L1 9" fill="none" stroke="#e5a50a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
                     </marker>
                   </defs>
+                  <!-- Clic sur le fond : plus de sélection, tout revient en plein contraste. -->
+                  <rect x="0" y="0" [attr.width]="g.width" [attr.height]="g.height" fill="#ffffff" (click)="clear()" />
                   @for (b of g.bands; track b.key) {
-                    <rect [attr.x]="4" [attr.y]="b.y" [attr.width]="g.width - 8" [attr.height]="b.h" rx="6" fill="#f7f9f9" stroke="#e3e8ea" />
+                    <rect (click)="clear()" [attr.x]="4" [attr.y]="b.y" [attr.width]="g.width - 8" [attr.height]="b.h" rx="6" fill="#f7f9f9" stroke="#e3e8ea" />
                     <text [attr.x]="PAD" [attr.y]="b.y + 15" font-size="12" fill="#5c6c73">{{ b.label }}</text>
                   }
                   @for (k of g.leaders; track $index) {
-                    <line [attr.x1]="k.x1" [attr.y1]="k.y1" [attr.x2]="k.x2" [attr.y2]="k.y2" stroke="#9aa9ae" stroke-width="1" stroke-dasharray="3 3" />
+                    <line [attr.x1]="k.x1" [attr.y1]="k.y1" [attr.x2]="k.x2" [attr.y2]="k.y2" stroke="#9aa9ae" stroke-width="1" stroke-dasharray="3 3" [attr.opacity]="k.dim ? DIM : null" />
                   }
                   @for (e of g.edges; track e.id) {
                     <path [attr.d]="e.d" fill="none" [attr.stroke]="e.selected ? '#e5a50a' : '#0c5a70'" [attr.stroke-width]="e.selected ? 2.6 : 1.4"
-                      [attr.stroke-dasharray]="e.dashed ? '6 4' : null" [attr.marker-end]="e.selected ? 'url(#lin-arrow-sel)' : 'url(#lin-arrow)'" />
+                      [attr.stroke-dasharray]="e.dashed ? '6 4' : null" [attr.marker-end]="e.selected ? 'url(#lin-arrow-sel)' : 'url(#lin-arrow)'" [attr.opacity]="e.dim ? DIM : null" />
                   }
                   @for (e of g.chain; track e.id) {
                     <path [attr.d]="e.d" fill="none" stroke="#4f7a2d" stroke-width="1.4" [attr.stroke-dasharray]="e.dashed ? '6 4' : null" />
                   }
+                  <!-- Trait de rattachement : des données allumées à la pastille du flux choisi, seulement pour la sélection. -->
+                  @for (k of g.ties; track $index) {
+                    <line [attr.x1]="k.x1" [attr.y1]="k.y1" [attr.x2]="k.x2" [attr.y2]="k.y2" stroke="#e5a50a" stroke-width="1.2" />
+                  }
                   @for (e of g.edges; track e.id) {
-                    <g class="pill" (click)="select('flux', e.id)" (dblclick)="go(e.id)">
+                    <g class="pill" (click)="select('flux', e.id)" (dblclick)="go(e.id)" tabindex="0" role="button" [attr.aria-label]="e.aria"
+                      (keydown.enter)="select('flux', e.id)" (keydown.shift.enter)="go(e.id)" [attr.opacity]="e.dim ? DIM : null">
                       <title>{{ e.full }}</title>
                       <rect [attr.x]="e.lx - pillWidth(e.label) / 2" [attr.y]="e.ly - 9" [attr.width]="pillWidth(e.label)" height="18" rx="9"
                         [attr.fill]="e.selected ? '#e5a50a' : '#ffffff'" [attr.stroke]="e.selected ? '#b88200' : '#0c5a70'" stroke-width="1" />
@@ -200,7 +229,8 @@ const verified = (s: string | null | undefined) => !s || s.trim().toLowerCase() 
                     </g>
                   }
                   @for (b of g.boxes; track b.kind + b.id) {
-                    <g class="box" (click)="select(b.kind, b.id)" (dblclick)="go(b.id)" [attr.tabindex]="0" (keydown.enter)="select(b.kind, b.id)" role="button" [attr.aria-label]="b.full">
+                    <g class="box" (click)="select(b.kind, b.id)" (dblclick)="go(b.id)" [attr.tabindex]="0" (keydown.enter)="select(b.kind, b.id)" (keydown.shift.enter)="go(b.id)"
+                      role="button" [attr.aria-label]="b.full" [attr.opacity]="b.dim ? DIM : null">
                       <title>{{ b.full }}</title>
                       <rect [attr.x]="b.x" [attr.y]="b.y" [attr.width]="b.w" [attr.height]="b.h" rx="6" [attr.fill]="b.fill"
                         [attr.stroke]="isSelected(b) ? '#e5a50a' : b.stroke" [attr.stroke-width]="isSelected(b) ? 2.6 : b.strong ? 2 : 1"
@@ -214,7 +244,8 @@ const verified = (s: string | null | undefined) => !s || s.trim().toLowerCase() 
             </div>
             <div class="legend">
               <span><i></i>constaté</span><span><i class="d"></i>proposé, à confirmer ou à définir</span>
-              <span>Clic : détail · double clic : recentrer le parcours</span>
+              <span>Hébergement : trait plein, la donnée y est stockée ; pointillé, elle y transite</span>
+              <span>Clic ou Entrée : choisir · double clic ou Maj+Entrée : recentrer · Échap ou clic sur le fond : tout montrer</span>
               @if (l.censusAt) { <span>Postes comptés le {{ date(l.censusAt) }}</span> }
             </div>
             @if (l.gaps.length) {
@@ -234,6 +265,14 @@ const verified = (s: string | null | undefined) => !s || s.trim().toLowerCase() 
               <dl class="props">
                 @for (p of d.props; track p[0]) { <dt>{{ p[0] }}</dt><dd>{{ p[1] }}</dd> }
               </dl>
+              @if (d.links.length) {
+                <p class="small" style="margin-bottom: 2px"><b>{{ d.linksTitle }}</b></p>
+                <ul class="small aside-links">
+                  @for (x of d.links; track $index) {
+                    <li><button type="button" (click)="select(x.kind, x.id)" (dblclick)="go(x.id)">{{ x.label }}</button></li>
+                  }
+                </ul>
+              }
               @if (d.list.length) {
                 <ul class="small" style="padding-left: 18px">@for (x of d.list; track $index) { <li>{{ x }}</li> }</ul>
               }
@@ -243,7 +282,8 @@ const verified = (s: string | null | undefined) => !s || s.trim().toLowerCase() 
               </p>
             } @else {
               <h2>Détail</h2>
-              <p class="muted small">Cliquez sur une case ou sur la pastille d'un flux. La chaîne technique affichée est celle du flux choisi (en jaune).</p>
+              <p class="muted small">Cliquez sur une case ou sur la pastille d'un flux : ce qui lui est relié reste en plein contraste dans toutes les bandes,
+                le reste s'estompe. La chaîne technique est celle du flux choisi.</p>
               <dl class="props">
                 <dt>Données</dt><dd>{{ l.data.length }}</dd><dt>Applications</dt><dd>{{ l.applications.length }}</dd>
                 <dt>Flux applicatifs</dt><dd>{{ l.flows.length }}</dd><dt>Étapes techniques</dt><dd>{{ l.technical.length }}</dd>
@@ -265,6 +305,7 @@ export class LineagePage {
   private router = inject(Router);
   private canvas = viewChild<ElementRef<HTMLDivElement>>('canvas');
   readonly PAD = PAD;
+  readonly DIM = DIM;
 
   lineage = signal<Lineage | null>(null);
   saving = signal(false);
@@ -272,8 +313,11 @@ export class LineagePage {
   error = signal('');
   derived = signal(false);
   verifiedOnly = signal(false);
-  selected = signal<{ kind: Kind; id: string } | null>(null);
-  flowId = signal<string | null>(null);
+  /** Une seule sélection à la fois ; aucune à l'ouverture (maquette « parcours et sélection », règles 1 et 3). */
+  selected = signal<Selection | null>(null);
+  notice = signal('');
+  /** Largeur du cadre, suivie pour que le dessin s'y adapte sans défilement horizontal (P1). */
+  private frame = signal(1180);
   shown = signal<Record<string, boolean>>({ donnees: true, applications: true, chaine: true, hebergement: true, postes: true });
   trail = signal<{ id: string; name: string }[]>(readTrail());
   readonly bandChoices = [
@@ -297,10 +341,17 @@ export class LineagePage {
     return { ...l, applications: apps, flows: flows.filter((f) => ids.has(f.sourceId) && ids.has(f.targetId)) };
   });
 
+  /** Ce que la sélection allume dans chaque bande, la chaîne montrée et les titres de bande. */
+  lighting = computed(() => {
+    const l = this.view();
+    return l ? lit(l, this.selected()) : null;
+  });
+
   layout = computed<Layout | null>(() => {
     const l = this.view();
-    if (!l || !l.focus.supported) return null;
-    return this.build(l);
+    const g = this.lighting();
+    if (!l || !g || !l.focus.supported) return null;
+    return this.build(l, g);
   });
 
   detail = computed(() => {
@@ -314,20 +365,27 @@ export class LineagePage {
         const d = l.data.find((x) => x.id === s.id); if (!d) return null;
         return { id: d.id, title: d.name, kind: d.derived ? `${d.typeLabel}, donnée dérivée` : d.typeLabel, object: true,
           props: [['Code', v(d.code)], ['Sensibilité', v(d.sensitivity)], ['Données personnelles', v(d.personal)], ['Data owner', v(d.owner)], ['Statut', v(d.status)]],
-          list: d.roles.map((r) => `${r.role} : ${r.appName}`) };
+          linksTitle: 'Applications', links: d.roles.map((r): PanelLink => ({ label: `${r.role} : ${r.appName}`, kind: 'application', id: r.appId })), list: [] as string[] };
       }
       case 'application': {
         const a = l.applications.find((x) => x.id === s.id); if (!a) return null;
         return { id: a.id, title: a.name, kind: a.external ? 'Destinataire externe' : 'Application', object: true,
           props: [['Code', v(a.code)], ['Zone', v(a.zone)], ['Rôle sur les données', a.roles.join(', ') || '–'], ['Statut', v(a.status)]],
-          list: [...a.hostIds.map((h) => 'Hébergée sur ' + name(h)), ...a.profileIds.map((p) => 'Utilisée depuis ' + (l.profiles.find((x) => x.id === p)?.name ?? p))] };
+          linksTitle: 'Hébergement et accès', links: [
+            ...a.hostIds.filter((h) => l.hosts.some((x) => x.id === h)).map((h): PanelLink => ({ label: 'Hébergée sur ' + name(h), kind: 'hote', id: h })),
+            ...a.profileIds.filter((p) => l.profiles.some((x) => x.id === p)).map((p): PanelLink => ({ label: 'Utilisée depuis ' + l.profiles.find((x) => x.id === p)!.name, kind: 'poste', id: p }))],
+          list: [] as string[] };
       }
       case 'flux': {
         const f = l.flows.find((x) => x.id === s.id); if (!f) return null;
         const tech = new Map(l.technical.map((t) => [t.id, t]));
+        const shownData = f.dataIds.filter((d) => l.data.some((x) => x.id === d));
         return { id: f.id, title: (f.code ? f.code + ' ' : '') + f.name, kind: 'Flux applicatif', object: false,
-          props: [['De', name(f.sourceId)], ['Vers', name(f.targetId)], ['Données', f.dataIds.map((d) => l.data.find((x) => x.id === d)?.name ?? d).join(', ') || '–'],
+          props: [['De', name(f.sourceId)], ['Vers', name(f.targetId)],
+            ...(f.dataIds.length === 0 ? [['Données transportées', 'non renseignées au catalogue']] : []),
+            ...(f.dataIds.length > shownData.length ? [['Non affichées', `${f.dataIds.length - shownData.length} donnée(s) dérivée(s)`]] : []),
             ['Type', v(f.kind)], ['Périodicité', v(f.frequency)], ['Mode', v(f.mode)], ['Cycle de vie', v(f.lifecycle)], ['Statut', v(f.status)]],
+          linksTitle: 'Données transportées', links: shownData.map((d): PanelLink => ({ label: l.data.find((x) => x.id === d)!.name, kind: 'donnee', id: d })),
           list: f.steps.map((st, i) => `${i + 1}. ${tech.get(st.technicalId)?.name ?? '?'} (${tech.get(st.technicalId)?.step ?? 'étape'})${verified(st.status) ? '' : ' : ' + st.status}`) };
       }
       case 'etape': {
@@ -335,19 +393,22 @@ export class LineagePage {
         return { id: t.id, title: t.name, kind: 'Flux technique', object: true,
           props: [['Code', v(t.code)], ['Étape', v(t.step)], ['Protocole', v(t.protocol)], ['Format', v(t.format)], ['Orchestration', v(t.orchestration)],
             ['Zone', v(t.zone)], ['Compte de service', v(t.account)], ['Supervision', v(t.monitoring)], ['Application', v(t.appName)], ['Statut', v(t.status)]],
-          list: l.flows.filter((f) => f.steps.some((st) => st.technicalId === t.id)).map((f) => 'Réalise ' + (f.code ?? '') + ' ' + f.name) };
+          linksTitle: 'Flux réalisés', links: l.flows.filter((f) => f.steps.some((st) => st.technicalId === t.id))
+            .map((f): PanelLink => ({ label: 'Réalise ' + `${f.code ?? ''} ${f.name}`.trim(), kind: 'flux', id: f.id })), list: [] as string[] };
       }
       case 'hote': {
         const h = l.hosts.find((x) => x.id === s.id); if (!h) return null;
         return { id: h.id, title: h.name, kind: h.typeLabel, object: true,
           props: [['Usage dans ce parcours', USAGE[h.usage] ?? h.usage], ['Lieu', v(h.location)], ['Logiciels', h.details.join(', ') || '–']],
-          list: [...h.appIds.map((a) => 'Héberge ' + name(a)), ...h.files.map((f) => 'Fichiers : ' + f)] };
+          linksTitle: 'Applications', links: h.appIds.filter((a) => l.applications.some((x) => x.id === a)).map((a): PanelLink => ({ label: 'Héberge ' + name(a), kind: 'application', id: a })),
+          list: h.files.map((f) => 'Fichiers : ' + f) };
       }
       case 'poste': {
         const p = l.profiles.find((x) => x.id === s.id); if (!p) return null;
         return { id: p.id, title: p.name, kind: 'Profil de poste', object: true,
           props: [['Code', v(p.code)], ['Postes (CMDB)', p.workstations === null ? 'non compté' : String(p.workstations)]],
-          list: [...p.appIds.map((a) => 'Donne accès à ' + name(a)), ...Object.entries(p.bySite ?? {}).map(([site, n]) => `${site} : ${n} poste(s)`)] };
+          linksTitle: 'Applications', links: p.appIds.filter((a) => l.applications.some((x) => x.id === a)).map((a): PanelLink => ({ label: 'Donne accès à ' + name(a), kind: 'application', id: a })),
+          list: Object.entries(p.bySite ?? {}).map(([site, n]) => `${site} : ${n} poste(s)`) };
       }
     }
     return null;
@@ -360,16 +421,40 @@ export class LineagePage {
     });
     this.route.queryParamMap.subscribe((q) => this.derived.set(q.get('derivees') === 'oui'));
     effect(() => { try { sessionStorage.setItem(TRAIL_KEY, JSON.stringify(this.trail())); } catch { /* stockage indisponible */ } });
+    // Filtre qui retire l'objet choisi : la sélection est annulée, et on le dit (maquette, §6).
+    effect(() => {
+      const v = this.view();
+      const s = this.selected();
+      if (!v || !s || stillThere(v, s)) return;
+      this.selected.set(null);
+      this.notice.set(`${this.nameOf(s)} n'est pas constaté : sélection retirée.`);
+    });
+    const destroy = inject(DestroyRef);
+    afterNextRender(() => {
+      const el = this.canvas()?.nativeElement;
+      if (!el || typeof ResizeObserver === 'undefined') return;
+      const observer = new ResizeObserver(() => { if (el.clientWidth > 0) this.frame.set(el.clientWidth); });
+      observer.observe(el);
+      destroy.onDestroy(() => observer.disconnect());
+    });
+  }
+
+  private nameOf(s: Selection): string {
+    const l = this.lineage();
+    if (!l) return 'L\'élément choisi';
+    if (s.kind === 'flux') return flowTag(l, s.id);
+    const all: { id: string; name: string }[] = [...l.data, ...l.applications, ...l.technical, ...l.hosts, ...l.profiles];
+    return all.find((x) => x.id === s.id)?.name ?? 'L\'élément choisi';
   }
 
   private async load(id: string) {
     this.error.set('');
     this.selected.set(null);
+    this.notice.set('');
     this.savedView.set(null);
     try {
       const l = await this.api.get<Lineage>(`/parcours/${encodeURIComponent(id)}${this.derivedQuery()}`);
       this.lineage.set(l);
-      this.flowId.set(l.flows.find((f) => f.steps.length > 0)?.id ?? l.flows[0]?.id ?? null);
       const trail = this.trail().filter((t) => t.id !== id);
       const at = this.trail().findIndex((t) => t.id === id);
       this.trail.set(at >= 0 ? this.trail().slice(0, at + 1) : [...trail, { id, name: l.focus.name }].slice(-8));
@@ -406,7 +491,11 @@ export class LineagePage {
 
   select(kind: Kind, id: string) {
     this.selected.set({ kind, id });
-    if (kind === 'flux') this.flowId.set(id);
+    this.notice.set('');
+  }
+
+  clear() {
+    this.selected.set(null);
   }
 
   isSelected(b: Box): boolean {
@@ -447,18 +536,22 @@ export class LineagePage {
 
   // ------------------------------------------------------------ Disposition
 
-  private build(l: Lineage): Layout {
+  private build(l: Lineage, g: Lit): Layout {
+    const W = Math.min(MAX_W, Math.max(MIN_W, this.frame()));
     const boxes: Box[] = [];
     const edges: Edge[] = [];
     const chain: Edge[] = [];
     const leaders: Leader[] = [];
+    const ties: Leader[] = [];
     const bands: Band[] = [];
+    const dim = (kind: Kind, id: string) => g.active && !g.keys.has(key(kind, id));
+    const picked = this.selected();
     const show = this.shown();
     let y = 8;
     const tech = new Map(l.technical.map((t) => [t.id, t]));
-    const box = (b: Omit<Box, 'fill' | 'stroke'>): Box => {
+    const box = (b: Omit<Box, 'fill' | 'stroke' | 'dim'>): Box => {
       const [fill, stroke] = COLORS[b.kind];
-      const full = { ...b, fill, stroke };
+      const full = { ...b, fill, stroke, dim: dim(b.kind, b.id) };
       boxes.push(full);
       return full;
     };
@@ -476,18 +569,19 @@ export class LineagePage {
     };
 
     // 1. Données.
+    const dataBox = new Map<string, Box>();
     if (show['donnees'] && l.data.length) {
       const top = y + LABEL_H;
       const w = 250, h = 46;
       const pos = rows(l.data.map(() => ({ w })), top, h);
       l.data.forEach((d, i) => {
         const master = d.roles.find((r) => r.role === 'Maître')?.appName;
-        box({ id: d.id, kind: 'donnee', x: pos[i].x, y: pos[i].y, w, h, title: fit((d.code ? d.code + ' ' : '') + d.name, w - 18),
+        dataBox.set(d.id, box({ id: d.id, kind: 'donnee', x: pos[i].x, y: pos[i].y, w, h, title: fit((d.code ? d.code + ' ' : '') + d.name, w - 18),
           sub: fit([d.derived ? 'dérivée' : null, master ? 'maître : ' + master : null, d.personal === 'Oui' ? 'données personnelles' : null].filter(Boolean).join(', ') || d.typeLabel, w - 18, 11),
-          full: d.name, dashed: d.derived || !verified(d.status), strong: d.id === l.focus.id });
+          full: d.name, dashed: d.derived || !verified(d.status), strong: d.id === l.focus.id }));
       });
       const bottom = Math.max(...pos.map((p) => p.y)) + h;
-      bands.push({ key: 'donnees', label: 'Données', y, h: bottom - y + 12 });
+      bands.push({ key: 'donnees', label: g.titles.donnees, y, h: bottom - y + 12 });
       y = bottom + 12 + BAND_GAP;
     }
 
@@ -555,21 +649,24 @@ export class LineagePage {
           d = `M${x1},${y1} C${x1},${loop} ${x2},${y2 - 40} ${x2},${y2}`;
           lx = (x1 + x2) / 2 + 18; ly = (y1 + y2) / 2 + 4;
         }
-        const label = f.code ?? fit(f.name, 90, 11);
-        edges.push({ id: f.id, d, dashed: !verified(f.status), selected: this.flowId() === f.id, lx, ly, label, full: `${f.code ?? ''} ${f.name}`.trim() });
+        // Pastille : code ou numéro court, jamais un nom tronqué (P3), et le nombre de données transportées.
+        const label = flowPill(l, f.id);
+        const carried = f.dataIds.length ? `transporte ${f.dataIds.length} donnée${f.dataIds.length > 1 ? 's' : ''}` : 'données transportées non renseignées';
+        edges.push({ id: f.id, d, dashed: !verified(f.status), selected: picked?.kind === 'flux' && picked.id === f.id, dim: dim('flux', f.id), lx, ly, label,
+          full: `${f.code ?? ''} ${f.name}`.trim(), aria: `Flux ${flowTag(l, f.id)}, ${f.name}, de ${s.full} vers ${t.full}, ${carried}` });
       }
-      bands.push({ key: 'applications', label: 'Applications et flux applicatifs (clic sur une pastille : sa chaîne technique)', y, h: bottom - y + 22 });
+      bands.push({ key: 'applications', label: g.titles.applications, y, h: bottom - y + 22 });
       y = bottom + 22 + BAND_GAP;
     }
 
-    // 3. Chaîne technique du flux choisi.
-    const flow = l.flows.find((f) => f.id === this.flowId());
+    // 3. Chaîne technique du flux choisi ; sans flux choisi, une invitation (règle 3 : rien n'est choisi à l'ouverture).
+    const flow = l.flows.find((f) => f.id === g.chainFlowId);
     const stepBox = new Map<string, Box>();
-    if (show['chaine'] && flow) {
+    if (show['chaine'] && l.flows.length) {
       const top = y + LABEL_H + 4;
       const stepW = 210, stepH = 48;
-      if (flow.steps.length === 0) {
-        bands.push({ key: 'chaine', label: `Chaîne technique de ${flow.code ?? flow.name} : non décrite au catalogue`, y, h: LABEL_H + 8 });
+      if (!flow || flow.steps.length === 0) {
+        bands.push({ key: 'chaine', label: g.titles.chaine, y, h: LABEL_H + 8 });
         y += LABEL_H + 8 + BAND_GAP;
       } else {
         const gap = Math.min(70, (W - 2 * PAD - flow.steps.length * stepW) / Math.max(1, flow.steps.length - 1));
@@ -583,11 +680,12 @@ export class LineagePage {
           stepBox.set(t.id + '#' + i, b);
           if (i > 0) {
             const prev = [...stepBox.values()][stepBox.size - 2];
-            chain.push({ id: 'c' + i, d: `M${prev.x + prev.w},${top + stepH / 2} L${x - 2},${top + stepH / 2}`, dashed: !verified(st.status), selected: false, lx: 0, ly: 0, label: '', full: '' });
+            chain.push({ id: 'c' + i, d: `M${prev.x + prev.w},${top + stepH / 2} L${x - 2},${top + stepH / 2}`, dashed: !verified(st.status), selected: false, dim: false,
+              lx: 0, ly: 0, label: '', full: '', aria: '' });
           }
           x += stepW + gap;
         });
-        bands.push({ key: 'chaine', label: `Chaîne technique de ${flow.code ?? ''} ${flow.name}`.replace('  ', ' '), y, h: stepH + LABEL_H + 18 });
+        bands.push({ key: 'chaine', label: g.titles.chaine, y, h: stepH + LABEL_H + 18 });
         y = top + stepH + 14 + BAND_GAP;
       }
     }
@@ -603,17 +701,18 @@ export class LineagePage {
       hosts.forEach((hst, i) => {
         const sub = [USAGE[hst.usage] ?? hst.usage, hst.kind === 'partage' ? 'partage' : null, hst.details[0] ?? null].filter(Boolean).join(' · ');
         hostBox.set(hst.id, box({ id: hst.id, kind: 'hote', x: pos[i].x, y: pos[i].y, w, h, title: fit(hst.name, w - 18), sub: fit(sub, w - 18, 11), full: `${hst.name} (${hst.typeLabel})`,
-          dashed: hst.usage === 'transit', strong: chainHosts.has(hst.id) || hst.id === l.focus.id }));
+          // Bordure épaisse : l'objet regardé seulement (règle 4) ; les serveurs de la chaîne sont allumés par la sélection.
+          dashed: hst.usage === 'transit', strong: hst.id === l.focus.id }));
       });
       for (const [key, b] of stepBox) {
         for (const hid of tech.get(b.id)?.hostIds ?? []) {
           const hb = hostBox.get(hid);
-          if (hb) leaders.push({ x1: b.x + b.w / 2, y1: b.y + b.h, x2: hb.x + hb.w / 2, y2: hb.y });
+          if (hb) leaders.push({ x1: b.x + b.w / 2, y1: b.y + b.h, x2: hb.x + hb.w / 2, y2: hb.y, dim: b.dim || hb.dim });
         }
         void key;
       }
       const bottom = Math.max(...pos.map((p) => p.y)) + h;
-      bands.push({ key: 'hebergement', label: 'Hébergement (trait plein : la donnée y est stockée ; pointillé : elle y transite)', y, h: bottom - y + 12 });
+      bands.push({ key: 'hebergement', label: g.titles.hebergement, y, h: bottom - y + 12 });
       y = bottom + 12 + BAND_GAP;
     }
 
@@ -631,7 +730,16 @@ export class LineagePage {
         y = bottom + 12 + BAND_GAP;
       }
     }
-    return { width: W, height: Math.max(120, y - BAND_GAP + 10), bands, boxes, edges, chain, leaders };
+    // Trait de rattachement : des données transportées par le flux choisi à sa pastille.
+    if (picked?.kind === 'flux') {
+      const e = edges.find((x) => x.id === picked.id);
+      const f = l.flows.find((x) => x.id === picked.id);
+      for (const id of f?.dataIds ?? []) {
+        const b = dataBox.get(id);
+        if (b && e) ties.push({ x1: b.x + b.w / 2, y1: b.y + b.h, x2: e.lx, y2: e.ly - 9, dim: false });
+      }
+    }
+    return { width: W, height: Math.max(120, y - BAND_GAP + 10), bands, boxes, edges, chain, leaders, ties };
   }
 }
 
