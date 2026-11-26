@@ -2,7 +2,8 @@ namespace AeTool.Core;
 
 // Données déduites du graphe : dépendances, analyse d'impact, matrices, impacts et adhérences projet, qualité.
 
-public sealed record Reached(string Id, string Name, string TypeKey, string Layer, int Depth, string Via, string Direction);
+/// <summary>Objet atteint par une analyse d'impact. <c>From</c> : les objets du niveau précédent par lesquels on l'atteint (tous, pas seulement le premier), pour lire qui sert qui.</summary>
+public sealed record Reached(string Id, string Name, string TypeKey, string Layer, int Depth, string Via, string Direction, IReadOnlyList<string> From);
 public sealed record GraphNode(string Id, string Name, string TypeKey, string Layer, int Depth);
 public sealed record GraphEdge(string Id, string TypeKey, string Source, string Target, string? Name);
 public sealed record Graph(List<GraphNode> Nodes, List<GraphEdge> Edges);
@@ -49,20 +50,29 @@ public sealed class Analyzer
         var frontier = new List<string> { start };
         for (var d = 1; d <= depth && frontier.Count > 0; d++)
         {
-            var next = new List<string>();
+            // Un objet est atteint au premier niveau où il apparaît ; à ce niveau, on garde tous les objets d'où l'on y arrive.
+            var level = new Dictionary<string, (Relationship First, List<string> From)>();
+            var order = new List<string>();
             foreach (var current in frontier)
             {
                 foreach (var rel in downstream ? _bySource[current] : _byTarget[current])
                 {
                     var other = downstream ? rel.TargetId : rel.SourceId;
-                    if (!seen.Add(other)) continue;
-                    var o = _repo.Objects[other];
-                    next.Add(other);
-                    yield return new Reached(o.Id, o.Name, o.TypeKey, _repo.Metamodel.LayerOf(o.TypeKey), d,
-                        _repo.Metamodel.RelType(rel.TypeKey)?.Label ?? rel.TypeKey, downstream ? "aval" : "amont");
+                    if (level.TryGetValue(other, out var known)) { if (!known.From.Contains(current)) known.From.Add(current); continue; }
+                    if (seen.Contains(other)) continue;
+                    level[other] = (rel, new List<string> { current });
+                    order.Add(other);
                 }
             }
-            frontier = next;
+            foreach (var other in order)
+            {
+                seen.Add(other);
+                var (rel, from) = level[other];
+                var o = _repo.Objects[other];
+                yield return new Reached(o.Id, o.Name, o.TypeKey, _repo.Metamodel.LayerOf(o.TypeKey), d,
+                    _repo.Metamodel.RelType(rel.TypeKey)?.Label ?? rel.TypeKey, downstream ? "aval" : "amont", from);
+            }
+            frontier = order;
         }
     }
 

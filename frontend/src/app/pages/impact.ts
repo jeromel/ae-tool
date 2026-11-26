@@ -4,22 +4,21 @@ import { Session } from '../session';
 import { Router, RouterLink } from '@angular/router';
 import { Api, Brief } from '../api';
 import { ObjectSearch } from '../object-search';
+import { type ReachedItem, type ServesRow, carriers, countersOf, readingOf, servesTable, subjectOf } from '../impact-reading';
 
-interface Reached { id: string; name: string; typeKey: string; layer: string; depth: number; via: string; direction: string; }
+interface TypeInfo { label: string; layer: string; roles: string[]; }
+type Side = 'aval' | 'amont';
 
 /**
- * Analyse d'impact : ce qui est touché si un objet tombe ou change (aval), et ce dont il dépend (amont).
- * Elle traverse toutes les couches, du serveur à la capacité, selon les relations du référentiel.
+ * Analyse d'impact : ce qui porte un objet et ce qui en dépend. La colonne lue en premier, ses titres et ses compteurs
+ * suivent la couche de l'objet analysé, et la première colonne dit qui sert qui (maquette « analyse d'impact selon
+ * l'objet »). Les décisions de lecture sont dans impact-reading.ts, testé hors navigateur.
  */
 @Component({
   imports: [RouterLink, ObjectSearch, ScopeNote],
   template: `
     <h1>Analyse d'impact</h1>
-    @if (session.business()) {
-      <p class="lead">Choisissez une application ou une donnée : l'outil suit les relations pour dire ce qui est touché si elle tombe ou change, et ce dont elle dépend.</p>
-    } @else {
-      <p class="lead">Choisissez un serveur, un réseau, une application ou une donnée : l'outil suit les relations pour dire ce qui est touché s'il tombe ou change, et ce dont il dépend.</p>
-    }
+    <p class="lead">Choisissez un objet, quel qu'il soit. L'outil suit les relations pour dire ce qui le porte et ce qui en dépend.</p>
     <div class="card">
       <div class="tools" style="margin: 0">
         <div style="flex: 1; min-width: 240px; max-width: 420px"><app-object-search placeholder="Objet à analyser" (picked)="choose($event)" /></div>
@@ -32,42 +31,100 @@ interface Reached { id: string; name: string; typeKey: string; layer: string; de
     </div>
 
     @if (subject(); as s) {
-      <div class="stats">
-        <div class="stat" style="flex: 2"><b style="font-size: 20px">{{ s.name }}</b><span>{{ s.typeLabel }}, {{ s.layerLabel }} · <a [routerLink]="['/objets', s.id]">contexte</a></span></div>
-        <div class="stat" [class.alert]="downstream().length > 0"><b>{{ downstream().length }}</b><span>objets touchés en aval</span></div>
-        <div class="stat"><b>{{ applicationsDown() }}</b><span>dont applications</span></div>
-        <div class="stat"><b>{{ upstream().length }}</b><span>dépendances en amont</span></div>
-      </div>
-      <!-- Sans l'infrastructure, l'analyse s'arrête où elle commence : on le dit sous le résultat (maquette périmètre, §3). -->
-      @if (session.business()) { <app-scope-note text="Dépendances techniques non affichées : votre accès couvre les processus, applications, flux et données." /> }
-      <div class="row">
-        @for (side of sides(); track side.key) {
-          <div class="card">
-            <h2>{{ side.title }}</h2>
-            <p class="muted small" style="margin-top: -6px">{{ side.hint }}</p>
-            @for (g of side.groups; track g.layer) {
-              <h3>{{ g.label }} ({{ g.items.length }})</h3>
-              @for (r of g.items; track r.id) {
-                <div class="line">
-                  <span class="chip" title="Distance, en nombre de relations">{{ r.depth }}</span>
-                  <a [routerLink]="['/objets', r.id]">{{ r.name || '(sans nom)' }}</a>
-                  <span class="muted small">{{ types()[r.typeKey] ?? r.typeKey }}, via {{ r.via }}</span>
-                  <a class="small right" routerLink="/impact" [queryParams]="{ objet: r.id }">Analyser</a>
-                </div>
+      @if (loading()) {
+        <div class="card muted">Recherche des relations…</div>
+      } @else {
+        <div class="stats">
+          <div class="stat" style="flex: 2"><b style="font-size: 20px">{{ s.name }}</b><span>{{ s.typeLabel }}, {{ s.layerLabel }} · <a [routerLink]="['/objets', s.id]">contexte</a></span></div>
+          @for (c of counters(); track c.label) {
+            <div class="stat" [class.alert]="c.alert"><b>{{ c.value }}</b><span>{{ c.label }}</span></div>
+          }
+        </div>
+        <!-- Sans l'infrastructure, l'analyse s'arrête où elle commence : on le dit sous le résultat (maquette périmètre, §3). -->
+        @if (session.business()) { <app-scope-note text="Dépendances techniques non affichées : votre accès couvre les processus, applications, flux et données." /> }
+        <div class="row">
+          @for (side of sides(); track side.key) {
+            <div class="card">
+              <h2>{{ side.title }}</h2>
+              <p class="muted small" style="margin-top: -6px">{{ side.hint }}</p>
+              @if (side.table; as t) {
+                @if (t.rows.length === 0) {
+                  <p class="muted">
+                    @if (t.cells === 'technique') { Aucune application ne porte {{ s.name }} dans le référentiel. }
+                    @else { Aucune application n'est touchée dans le référentiel. }
+                    <a [routerLink]="['/objets', s.id]">Voir la fiche</a>
+                  </p>
+                } @else {
+                  <div class="serves" role="table" [attr.aria-label]="side.title">
+                    <div class="head" role="row"><span role="columnheader">{{ t.rowsLabel }}</span><span role="columnheader">{{ t.cellsLabel }}</span></div>
+                    @for (r of t.rows; track r.id) {
+                      <div class="line" role="row">
+                        <span role="cell"><a [routerLink]="['/objets', r.id]">{{ r.name || '(sans nom)' }}</a></span>
+                        <span role="cell" class="cell">
+                          @for (i of r.direct; track i.id; let last = $last) {
+                            <a [routerLink]="['/objets', i.id]">{{ i.name }}</a>
+                            @if (i.also.length) { <span class="muted small"> (aussi : {{ i.also.join(', ') }})</span> }
+                            @if (!last) { <span class="muted"> · </span> }
+                          }
+                          @if (r.below.length) {
+                            @if (open().has(r.id)) {
+                              <span class="muted"> · </span>
+                              @for (i of r.below; track i.id; let last = $last) {
+                                <a [routerLink]="['/objets', i.id]">{{ i.name }}</a>
+                                @if (i.also.length) { <span class="muted small"> (aussi : {{ i.also.join(', ') }})</span> }
+                                @if (!last) { <span class="muted"> · </span> }
+                              }
+                              <button type="button" class="link small" (click)="toggle(r.id)">replier</button>
+                            } @else {
+                              <button type="button" class="link small" (click)="toggle(r.id)">+ {{ r.below.length }} en dessous</button>
+                            }
+                          }
+                          @if (r.direct.length === 0 && r.below.length === 0) {
+                            <span class="muted small">{{ emptyCell() }}</span>
+                            @if (t.cells === 'technique' && !session.business()) { · <a class="small" [routerLink]="['/objets', r.id]">Renseigner</a> }
+                          }
+                        </span>
+                      </div>
+                    }
+                  </div>
+                }
+                @if (side.groups.length) { <h3 class="others">Aussi dans ce sens</h3> }
               }
-            } @empty {
-              <p class="muted">Rien à cette distance.</p>
-            }
-          </div>
-        }
-      </div>
+              @for (g of side.groups; track g.layer) {
+                <h3>{{ g.label }} ({{ g.items.length }})</h3>
+                @for (r of g.items; track r.id) {
+                  <div class="item">
+                    <span class="chip" title="Distance, en nombre de relations">{{ r.depth }}</span>
+                    <a [routerLink]="['/objets', r.id]">{{ r.name || '(sans nom)' }}</a>
+                    <span class="muted small">{{ types()[r.typeKey]?.label ?? r.typeKey }}, via {{ r.via }}</span>
+                    <a class="small right" routerLink="/impact" [queryParams]="{ objet: r.id }">Analyser</a>
+                  </div>
+                }
+              } @empty {
+                @if (!side.table) { <p class="muted">Rien à cette distance.</p> }
+              }
+            </div>
+          }
+        </div>
+      }
     } @else {
       <div class="card muted">Aucun objet choisi. Cherchez-le par son nom, ou utilisez l'action « Impact » proposée sur les listes et les vues.</div>
     }
   `,
   styles: `
     h3 { margin: 14px 0 4px; font-size: 12.5px; color: var(--muted); font-weight: 600; }
-    .line { display: flex; gap: 8px; align-items: baseline; padding: 4px 0; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+    h3.others { margin-top: 18px; }
+    .item { display: flex; gap: 8px; align-items: baseline; padding: 4px 0; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+    /* L'alignement remplace la flèche : une ligne par application, ce qui la sert à droite (maquette, §3). */
+    .serves .head, .serves .line { display: grid; grid-template-columns: minmax(180px, 1fr) 2fr; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+    .serves .head { font-size: 12px; color: var(--muted); font-weight: 600; }
+    .serves .cell { line-height: 1.6; }
+    button.link { background: none; border: none; padding: 0 0 0 6px; color: var(--accent, #0c5a70); text-decoration: underline; cursor: pointer; }
+    @media (max-width: 640px) {
+      .serves .head { display: none; }
+      .serves .line { grid-template-columns: 1fr; gap: 2px; }
+      .serves .cell { padding-left: 16px; }
+    }
   `,
 })
 export class ImpactPage {
@@ -78,35 +135,80 @@ export class ImpactPage {
   objet = input<string>();
   depth = signal(3);
   subject = signal<Brief | null>(null);
-  reached = signal<Reached[]>([]);
-  types = signal<Record<string, string>>({});
+  reached = signal<ReachedItem[]>([]);
+  loading = signal(false);
+  types = signal<Record<string, TypeInfo>>({});
+  open = signal(new Set<string>());
   private layers = signal<{ key: string; label: string; order: number }[]>([]);
-  private applicationTypes = signal<string[]>([]);
 
-  downstream = computed(() => this.reached().filter((r) => r.direction === 'aval'));
-  upstream = computed(() => this.reached().filter((r) => r.direction === 'amont'));
-  applicationsDown = computed(() => this.downstream().filter((r) => this.applicationTypes().includes(r.typeKey)).length);
+  private roles = computed(() => {
+    const t = this.types();
+    return {
+      isApplication: (k: string) => t[k]?.roles.includes('application') ?? false,
+      isCapability: (k: string) => t[k]?.roles.includes('capacite') ?? false,
+    };
+  });
+  kind = computed(() => {
+    const s = this.subject();
+    const info = s ? this.types()[s.typeKey] : undefined;
+    return info ? subjectOf(info.layer, info.roles) : 'autre';
+  });
+  reading = computed(() => readingOf(this.kind()));
+  /** Applications qui portent l'objet (lignes du tableau), et pas leurs simples voisines. */
+  private rows = computed(() => carriers(this.subject()?.id ?? '', this.kind(), this.reached(), this.roles()));
+  counters = computed(() => {
+    const table = this.sides().find((x) => x.table)?.table;
+    const cells = table ? new Set(table.rows.flatMap((r) => [...r.direct, ...r.below].map((i) => i.id))) : undefined;
+    return countersOf(this.kind(), this.reached(), this.roles(), this.rows(), cells).filter((c) => !(c.infra && this.session.business()));
+  });
 
-  sides = computed(() => [
-    { key: 'aval', title: 'Ce qui est touché s\'il tombe ou change', hint: 'Aval : ce que l\'objet sert, réalise ou alimente.', groups: this.group(this.downstream()) },
-    { key: 'amont', title: 'Ce dont il dépend', hint: 'Amont : ce qui le sert, le réalise ou l\'alimente.', groups: this.group(this.upstream()) },
-  ]);
+  sides = computed(() => {
+    const reading = this.reading();
+    const roles = this.roles();
+    const order: Side[] = reading.first === 'amont' ? ['amont', 'aval'] : ['aval', 'amont'];
+    return order.map((key) => {
+      const list = this.reached().filter((r) => r.direction === key);
+      const spec = key === reading.first ? reading.table : null;
+      if (!spec) return { key, title: reading.titles[key], hint: reading.hints[key], table: null, groups: this.group(list) };
+      const carrying = this.rows();
+      const isRow = (r: ReachedItem) => carrying.has(r.id);
+      const isCell = (r: ReachedItem) => spec.cells === 'technique' ? r.layer === 'technique' : roles.isCapability(r.typeKey);
+      const rows: ServesRow[] = servesTable(this.reached(), key, isRow, isCell);
+      const inTable = new Set(rows.flatMap((r) => [r.id, ...r.direct.map((i) => i.id), ...r.below.map((i) => i.id)]));
+      return {
+        key, title: reading.titles[key], hint: reading.hints[key],
+        table: { rows, rowsLabel: spec.rowsLabel, cellsLabel: spec.cellsLabel, cells: spec.cells },
+        groups: this.group(list.filter((r) => !inTable.has(r.id))),
+      };
+    });
+  });
+
+  /** Cellule vide : jamais blanche (maquette, §4). */
+  emptyCell = computed(() => {
+    const cells = this.reading().table?.cells;
+    if (cells === 'technique') return this.session.business() ? 'Non affichée dans votre accès' : 'Aucune infrastructure connue';
+    return 'Aucune capacité connue';
+  });
 
   constructor() {
     this.api.get('/metamodel').then((m) => {
-      this.types.set(Object.fromEntries(m.objectTypes.map((t: any) => [t.key, t.label])));
+      this.types.set(Object.fromEntries(m.objectTypes.map((t: any) => [t.key, { label: t.label, layer: t.layerKey, roles: t.roles ?? [] }])));
       this.layers.set(m.layers);
-      this.applicationTypes.set(m.objectTypes.filter((t: any) => t.roles.includes('application')).map((t: any) => t.key));
     });
     effect(() => {
       const id = this.objet();
       const depth = this.depth();
+      this.open.set(new Set());
       if (!id) {
         this.subject.set(null);
         return this.reached.set([]);
       }
+      this.loading.set(true);
       this.api.get(`/objects/${id}`).then((o) => this.subject.set(o.brief)).catch(() => this.subject.set(null));
-      this.api.get(`/analysis/impact/${id}?depth=${depth}&direction=tous`).then((r) => this.reached.set(r)).catch(() => this.reached.set([]));
+      this.api.get<ReachedItem[]>(`/analysis/impact/${id}?depth=${depth}&direction=tous`)
+        .then((r) => this.reached.set(r))
+        .catch(() => this.reached.set([]))
+        .finally(() => this.loading.set(false));
     });
   }
 
@@ -114,8 +216,14 @@ export class ImpactPage {
     this.router.navigate([], { queryParams: { objet: o.id } });
   }
 
+  toggle(id: string): void {
+    const next = new Set(this.open());
+    if (next.has(id)) next.delete(id); else next.add(id);
+    this.open.set(next);
+  }
+
   /** Regroupe par couche, dans l'ordre du métamodèle, puis par distance croissante. */
-  private group(list: Reached[]): { layer: string; label: string; items: Reached[] }[] {
+  private group(list: ReachedItem[]): { layer: string; label: string; items: ReachedItem[] }[] {
     return this.layers()
       .slice()
       .sort((a, b) => a.order - b.order)

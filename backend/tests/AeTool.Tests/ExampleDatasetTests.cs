@@ -31,6 +31,20 @@ public static class ExampleDatasetTests
             var again = ArchimateExchange.Import(s, repo);
             Equal(0, again.Counts.Values.Sum(c => c.Added + c.Updated + c.Archived), "écarts au rejeu");
         });
+        Test("jeu Hydréane : l'analyse d'impact dit par où l'on atteint chaque objet, tous les chemins d'un même niveau (maquette impact)", () =>
+        {
+            var an = new Analyzer(repo);
+            bool IsApp(string typeKey) => repo.Metamodel.IsA(typeKey, AeTool.Core.Roles.Application);
+            var capacities = repo.ActiveObjects.Where(o => repo.Metamodel.IsA(o.TypeKey, AeTool.Core.Roles.Capability)).ToList();
+            var shared = capacities.Select(c => (c, reached: an.Impact(c.Id, 2, "amont")))
+                .Select(x => (x.c, x.reached, item: x.reached.FirstOrDefault(r => r.Depth == 2 && r.Layer == "technique" && r.From.Count >= 2)))
+                .FirstOrDefault(x => x.item is not null);
+            True(shared.item is not null, "une infrastructure partagée par deux applications d'une même capacité");
+            var apps = shared.reached.Where(r => r.Depth == 1).ToDictionary(r => r.Id);
+            True(shared.item!.From.All(f => apps.ContainsKey(f) && IsApp(apps[f].TypeKey)), $"{shared.item.Name} atteint par {string.Join(", ", shared.item.From)}");
+            True(shared.reached.Where(r => r.Depth == 1).All(r => r.From.SequenceEqual(new[] { shared.c.Id })), "au premier niveau, on vient de l'objet analysé");
+            Equal(shared.reached.Count, shared.reached.Select(r => r.Id).Distinct().Count(), "chaque objet une seule fois");
+        });
         Test("jeu Hydréane : le classeur enrichit les 38 applications du modèle", () =>
         {
             using var s = File.OpenRead(Path.Combine(dir, "hydreane-referentiel-urbanisation.xlsx"));
