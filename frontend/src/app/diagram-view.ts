@@ -5,6 +5,7 @@ import { autoLayout, Box, snap } from './auto-layout';
 import { Point, Rect, Side, bezier, bezierMiddle, contains, facingSides, polylineMiddle, portPoint, roundedPath } from './geometry';
 import { RouteRequest, routeAll } from './routing';
 import { LABEL_MIN_FONT, LabelFit, Measure, canvasMeasure, fitLabel } from './label-fit';
+import { grownHeight, roomBelow } from './card-grow';
 
 export interface DiagramNode {
   id: string; kind: string; elementId: string | null; name: string; typeLabel: string | null;
@@ -38,6 +39,7 @@ interface NodeView extends DiagramNode {
   header: number;         // zone : hauteur libre au-dessus du premier élément contenu
   badge: string | null;   // valeur du calque
   innerZones: string[];   // zone : identifiants des zones qu'elle contient
+  room: number;           // carte : hauteur libre sous elle, où son nom peut descendre (palier 3)
   innerCards: string[];   // zone : identifiants des éléments (hors zones) qu'elle contient
 }
 interface Wire {
@@ -111,7 +113,7 @@ const NORMAL: Record<Side, Point> = { N: { x: 0, y: -1 }, E: { x: 1, y: 0 }, S: 
               [class.dim]="isDimmed(n)" [class.moving]="movingIds().has(n.id)" [attr.data-mark]="n.mark || null" (click)="pick(n, $event)" (dblclick)="open(n, $event)"
               (pointerdown)="onNodeDown(n, $event, 'move')">
               @if (n.look === 'carte' || n.look === 'rond') {
-                <rect class="shadow" [attr.x]="n.x" [attr.y]="n.y + 2" [attr.width]="n.w" [attr.height]="n.h" [attr.rx]="n.radius" />
+                <rect class="shadow" [attr.x]="n.x" [attr.y]="n.y + 2" [attr.width]="n.w" [attr.height]="n.h + extraOf(n)" [attr.rx]="n.radius" />
               }
               @if (n.shape === 'ellipse' && (n.look === 'exact' || n.look === 'note')) {
                 <ellipse class="body" [attr.cx]="n.x + n.w / 2" [attr.cy]="n.y + n.h / 2" [attr.rx]="n.w / 2" [attr.ry]="n.h / 2"
@@ -119,10 +121,10 @@ const NORMAL: Record<Side, Point> = { N: { x: 0, y: -1 }, E: { x: 1, y: 0 }, S: 
               } @else if (n.shape === 'losange' && (n.look === 'exact' || n.look === 'note')) {
                 <polygon class="body" [attr.points]="diamond(n)" [style.fill]="n.shown" [style.stroke]="edge(n)" />
               } @else {
-                <rect class="body" [attr.x]="n.x" [attr.y]="n.y" [attr.width]="n.w" [attr.height]="n.h" [attr.rx]="n.radius"
+                <rect class="body" [attr.x]="n.x" [attr.y]="n.y" [attr.width]="n.w" [attr.height]="n.h + extraOf(n)" [attr.rx]="n.radius"
                   [style.fill]="n.shown" [style.stroke]="n.kind === 'Label' && !n.outlined ? 'none' : edge(n)" />
               }
-              @if (n.glyphBox; as g) {
+              @if (glyphOf(n); as g) {
                 @if (showGlyph(n)) {
                   @if (n.look === 'rond') {
                     <circle class="disc" [attr.cx]="g.x + g.w / 2" [attr.cy]="g.y + g.h / 2" [attr.r]="g.w * 0.72" [style.stroke]="edge(n)" />
@@ -131,8 +133,8 @@ const NORMAL: Record<Side, Point> = { N: { x: 0, y: -1 }, E: { x: 1, y: 0 }, S: 
                 }
               }
               @if (showName(n)) {
-                <foreignObject [attr.x]="n.text.x" [attr.y]="n.text.y" [attr.width]="n.text.w" [attr.height]="n.text.h">
-                  <div class="label" [class.top]="n.look === 'zone'" [class.left]="n.left" [style.color]="n.look === 'zone' && dark() ? null : n.textColor"
+                <foreignObject [attr.x]="textOf(n).x" [attr.y]="textOf(n).y" [attr.width]="textOf(n).w" [attr.height]="textOf(n).h">
+                  <div class="label" [class.top]="n.look === 'zone'" [class.left]="leftOf(n)" [style.color]="n.look === 'zone' && dark() ? null : n.textColor"
                     [style.font-size.px]="fontOf(n)" [style.font-weight]="n.bold || n.look === 'zone' ? 650 : n.look === 'exact' || n.look === 'note' ? 400 : 550"
                     [title]="(n.typeLabel ? n.typeLabel + ' : ' + n.name : n.name) + (n.replaces ? ' (remplace ' + n.replaces + ' à cette étape)' : '')">
                     @for (line of fitOf(n).lines; track $index) { <span>{{ line }}</span> }
@@ -207,6 +209,9 @@ const NORMAL: Record<Side, Point> = { N: { x: 0, y: -1 }, E: { x: 1, y: 0 }, S: 
         <div class="legend" (pointerdown)="$event.stopPropagation()">
           @if (l.badge) { <span class="badge-key"><i class="pill-key round">1</i>{{ l.badge }}</span> }
           @if (l.flows) { <span class="badge-key"><i class="pill-key">F1</i>{{ l.flows }}</span> }
+          @if (l.flows && l.lock) {
+            <span class="badge-key"><svg class="lock-key" width="16" height="14" viewBox="0 0 10 10" aria-hidden="true"><path class="lock" stroke="#14262d" d="M2 4.5h6v5H2zM3.5 4.5V3a1.5 1.5 0 0 1 3 0v1.5" /></svg>chiffré</span>
+          }
           @if (l.title) { <b>{{ l.title }}</b> }
           @for (e of l.entries; track e.label) { <span><i [style.background]="e.color"></i>{{ e.label }}</span> }
         </div>
@@ -383,15 +388,17 @@ export class DiagramView implements OnDestroy {
     const layer = this.activeLayer();
     // Les pastilles de flux ont leur ligne de légende, calque ou non (revue Camille L2).
     const wires = this.exact() ? [] : this.wires().filter((w) => w.flow);
-    const flows = wires.length ? 'Flux : code ou numéro, cliquez pour ses données' + (wires.some((w) => w.lock) ? ' · 🔒 chiffré' : '') : null;
-    if (!layer || this.exact()) return flows ? { title: null, badge: null, flows, entries: [] } : null;
+    const flows = wires.length ? 'Flux : code ou numéro, cliquez pour ses données' : null;
+    // Le cadenas est dessiné comme sur les pastilles : un caractère emoji dépend des polices du poste.
+    const lock = wires.some((w) => w.lock);
+    if (!layer || this.exact()) return flows ? { title: null, badge: null, flows, lock, entries: [] } : null;
     // Une pastille de calque porte toujours une légende visible, pour tous les profils (charte §3.4).
     const badges = this.nodes().some((n) => n.badge);
     const scale = layer.key === 'cm' ? ', de 1 (faible) à 4 (vitale)' : '';
     const badge = badges ? `Pastille : ${layer.label.toLowerCase()}${scale}` : null;
-    if (!this.colorize()) return badge || flows ? { title: null, badge, flows, entries: [] } : null;
+    if (!this.colorize()) return badge || flows ? { title: null, badge, flows, lock, entries: [] } : null;
     const entries = [...this.layerColors()].map(([label, color]) => ({ label, color }));
-    return { title: layer.label, badge, flows, entries: [...entries, { label: 'Sans valeur', color: NEUTRAL }] };
+    return { title: layer.label, badge, flows, lock, entries: [...entries, { label: 'Sans valeur', color: NEUTRAL }] };
   });
 
   nodes = computed<NodeView[]>(() => {
@@ -416,7 +423,7 @@ export class DiagramView implements OnDestroy {
         font: n.fontSize * 1.33, fit: { font: n.fontSize * 1.33, lines: [], truncated: false }, innerCards: [], left: false, glyphBox: null, badge: exact || look === 'zone' ? null : shorten(value, 16),
         text: { x: n.x + 6, y: n.y + 2, w: n.w - 12, h: n.h - 4 },
         header: kids.length ? Math.max(0, Math.min(...kids.map((k) => k.y)) - n.y) : n.h,
-        innerZones: kids.filter((k) => zones.has(k.id)).map((k) => k.id),
+        innerZones: kids.filter((k) => zones.has(k.id)).map((k) => k.id), room: 0,
       };
       // Petite forme de dessin (losange, cercle) : comme dans draw.io, son texte peut déborder de part et d'autre.
       if (look === 'note' && n.w < 70) view.text = { x: n.x + n.w / 2 - 50, y: n.y - 4, w: 100, h: n.h + 8 };
@@ -426,6 +433,11 @@ export class DiagramView implements OnDestroy {
       return view;
     });
     for (const z of views) if (zones.has(z.id)) z.innerCards = inside(z).filter((k) => !zones.has(k.id)).map((k) => k.id);
+    // Palier 3 (charte §2.1, revue Camille L1) : place libre sous chaque carte, où son nom peut descendre au zoom courant.
+    if (!exact) {
+      const rects: Rect[] = views.map((v) => ({ x: v.x, y: v.y, w: v.w, h: v.h }));
+      views.forEach((v, i) => { if (v.look === 'carte' || v.look === 'rond') v.room = roomBelow(rects[i], rects); });
+    }
     return views;
   });
 
@@ -642,7 +654,34 @@ export class DiagramView implements OnDestroy {
     return this.fitOf(n).font;
   }
 
-  private zoomFits = new WeakMap<NodeView, { target: number; fit: LabelFit }>();
+  private zoomFits = new WeakMap<NodeView, { target: number; fit: LabelFit; extra: number; text?: Rect; glyph?: Rect | null }>();
+  /** Cartes où aboutit un lien dessiné : elles gardent leur hauteur, sans quoi le lien finirait dans la carte agrandie. */
+  private wired = computed(() => new Set(this.traced().flatMap((w) => [w.sourceId, w.targetId])));
+
+  /** Hauteur ajoutée à la carte au zoom courant (palier 3), 0 le plus souvent. */
+  extraOf(n: NodeView): number {
+    this.fitOf(n);
+    return this.zoomFits.get(n)?.extra ?? 0;
+  }
+
+  /** Cadre du nom au zoom courant : celui de la carte, ou plus haut, voire sur toute la largeur (palier 3). */
+  textOf(n: NodeView): Rect {
+    this.fitOf(n);
+    const z = this.zoomFits.get(n);
+    const t = z?.text ?? n.text;
+    return { x: t.x, y: t.y, w: t.w, h: t.h + (z?.extra ?? 0) };
+  }
+
+  glyphOf(n: NodeView): Rect | null {
+    this.fitOf(n);
+    const z = this.zoomFits.get(n);
+    return z && z.glyph !== undefined ? z.glyph : n.glyphBox;
+  }
+
+  leftOf(n: NodeView): boolean {
+    this.fitOf(n);
+    return this.zoomFits.get(n)?.text ? false : n.left;
+  }
 
   /**
    * Nom rangé pour le zoom courant. Quand on dézoome, il grossit pour rester lisible (10,5 px à l'écran), toujours
@@ -652,20 +691,55 @@ export class DiagramView implements OnDestroy {
   fitOf(n: NodeView): LabelFit {
     if (n.look !== 'carte' && n.look !== 'rond') return n.fit;
     const target = Math.round((10.5 / this.scale()) * 4) / 4;
-    if (n.font >= target) return n.fit;
+    if (n.font >= target && !n.fit.truncated) return n.fit;
     const cached = this.zoomFits.get(n);
     if (cached && cached.target === target) return cached.fit;
     const measure = measureFor(n);
-    const grown = fitLabel(n.name, n.text.w, n.text.h, { max: target, min: target, floor: target, measure });
-    const fits = grown.lines.length > 0 && grown.lines.every((l) => measure(l) * grown.font <= n.text.w + 0.5);
-    const visible = grown.lines.join(' ').replace(/ ?…$/, '').length;
-    const fit = fits && (!grown.truncated || visible >= 6) ? grown : n.fit;
-    this.zoomFits.set(n, { target, fit });
+    let fit = n.fit;
+    let cut = n.fit.truncated;
+    if (n.font < target) {
+      const grown = fitLabel(n.name, n.text.w, n.text.h, { max: target, min: target, floor: target, measure });
+      const fits = grown.lines.length > 0 && grown.lines.every((l) => measure(l) * grown.font <= n.text.w + 0.5);
+      const visible = grown.lines.join(' ').replace(/ ?…$/, '').length;
+      fit = fits && (!grown.truncated || visible >= 6) ? grown : n.fit;
+      cut = !fits || grown.truncated;
+    }
+    let extra = 0;
+    // Palier 3 (charte §2.1, revue Camille L1) : avant d'abréger, la carte grandit vers le bas dans la place libre, si
+    // aucun lien dessiné n'y aboutit. La disposition enregistrée ne change pas.
+    let text: Rect | undefined;
+    let glyph: Rect | null | undefined;
+    if (cut && n.room > 0 && !this.wired().has(n.id)) {
+      const size = Math.max(target, n.fit.font);
+      let whole: LabelFit | null = null;
+      const tryWidth = (width: number) => grownHeight(n.text.h, n.room, (height) => {
+        // La carte grandit : c'est la hauteur, et non le plafond de trois lignes, qui borne le nom.
+        const f = fitLabel(n.name, width, height, { max: size, min: size, floor: size, maxLines: 6, measure });
+        const ok = !f.truncated && f.lines.length > 0 && f.lines.every((l) => measure(l) * f.font <= width + 0.5);
+        if (ok) whole = f;
+        return ok;
+      });
+      let h = tryWidth(n.text.w);
+      // Un mot plus large que la place laissée à droite du pictogramme : comme dans layoutCard, le pictogramme passe en
+      // coin et le nom prend la largeur.
+      if (h === null && n.left && n.look === 'carte') {
+        const pad = Math.max(5, Math.min(12, n.h * 0.16));
+        h = tryWidth(n.w - 2 * pad);
+        if (h !== null) {
+          text = { x: n.x + pad, y: n.text.y, w: n.w - 2 * pad, h: n.text.h };
+          const g = Math.max(9, Math.min(n.h * 0.2, 16));
+          glyph = n.h >= 44 && n.w >= 70 ? { x: n.x + 5, y: n.y + 5, w: g, h: g } : null;
+        }
+      }
+      if (h !== null && whole) { fit = whole; extra = h - n.text.h; } else { text = undefined; glyph = undefined; }
+    }
+    this.zoomFits.set(n, { target, fit, extra, text, glyph });
     return fit;
   }
 
   showGlyph(n: NodeView): boolean {
-    return n.glyphBox !== null && n.glyphBox.w * this.scale() >= 9;
+    const g = this.glyphOf(n);
+    return g !== null && g.w * this.scale() >= 9;
   }
 
   showBadge(n: NodeView): boolean {

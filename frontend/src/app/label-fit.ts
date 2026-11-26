@@ -3,7 +3,7 @@
  *
  * Paliers, dans l'ordre : passage à la ligne entre deux mots, jusqu'à 3 lignes ; police réduite jusqu'à 11 px ; en
  * dernier recours, nom tronqué par « … » à la fin d'un mot (le nom complet reste au survol et dans le nom accessible).
- * Le palier « la case grandit en hauteur » n'est pas traité ici.
+ * Le palier 3, « la case grandit en hauteur », est dans card-grow.ts et s'applique au zoom courant (diagram-view, fitOf).
  *
  * Les lignes sont calculées ici, et non laissées au navigateur : c'est le seul moyen de garantir qu'aucun mot n'est
  * coupé. Dans le navigateur, la largeur est mesurée avec la police réellement affichée (« canvasMeasure ») : Segoe UI
