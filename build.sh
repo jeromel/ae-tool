@@ -3,7 +3,8 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 export DOTNET_CLI_TELEMETRY_OPTOUT=1 DOTNET_NOLOGO=1
-(cd frontend && npm ci --no-audit --no-fund && npx ng build)
+# Tests des modules de calcul du dessin (tracé, disposition, noms), hors navigateur.
+(cd frontend && npm ci --no-audit --no-fund && npm run --silent test:unit && npx ng build)
 rm -rf backend/src/AeTool.Api/wwwroot
 mkdir -p backend/src/AeTool.Api/wwwroot
 cp -r frontend/dist/frontend/browser/. backend/src/AeTool.Api/wwwroot/

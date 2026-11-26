@@ -6,6 +6,9 @@ $root = $PSScriptRoot
 Push-Location "$root\frontend"
 npm ci
 if ($LASTEXITCODE) { throw "npm ci a échoué" }
+# Tests des modules de calcul du dessin (tracé, disposition, noms), hors navigateur.
+npm run --silent test:unit
+if ($LASTEXITCODE) { throw "des tests de l'interface échouent" }
 npx ng build
 if ($LASTEXITCODE) { throw "ng build a échoué" }
 Pop-Location

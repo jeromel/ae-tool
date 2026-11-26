@@ -10,7 +10,7 @@
  * 4. Les liens qui empruntent le même couloir sont écartés de 6 px les uns des autres pour rester distincts.
  * Quand aucun chemin n'existe (lien enfermé), le lien prend un coude simple : il ne disparaît jamais.
  */
-import { Point, Rect } from './geometry';
+import type { Point, Rect } from './geometry';
 
 export interface RouteEnd {
   /** Point d'attache, sur le bord de la forme. */

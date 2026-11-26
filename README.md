@@ -69,6 +69,7 @@ n'a pas été validée et laisse les tests trancher ; pour revenir au SDK 8 s'il
 | `backend/src/AeTool.Api` | routes REST, sessions et habilitations, stockage, hébergement | Core, Connectors |
 | `backend/tests/AeTool.Tests` | tests automatisés, exécutable console sans cadre de test | les trois |
 | `frontend` | interface Angular : composants autonomes, signaux | l'API |
+| `frontend/tests` | tests des calculs du dessin (tracé, disposition, noms), `node --test` sans cadre de test | `frontend/src/app` |
 
 Règles tenues : le cœur ne connaît ni le web, ni le stockage, ni Archi ; un connecteur ne modifie le référentiel que par le
 modèle du cœur ; le stockage est derrière `IRepositoryStore` ; une seule table fixe le rôle exigé par chaque route.
@@ -76,6 +77,7 @@ modèle du cœur ; le stockage est derrière `IRepositoryStore` ; une seule tabl
 ```bash
 ./build.sh                                              # tout construire et tester (build.ps1 sous Windows)
 dotnet run --project backend/tests/AeTool.Tests         # les tests seuls
+(cd frontend && npm run test:unit)                      # les tests de l'interface seuls
 dotnet run --project backend/tests/AeTool.Tests -- --fichier chemin/vers/export-archi.xml   # contrôle sur un vrai modèle
 ./publier.sh                                            # livraison pour un serveur (publier.ps1 sous Windows)
 ```
