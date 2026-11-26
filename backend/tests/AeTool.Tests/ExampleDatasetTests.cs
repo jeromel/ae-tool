@@ -127,6 +127,23 @@ public static class ExampleDatasetTests
             True(carried.Contains("Dossiers salariés"), "donnée transportée : " + string.Join(", ", carried));
             True(!carried.Any(x => x!.Contains("Bus") || x.Contains("Export RH")), "ni bus ni flux technique : " + string.Join(", ", carried));
         });
+
+        Test("jeu Hydréane : après un aller-retour par Archi, rien n'est signalé, les flux du catalogue restent au catalogue et le modèle maître ne les archive pas", () =>
+        {
+            var dir = Locate()!;
+            var local = new Repository();
+            using (var s = File.OpenRead(Path.Combine(dir, "hydreane-referentiel.xml"))) ArchimateExchange.Import(s, local);
+            using (var s = File.OpenRead(Path.Combine(dir, "hydreane-catalogue-donnees-flux.xlsx"))) CatalogueImporter.Apply(s, "catalogue.xlsx", local, "test", null);
+            int Catalogue() => local.ActiveRelationships.Count(r => r.Source == CatalogueImporter.SourceTag);
+            var before = Catalogue();
+            True(before > 0, "relations du catalogue avant l'aller-retour");
+            var trip = ArchimateExchange.Import(Fixtures.Stream(ArchimateExchange.Export(local).ToString()), local);
+            Equal(0, trip.Counts.Values.Sum(c => c.Added + c.Updated + c.Archived), "écarts signalés au premier aller-retour");
+            Equal(before, Catalogue(), "relations du catalogue après l'aller-retour");
+            // Le modèle maître d'origine ne porte pas ces flux : son réimport ne doit pas les archiver.
+            using (var s = File.OpenRead(Path.Combine(dir, "hydreane-referentiel.xml"))) ArchimateExchange.Import(s, local);
+            Equal(before, Catalogue(), "relations du catalogue après le réimport du modèle maître");
+        });
     }
 
     internal static string? Locate()

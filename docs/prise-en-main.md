@@ -88,9 +88,10 @@ serait écrasée par une valeur plus ancienne.
 
 Archi reconnaît chaque objet à son identifiant, qui ne change pas sur ce trajet : la fusion met à jour les objets
 existants sans les dupliquer, et les nouveaux s'y ajoutent. Les propriétés posées par l'outil passent la fusion, et un
-réimport du modèle maître dans l'outil ne crée pas de doublon. Au premier aller-retour, l'import signale comme modifiées
-les relations venues du catalogue des données et des flux : leurs valeurs ne changent pas, mais elles sont désormais
-marquées comme tenues par Archi. Les aller-retours suivants n'en signalent plus.
+réimport du modèle maître dans l'outil ne crée pas de doublon. Un aller-retour sans modification ne signale aucun
+changement. Les flux venus du catalogue des données et des flux restent tenus par le catalogue après le trajet : un
+réimport du modèle maître ne les archive pas, même s'il ne les contient pas. Ne les modifiez pas dans Archi, c'est le
+catalogue qui fait foi.
 
 Pour essayer l'outil sans données réelles, le dossier [`exemples/hydreane`](../exemples/hydreane/README.md) contient un
 jeu complet d'une entreprise fictive : modèle Archi, classeur d'urbanisation, dessin draw.io et présentation de la méthode.

@@ -8,7 +8,7 @@
 
 | Lot | État | Ce qui reste |
 |---|---|---|
-| 1, référentiel | **Livré**, avec une dérogation et trois exigences partielles | base relationnelle (ET-04, dérogation de la décision 004) ; filtres enregistrés (EF-03) ; export Excel (EF-04) ; fraîcheur par propriétaire (EF-53) |
+| 1, référentiel | **Livré**, avec une dérogation et trois exigences partielles | base relationnelle (ET-04, dérogation maintenue par la décision 011) ; filtres enregistrés (EF-03) ; export Excel (EF-04) ; fraîcheur par propriétaire (EF-53) |
 | 2, CMDB et projets | **Commencé** | valider le client API REST sur la CMDB réelle ; synchronisation planifiée ; outil de gestion de projet par son API ; avis d'architecture (EF-24) |
 | 3, modélisation | Amorcé par le rendu des vues | édition graphique des diagrammes (EF-60, 62, 65, 67) |
 | 4, trajectoires | Non commencé | scénarios, steps, journal des décisions (EF-30 à 36, EF-54) |
@@ -76,10 +76,10 @@
 | ET-01 .NET à support long, OpenAPI, Angular supporté | Partiel | .NET 10 et Angular 22 ; pas de description OpenAPI |
 | ET-02 Un module par domaine | Couvert | |
 | ET-03 Cœur indépendant | Couvert | |
-| ET-04 Base relationnelle | **Dérogation** | stockage par fichier pour le pilote (décision 004) ; à lever avant généralisation |
+| ET-04 Base relationnelle | **Dérogation** | dérogation maintenue, seuils suivis (décision 011, qui remplace la 004) : stockage par fichier conservé pour la généralisation ; l'administrateur suit les quatre seuils de révision |
 | ET-05 Pas de composant lourd | Couvert | un processus, un dossier |
 | ET-10 Spécifications et tests dans Git | Couvert | |
-| ET-11 Tests automatisés | Couvert | 362 tests ; les scripts échouent si un test échoue ; pas de chaîne d'intégration continue |
+| ET-11 Tests automatisés | Couvert | 367 tests du serveur et 47 de l'interface ; les scripts échouent si un test échoue ; pas de chaîne d'intégration continue |
 | ET-12 Analyse statique et formatage | Partiel | avertissements du compilateur bloquants ; pas de règle de formatage automatisée |
 | ET-13 Revue par une seconde personne | **À la DSI** | le code a été produit avec une IA : la revue humaine reste entièrement à faire |
 | ET-14 Documentation minimale | Couvert | prise en main, architecture, décisions, exploitation, installation, sécurité |
@@ -104,7 +104,7 @@
 | ED-04 Source maître, donnée synchronisée non modifiable | Couvert | l'écran grise le champ et nomme son maître ; le serveur refuse la modification |
 | ED-05 Propriétaire nommé | Partiel | champ « Responsable », non obligatoire |
 | ED-06 Test de réversibilité | Couvert | fait le 14 novembre 2026 : export complet, démarrage d'une instance vierge sur ce fichier, état identique |
-| ED-07 Accès restreint aux données sensibles | Partiel | accès par rôle ; **tout lecteur voit tout le référentiel**, OT compris |
+| ED-07 Accès restreint aux données sensibles | Partiel | accès par rôle ; **tout lecteur voit tout le référentiel**, OT compris. Décision 012 (26/11) : personnes nommées (réglage Entra ID, à décrire dans `installation.md`) et périmètre de lecture « métier » sans l'infrastructure, à livrer (≈ 3 à 4 j) |
 | ED-08 Clause SaaS | Sans objet | |
 
 ## Exploitation

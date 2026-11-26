@@ -183,7 +183,9 @@ public static class ArchimateExchange
                 Name = Text(el.Element(A + "name")), Documentation = Text(el.Element(A + "documentation")),
                 Properties = transcoder.Values(raw),
                 AccessType = (string?)el.Attribute("accessType"), Modifier = (string?)el.Attribute("modifier"),
-                IsDirected = (bool?)el.Attribute("isDirected"), Source = SourceTag,
+                // Comme pour un objet, une relation déjà connue garde sa source : un flux du catalogue reste tenu par le catalogue
+                // après un aller-retour par Archi, et n'est donc pas archivé s'il manque au fichier suivant.
+                IsDirected = (bool?)el.Attribute("isDirected"), Source = existing?.Source ?? SourceTag,
             };
             foreach (var (end, label) in new[] { (incoming.SourceId, "source"), (incoming.TargetId, "cible") })
                 if (!repo.Objects.ContainsKey(end) && !relationIds.Contains(end))
@@ -195,9 +197,15 @@ public static class ArchimateExchange
             // Rôle vis-à-vis d'une donnée, code et caractéristiques d'un flux : posés par le catalogue, gardés si Archi ne les porte pas.
             if (existing is not null)
                 incoming.Properties.AddRange(existing.Properties.Where(p => CatalogueModel.IsOwned(p.Key) && incoming.Properties.All(i => i.Key != p.Key)));
-            if (existing is null) { repo.Relationships[id] = incoming; tally.Added++; }
-            else if (Json(existing) == Json(incoming)) tally.Unchanged++;
-            else { repo.Relationships[id] = incoming; tally.Updated++; }
+            if (existing is null) { repo.Relationships[id] = incoming; tally.Added++; continue; }
+            // Comme pour un objet : une relation créée dans l'outil (catalogue, saisie) n'a pas encore de concept ;
+            // celui que l'export lui a donné ne compte pas comme une modification. Il est gardé si la relation a vraiment changé.
+            var received = incoming.ArchimateType;
+            if (existing.ArchimateType is null && transcoder.ExportRelation(existing).Concept == received) incoming.ArchimateType = null;
+            if (Json(existing) == Json(incoming)) { tally.Unchanged++; continue; }
+            incoming.ArchimateType = received;
+            repo.Relationships[id] = incoming;
+            tally.Updated++;
         }
         return seen;
     }
