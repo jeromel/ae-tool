@@ -26,6 +26,14 @@ public sealed class UserAccount
     public DateTime? LockedUntil { get; set; }
     public bool MustChangePassword { get; set; }
     public string Origin { get; set; } = AccountOrigin.Local;
+    /// <summary>
+    /// Périmètre de lecture choisi par l'administrateur (décision 012) : « tout » ou « metier ». Il ne vaut que pour un lecteur ;
+    /// absent, un lecteur est au périmètre « métier ». Voir <see cref="EffectiveScope"/>.
+    /// </summary>
+    public string? ReadScope { get; set; }
+
+    /// <summary>Périmètre appliqué : « tout » pour un contributeur, un valideur ou un administrateur ; pour un lecteur, « métier » sauf ouverture explicite.</summary>
+    public string EffectiveScope => Role == Roles.Reader && ReadScope != AeTool.Core.ReadScope.All ? AeTool.Core.ReadScope.Business : AeTool.Core.ReadScope.All;
 
     public UserAccount Copy() => (UserAccount)MemberwiseClone();
 }

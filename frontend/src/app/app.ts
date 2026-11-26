@@ -49,7 +49,7 @@ import { ProjectionState } from './projection';
         <a routerLink="/donnees" routerLinkActive="on">Données</a>
         <a routerLink="/donnees-personnelles" routerLinkActive="on">Données personnelles</a>
         <a routerLink="/flux" routerLinkActive="on">Flux</a>
-        <a routerLink="/infrastructure" routerLinkActive="on">Infrastructure</a>
+        @if (!session.business()) { <a routerLink="/infrastructure" routerLinkActive="on">Infrastructure</a> }
         <a routerLink="/vues" routerLinkActive="on">Vues</a>
 
         <div class="group">Décider</div>

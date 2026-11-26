@@ -13,6 +13,8 @@ export interface SessionUser {
   name: string;
   role: Role;
   mustChangePassword: boolean;
+  /** Accès en lecture (décision 012) : « metier » = sans l'infrastructure. Affichage seulement, le serveur filtre. */
+  readScope?: 'tout' | 'metier';
 }
 
 interface SessionPayload {
@@ -36,6 +38,8 @@ export class Session {
   readonly mode = signal<AuthMode>('local');
   readonly setupRequired = signal(false);
   readonly role = computed<Role | null>(() => this.user()?.role ?? null);
+  /** Vrai pour un compte « sans l'infrastructure » : l'écran retire ce qui serait vide par construction et le dit ailleurs. */
+  readonly business = computed(() => this.user()?.readScope === 'metier');
 
   constructor() {
     // Session expirée en cours d'usage : on oublie l'utilisateur et on renvoie vers la connexion.

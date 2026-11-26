@@ -13,6 +13,8 @@ interface UserRow {
   lastLoginAt: string | null;
   lockedUntil: string | null;
   mustChangePassword: boolean;
+  /** Accès en lecture appliqué (décision 012) : « metier » = sans l'infrastructure ; ne se règle que pour un lecteur. */
+  readScope: 'tout' | 'metier';
 }
 
 /** Administration des comptes : création, rôle, désactivation, réinitialisation du mot de passe. */
@@ -44,13 +46,18 @@ interface UserRow {
         <select aria-label="Rôle" [value]="role()" (change)="role.set($any($event.target).value)">
           @for (r of roles; track r) { <option [value]="r" [selected]="r === role()">{{ r }}</option> }
         </select>
+        @if (role() === 'lecteur') {
+          <select aria-label="Accès en lecture" (change)="readScope.set($any($event.target).value)">
+            @for (s of scopes; track s.key) { <option [value]="s.key" [selected]="s.key === readScope()">{{ s.label }}</option> }
+          </select>
+        }
         <button type="submit" [disabled]="busy() || !login() || !name()">Créer le compte</button>
       </div>
     </form>
     <div class="card flush">
       <div class="scroll">
         <table>
-          <tr><th>Identifiant</th><th>Nom</th><th>Rôle</th><th>Origine</th><th>État</th><th>Dernière connexion</th><th></th></tr>
+          <tr><th>Identifiant</th><th>Nom</th><th>Rôle</th><th>Accès en lecture</th><th>Origine</th><th>État</th><th>Dernière connexion</th><th></th></tr>
           @for (u of users(); track u.id) {
             <tr>
               <td>{{ u.login }}</td>
@@ -59,6 +66,14 @@ interface UserRow {
                 <select [attr.aria-label]="'Rôle de ' + u.login" (change)="setRole(u, $any($event.target).value)">
                   @for (r of roles; track r) { <option [value]="r" [selected]="r === u.role">{{ r }}</option> }
                 </select>
+              </td>
+              <td>
+                <!-- Le périmètre n'existe que pour un lecteur (décision 012) : pour les autres rôles, un texte fixe. -->
+                @if (u.role === 'lecteur') {
+                  <select [attr.aria-label]="'Accès en lecture de ' + u.login" (change)="setScope(u, $any($event.target).value)">
+                    @for (s of scopes; track s.key) { <option [value]="s.key" [selected]="s.key === u.readScope">{{ s.label }}</option> }
+                  </select>
+                } @else { <span class="muted small">Tout le référentiel</span> }
               </td>
               <td class="muted small">{{ u.origin === 'entra' ? 'Microsoft Entra ID' : 'Local' }}</td>
               <td>
@@ -92,6 +107,10 @@ export class UsersPage {
   login = signal('');
   name = signal('');
   role = signal<Role>('lecteur');
+  /** Un nouveau lecteur est créé sans l'infrastructure (décision 012, point 2). */
+  readScope = signal<'tout' | 'metier'>('metier');
+  /** Libellés de la maquette : ce que voit la personne, pas le nom interne du réglage. */
+  readonly scopes = [{ key: 'metier', label: 'Sans l\'infrastructure' }, { key: 'tout', label: 'Tout le référentiel' }] as const;
   temporary = signal<{ login: string; password: string } | null>(null);
   copied = signal(false);
 
@@ -121,7 +140,9 @@ export class UsersPage {
         login: this.login().trim(),
         name: this.name().trim(),
         role: this.role(),
+        readScope: this.role() === 'lecteur' ? this.readScope() : null,
       });
+      this.readScope.set('metier');
       this.temporary.set(r.temporaryPassword ? { login: r.user.login, password: r.temporaryPassword } : null);
       this.login.set('');
       this.name.set('');
@@ -131,15 +152,23 @@ export class UsersPage {
   }
 
   async setRole(u: UserRow, role: Role): Promise<void> {
+    // Passer un lecteur sans l'infrastructure à un autre rôle élargit son accès : l'écran le dit (maquette périmètre, §5).
+    if (u.role === 'lecteur' && u.readScope === 'metier' && role !== 'lecteur'
+        && !confirm(`Un ${role} voit tout le référentiel, infrastructure comprise. Donner ce rôle à ${u.login} ?`)) { await this.load(); return; }
     await this.update(u, { role });
+  }
+
+  async setScope(u: UserRow, readScope: 'tout' | 'metier'): Promise<void> {
+    await this.update(u, { readScope });
   }
 
   async toggle(u: UserRow): Promise<void> {
     await this.update(u, { disabled: !u.disabled });
   }
 
-  private async update(u: UserRow, change: Partial<Pick<UserRow, 'role' | 'disabled'>>): Promise<void> {
-    await this.run(() => this.api.put('/users/' + u.id, { name: u.name, role: u.role, disabled: u.disabled, ...change }));
+  private async update(u: UserRow, change: Partial<Pick<UserRow, 'role' | 'disabled' | 'readScope'>>): Promise<void> {
+    // Le périmètre n'est envoyé que s'il change : un compte repassé lecteur retrouve le sien, ou « sans l'infrastructure ».
+    await this.run(() => this.api.put('/users/' + u.id, { name: u.name, role: u.role, disabled: u.disabled, readScope: null, ...change }));
     await this.load(); // relit aussi après un refus, pour rétablir la valeur affichée dans la liste
   }
 

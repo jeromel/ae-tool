@@ -9,6 +9,7 @@ import { Session } from '../session';
     <h1>Mon compte</h1>
     @if (session.user(); as u) {
       <p class="lead">{{ u.name }} · <span class="chip info">{{ u.role }}</span> <span class="muted small">identifiant {{ u.login }}</span></p>
+      <p class="small">Accès en lecture : {{ u.readScope === 'metier' ? 'sans l\'infrastructure' : 'tout le référentiel' }}</p>
       @if (u.mustChangePassword) { <div class="note">Votre mot de passe est temporaire : choisissez-en un nouveau pour utiliser l'outil.</div> }
       @if (session.mode() === 'local') {
         <form class="card form" style="max-width: 460px" (submit)="submit($event)">

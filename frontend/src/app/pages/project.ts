@@ -1,4 +1,5 @@
 import { Component, computed, effect, inject, input, signal } from '@angular/core';
+import { Session } from '../session';
 import { RouterLink } from '@angular/router';
 import { Api } from '../api';
 import { ProjectTrajectories } from './project-trajectories';
@@ -15,7 +16,8 @@ import { ProjectTrajectories } from './project-trajectories';
         <a [routerLink]="['/objets', d.project.id]">Fiche de l'objet</a>
       </p>
       @if (d.documentation) { <div class="card" style="white-space: pre-wrap">{{ d.documentation }}</div> }
-      <app-project-trajectories [projectId]="id()" [projectName]="d.project.name" />
+      <!-- Scénarios et trajectoires : lus sans le filtre de périmètre, fermés à un accès sans l'infrastructure (décision 012). -->
+      @if (!session.business()) { <app-project-trajectories [projectId]="id()" [projectName]="d.project.name" /> }
       <div class="card">
         <h2>Vues du projet ({{ d.diagrams.length }})</h2>
         @for (v of d.diagrams; track v.id) { <div><a [routerLink]="['/vues', v.id]">{{ v.name }}</a></div> }
@@ -59,6 +61,7 @@ import { ProjectTrajectories } from './project-trajectories';
 })
 export class ProjectPage {
   private api = inject(Api);
+  readonly session = inject(Session);
   id = input.required<string>();
   d = signal<any>(null);
   layer = signal('');

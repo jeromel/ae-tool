@@ -3,6 +3,7 @@ import { Router, RouterLink } from '@angular/router';
 import { Api } from '../api';
 import { MatrixView } from '../matrix-view';
 import { QuestionBar } from '../questions';
+import { ScopeNote } from '../scope-note';
 import { Mark } from '../projection';
 import { Session } from '../session';
 import { SpaceConfig } from '../spaces.config';
@@ -12,12 +13,13 @@ import { SpaceConfig } from '../spaces.config';
  * Le même composant sert Applications, Flux, Données et Infrastructure ; seule la configuration change.
  */
 @Component({
-  imports: [RouterLink, QuestionBar, MatrixView, Mark],
+  imports: [RouterLink, QuestionBar, MatrixView, Mark, ScopeNote],
   template: `
-    @let c = config();
+    @let c = scoped();
     <h1>{{ c.title }}</h1>
     <p class="lead">{{ c.lead }}</p>
     <app-questions [questions]="c.questions" [selected]="selected()" (pick)="pick($event)" />
+    @if (session.business() && c.endpoint !== '/spaces/data' && c.endpoint !== '/spaces/capabilities') { <app-scope-note /> }
 
     <div class="card flush">
       <div class="tools">
@@ -83,8 +85,14 @@ export class ListSpacePage {
   private router = inject(Router);
   session = inject(Session);
   /** Colonne où s'affiche la marque de la ligne elle-même (un flux) : la première qui n'est pas un objet lié. */
-  rowMarkColumn = computed(() => this.config().columns.find((col) => col.kind !== 'objet')?.key ?? '');
+  rowMarkColumn = computed(() => this.scoped().columns.find((col) => col.kind !== 'objet')?.key ?? '');
   config = input.required<SpaceConfig>();
+  /** La configuration, sans les colonnes et questions d'infrastructure pour un accès sans elle (maquette périmètre, §2). */
+  scoped = computed<SpaceConfig>(() => {
+    const c = this.config();
+    if (!this.session.business()) return c;
+    return { ...c, columns: c.columns.filter((x) => !x.infra), questions: c.questions.filter((q) => !q.infra) };
+  });
   /** Question présélectionnée par l'adresse (?question=…), pour arriver depuis l'accueil ou un lien partagé. */
   question = input<string>();
 
@@ -97,7 +105,7 @@ export class ListSpacePage {
   /** Clé du premier type portant le rôle de l'espace, lue dans le métamodèle ; vide tant qu'elle n'est pas connue. */
   createType = signal('');
 
-  private current = computed(() => this.config().questions.find((q) => q.key === this.selected()));
+  private current = computed(() => this.scoped().questions.find((q) => q.key === this.selected()));
 
   shown = computed(() => {
     const q = this.current();
@@ -123,7 +131,7 @@ export class ListSpacePage {
       if (role) this.api.get('/metamodel').then((m) => this.createType.set(firstTypeWith(m, role)));
     });
     effect(() => {
-      const c = this.config();
+      const c = this.scoped();
       const wanted = c.questions.find((q) => q.key === this.question()) ?? c.questions[0];
       this.selected.set(wanted.key);
       this.sortKey.set(wanted.sort ?? '');

@@ -27,10 +27,14 @@ public static class ApiTests
         /// Par défaut : environnement Development et mode ouvert (aucune connexion), pour les tests qui ne portent pas sur les comptes.
         /// Les paramètres supplémentaires s'appliquent après et l'emportent, par exemple <c>--Auth:Mode=local</c>.
         /// </summary>
-        public Server(params string[] extraArgs)
+        public Server(params string[] extraArgs) : this(null, extraArgs) { }
+
+        /// <summary>Comme ci-dessus, avec un référentiel préparé : <paramref name="seed"/> reçoit le chemin du fichier à écrire avant le démarrage.</summary>
+        public Server(Action<string>? seed, params string[] extraArgs)
         {
             DataDirectory = Path.Combine(Path.GetTempPath(), "ae-tests-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(DataDirectory);
+            seed?.Invoke(Path.Combine(DataDirectory, "referentiel.json"));
             var args = new List<string> { "--urls", "http://127.0.0.1:0", "--DataPath", Path.Combine(DataDirectory, "referentiel.json"),
                 "--Logging:LogLevel:Default", "Error", "--environment", "Development", "--Auth:Mode=ouvert" };
             args.AddRange(extraArgs);

@@ -69,6 +69,8 @@ public static class AuthEndpoints
                 name = user.FindFirstValue(AuthSetup.DisplayNameClaim),
                 role = user.FindFirstValue(ClaimTypes.Role),
                 mustChangePassword = user.HasClaim(AuthSetup.MustChangePasswordClaim, "1"),
+                // Affichage seulement : c'est le serveur qui filtre (décision 012, point 3).
+                readScope = user.FindFirstValue(AuthSetup.ReadScopeClaim) ?? AeTool.Core.ReadScope.All,
             } : null,
             csrfToken = settings.IsOpen ? null : antiforgery.GetAndStoreTokens(ctx).RequestToken,
         };

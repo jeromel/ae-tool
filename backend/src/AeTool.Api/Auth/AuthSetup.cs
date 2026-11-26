@@ -21,6 +21,8 @@ public static class AuthSetup
     public const string CsrfHeader = "X-CSRF-TOKEN";
     public const string DisplayNameClaim = "ae:name";
     public const string MustChangePasswordClaim = "ae:mcp";
+    /// <summary>Périmètre de lecture du compte (décision 012), relu à chaque requête avec le rôle.</summary>
+    public const string ReadScopeClaim = "ae:perimetre";
     public const string OpenLogin = "anonyme";
     private const long SmallBodyLimit = 16 * 1024;
 
@@ -83,6 +85,7 @@ public static class AuthSetup
             new(ClaimTypes.Role, account.Role), new(DisplayNameClaim, account.DisplayName),
         };
         if (account.MustChangePassword) claims.Add(new Claim(MustChangePasswordClaim, "1"));
+        claims.Add(new Claim(ReadScopeClaim, account.EffectiveScope));
         return new ClaimsPrincipal(new ClaimsIdentity(claims, "ae", ClaimTypes.Name, ClaimTypes.Role));
     }
 

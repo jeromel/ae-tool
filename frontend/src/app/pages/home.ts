@@ -1,6 +1,7 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
+import { Session } from '../session';
 import { Api } from '../api';
 import { readText, writeText } from '../prefs';
 
@@ -109,11 +110,14 @@ const ENTRIES: Entry[] = [
 })
 export class HomePage {
   private api = inject(Api);
+  private session = inject(Session);
+  /** Sans l'infrastructure, une question qui y mène ouvrirait un espace vide : elle disparaît (maquette périmètre, §2). */
+  private entries = computed(() => ENTRIES.filter((e) => !(this.session.business() && e.to === '/infrastructure')));
   data = signal<any>(null);
   profiles = PROFILES;
   profile = signal(readText('profil', 'architecte'));
-  mine = computed(() => ENTRIES.filter((e) => e.profiles.includes(this.profile())));
-  others = computed(() => ENTRIES.filter((e) => !e.profiles.includes(this.profile())));
+  mine = computed(() => this.entries().filter((e) => e.profiles.includes(this.profile())));
+  others = computed(() => this.entries().filter((e) => !e.profiles.includes(this.profile())));
 
   constructor() {
     this.api.get('/summary').then((d) => this.data.set(d));

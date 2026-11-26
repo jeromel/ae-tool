@@ -35,6 +35,8 @@ public static class AppHost
         app.UseAeAuthentication();
         // Après les habilitations : l'état projeté (paramètre « etat ») vaut pour toutes les lectures de la requête.
         app.Use(ProjectionContext.Middleware);
+        // Périmètre de lecture du compte (décision 012) : lecture filtrée, routes non filtrées fermées.
+        app.Use(ScopeContext.Middleware);
         app.UseDefaultFiles();
         app.UseStaticFiles();
 

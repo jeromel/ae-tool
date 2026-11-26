@@ -1,10 +1,11 @@
 import { Question } from './questions';
 
 /** Colonne d'un espace en liste. « objet » rend un lien vers la fiche, d'après l'identifiant porté par « idKey ». */
-export interface Column { key: string; label: string; kind?: 'objet' | 'nombre' | 'liste' | 'chip'; idKey?: string; }
+/** « infra » : colonne ou question qui n'a de sens qu'avec l'infrastructure ; retirée pour un accès sans elle (décision 012). */
+export interface Column { key: string; label: string; kind?: 'objet' | 'nombre' | 'liste' | 'chip'; idKey?: string; infra?: boolean; }
 
 /** Question d'un espace en liste : un filtre, un tri décroissant, ou les deux. */
-export interface SpaceQuestion extends Question { filter?: (row: any) => boolean; sort?: string; }
+export interface SpaceQuestion extends Question { filter?: (row: any) => boolean; sort?: string; infra?: boolean; }
 
 /**
  * Un espace est une donnée : son titre, la projection qu'il lit, ses colonnes et ses questions.
@@ -40,7 +41,7 @@ export const APPLICATIONS: SpaceConfig = {
   columns: [
     { key: 'name', label: 'Application', kind: 'objet', idKey: 'id' },
     { key: 'flows', label: 'Flux', kind: 'nombre' },
-    { key: 'technical', label: 'Socle technique', kind: 'nombre' },
+    { key: 'technical', label: 'Socle technique', kind: 'nombre', infra: true },
     { key: 'data', label: 'Données', kind: 'nombre' },
     { key: 'capabilities', label: 'Capacités', kind: 'nombre' },
     { key: 'projects', label: 'Projets', kind: 'nombre' },
@@ -81,7 +82,7 @@ export const FLOWS: SpaceConfig = {
     { key: 'sans-chiffrement', label: 'Lesquels n\'ont pas de chiffrement renseigné ?', filter: (r) => !r.encryption, hint: 'Non renseigné ne veut pas dire non chiffré.' },
     { key: 'avec-donnees', label: 'Lesquels transportent des données identifiées ?', filter: (r) => r.carried.length > 0 },
     {
-      key: 'frontiere', label: 'Lesquels traversent la frontière IT/OT ?',
+      key: 'frontiere', label: 'Lesquels traversent la frontière IT/OT ?', infra: true,
       missing: 'La zone (IT ou OT) n\'est pas portée par les objets. Ajoutez une propriété de zone aux applications et aux équipements pour faire ressortir les flux qui la traversent.',
     },
   ],

@@ -2,6 +2,7 @@ import { Component, ElementRef, DestroyRef, afterNextRender, computed, effect, i
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Api } from '../api';
 import { Session } from '../session';
+import { ScopeNote } from '../scope-note';
 import { Kind, Lit, Selection, flowPill, flowTag, key, lit, stillThere } from '../lineage-selection';
 import { Measure, canvasMeasure, fitLabel } from '../label-fit';
 
@@ -70,7 +71,7 @@ const verified = (s: string | null | undefined) => !s || s.trim().toLowerCase() 
  * chaîne technique du flux choisi, hébergement), plus les profils de poste qui y accèdent. Un clic choisit, un double clic recentre.
  */
 @Component({
-  imports: [RouterLink],
+  imports: [RouterLink, ScopeNote],
   styles: `
     .lin-split { display: flex; gap: 16px; align-items: flex-start; }
     .lin-main { flex: 1; min-width: 0; }
@@ -116,6 +117,7 @@ const verified = (s: string | null | undefined) => !s || s.trim().toLowerCase() 
           @default { }
         }
         <a [routerLink]="['/objets', l.focus.id]">Ouvrir la fiche</a></p>
+      @if (session.business()) { <app-scope-note text="Chaîne technique et hébergement non affichés pour votre accès." /> }
       @if (!l.focus.supported) {
         <div class="note">{{ l.focus.message }}</div>
       } @else {
@@ -164,7 +166,7 @@ const verified = (s: string | null | undefined) => !s || s.trim().toLowerCase() 
         }
 
         <div class="tools" role="group" aria-label="Affichage du parcours">
-          @for (b of bandChoices; track b.key) {
+          @for (b of bandList(); track b.key) {
             <label class="small"><input type="checkbox" [checked]="shown()[b.key]" (change)="toggleBand(b.key)" /> {{ b.label }}</label>
           }
           <span class="muted small">|</span>
@@ -334,6 +336,8 @@ export class LineagePage {
   /** Largeur du cadre, suivie pour que le dessin s'y adapte sans défilement horizontal (P1). */
   private frame = signal(1180);
   shown = signal<Record<string, boolean>>({ donnees: true, applications: true, chaine: true, hebergement: true, postes: true });
+  /** Sans l'infrastructure, les bandes Chaîne technique et Hébergement seraient vides : elles disparaissent (maquette périmètre, §2). */
+  bandList = computed(() => this.session.business() ? this.bandChoices.filter((b) => b.key !== 'chaine' && b.key !== 'hebergement') : this.bandChoices);
   trail = signal<{ id: string; name: string }[]>(readTrail());
   readonly bandChoices = [
     { key: 'donnees', label: 'Données' }, { key: 'chaine', label: 'Chaîne technique' }, { key: 'hebergement', label: 'Hébergement' }, { key: 'postes', label: 'Postes' },
@@ -686,7 +690,7 @@ export class LineagePage {
     // 3. Chaîne technique du flux choisi ; sans flux choisi, une invitation (règle 3 : rien n'est choisi à l'ouverture).
     const flow = l.flows.find((f) => f.id === g.chainFlowId);
     const stepBox = new Map<string, Box>();
-    if (show['chaine'] && l.flows.length) {
+    if (show['chaine'] && !this.session.business() && l.flows.length) {
       const top = y + LABEL_H + 4;
       const stepW = 210, stepH = 48;
       if (!flow || flow.steps.length === 0) {
@@ -715,7 +719,7 @@ export class LineagePage {
     }
 
     // 4. Hébergement : serveurs et partages, ceux de la chaîne choisie mis en avant.
-    if (show['hebergement'] && l.hosts.length) {
+    if (show['hebergement'] && !this.session.business() && l.hosts.length) {
       const top = y + LABEL_H;
       const w = 205, h = 46;
       const chainHosts = new Set([...stepBox.values()].flatMap((b) => tech.get(b.id)?.hostIds ?? []));

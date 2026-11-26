@@ -79,7 +79,7 @@
 | ET-04 Base relationnelle | **Dérogation** | dérogation maintenue, seuils suivis (décision 011, qui remplace la 004) : stockage par fichier conservé pour la généralisation ; l'administrateur suit les quatre seuils de révision |
 | ET-05 Pas de composant lourd | Couvert | un processus, un dossier |
 | ET-10 Spécifications et tests dans Git | Couvert | |
-| ET-11 Tests automatisés | Couvert | 372 tests du serveur et 52 de l'interface ; les scripts échouent si un test échoue ; pas de chaîne d'intégration continue |
+| ET-11 Tests automatisés | Couvert | 380 tests du serveur et 52 de l'interface ; les scripts échouent si un test échoue ; pas de chaîne d'intégration continue |
 | ET-12 Analyse statique et formatage | Partiel | avertissements du compilateur bloquants ; pas de règle de formatage automatisée |
 | ET-13 Revue par une seconde personne | **À la DSI** | le code a été produit avec une IA : la revue humaine reste entièrement à faire |
 | ET-14 Documentation minimale | Couvert | prise en main, architecture, décisions, exploitation, installation, sécurité |
@@ -104,7 +104,7 @@
 | ED-04 Source maître, donnée synchronisée non modifiable | Couvert | l'écran grise le champ et nomme son maître ; le serveur refuse la modification |
 | ED-05 Propriétaire nommé | Partiel | champ « Responsable », non obligatoire |
 | ED-06 Test de réversibilité | Couvert | fait le 14 novembre 2026 : export complet, démarrage d'une instance vierge sur ce fichier, état identique |
-| ED-07 Accès restreint aux données sensibles | Partiel | accès par rôle ; **tout lecteur voit tout le référentiel**, OT compris. Décision 012 (26/11) : personnes nommées (réglage Entra ID, à décrire dans `installation.md`) et périmètre de lecture « métier » sans l'infrastructure, à livrer (≈ 3 à 4 j) |
+| ED-07 Accès restreint aux données sensibles | Couvert, sauf un point à valider | décision 012 : périmètre de lecture « sans l'infrastructure » (couche technique et rôle infrastructure, OT compris), par défaut pour tout lecteur, ouvert compte par compte par l'administrateur ; filtre appliqué dans `Workspace.Read`, état projeté compris ; scénarios, trajectoires, comptes rendus d'import et exports complets fermés à ce périmètre. Preuve : tests « Périmètre de lecture « métier » » (balayage des 54 routes de lecture sur Hydréane, existant et état projeté ; toute lecture servie sans le filtre est relevée). **À valider** : le réglage Entra ID « affectation obligatoire » (`installation.md`) n'a pas été essayé sur un locataire réel. Cloisonnement entre métiers : différé (décision 012, point 4) |
 | ED-08 Clause SaaS | Sans objet | |
 
 ## Exploitation

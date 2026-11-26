@@ -53,6 +53,8 @@ public sealed class Workspace
     private DateOnly? _lastDaily;
     /// <summary>États projetés déjà calculés, valables jusqu'à la prochaine écriture.</summary>
     private readonly Dictionary<(string, string), (Projected Projected, Analyzer Analyzer)> _projections = new();
+    /// <summary>Référentiels vus au périmètre « métier » (existant ou état projeté), valables jusqu'à la prochaine écriture.</summary>
+    private readonly Dictionary<(string, string), (Repository Repo, Analyzer Analyzer)> _scoped = new();
 
     public List<ImportReport> Reports { get; } = new();
 
@@ -75,13 +77,29 @@ public sealed class Workspace
             if (ProjectionContext.Current is { } state)
             {
                 var (projected, analyzer) = ProjectedState(state.ScenarioId, state.StepId);
+                // Périmètre « métier » : l'état projeté est filtré après projection (décision 012, point 3).
+                if (ScopeContext.IsBusiness) { ScopeContext.MarkFiltered(); var s = Scoped((state.ScenarioId, state.StepId), projected.Repo); return query(s.Repo, s.Analyzer); }
                 return query(projected.Repo, analyzer);
             }
+            if (ScopeContext.IsBusiness) { ScopeContext.MarkFiltered(); var s = Scoped(("", ""), _repo); return query(s.Repo, s.Analyzer); }
             return query(_repo, _analyzer ??= new Analyzer(_repo));
         }
     }
 
-    /// <summary>Lecture qui ignore l'état projeté demandé : la gestion des scénarios porte toujours sur l'existant.</summary>
+    private (Repository Repo, Analyzer Analyzer) Scoped((string, string) key, Repository source)
+    {
+        if (_scoped.TryGetValue(key, out var cached)) return cached;
+        var repo = ReadScope.Project(source);
+        var entry = (repo, new Analyzer(repo));
+        if (_scoped.Count > 20) _scoped.Clear();
+        _scoped[key] = entry;
+        return entry;
+    }
+
+    /// <summary>
+    /// Lecture qui ignore l'état projeté demandé : la gestion des scénarios porte toujours sur l'existant. Elle ignore aussi
+    /// le périmètre de lecture : les routes qui l'emploient sont fermées au périmètre « métier » (<see cref="ScopeContext"/>).
+    /// </summary>
     public T ReadCurrent<T>(Func<Repository, Analyzer, T> query)
     {
         lock (_gate) return query(_repo, _analyzer ??= new Analyzer(_repo));
@@ -114,7 +132,7 @@ public sealed class Workspace
             DailyBackup();
             if (backupReason is not null) _store.Backup(_repo, backupReason, Now());
             var result = command(_repo);
-            _analyzer = null; _projections.Clear();
+            _analyzer = null; _projections.Clear(); _scoped.Clear();
             _store.Save(_repo);
             return result;
         }
@@ -153,7 +171,7 @@ public sealed class Workspace
             var journal = _repo.Journal;
             _repo = new Repository { Journal = journal };
             _repo.Log(user, "Remise à zéro du référentiel");
-            _analyzer = null; _projections.Clear();
+            _analyzer = null; _projections.Clear(); _scoped.Clear();
             _store.Save(_repo);
         }
     }
@@ -191,7 +209,7 @@ public sealed class Workspace
             restored.Journal = AeTool.Api.Storage.JournalFile.Union(_repo.Journal, restored.Journal);
             _repo = restored;
             _repo.Log(user, "Sauvegarde restaurée", JournalKinds.Import, null, null, name);
-            _analyzer = null; _projections.Clear();
+            _analyzer = null; _projections.Clear(); _scoped.Clear();
             _store.Save(_repo);
             return _store.Backups().FirstOrDefault(b => b.Name == name) ?? new BackupInfo(name, "", Now(), 0);
         }

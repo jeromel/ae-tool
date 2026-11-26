@@ -202,10 +202,11 @@ public sealed class AuthService
 
     public IReadOnlyList<UserAccount> List() => _users.All().OrderBy(u => u.Login).ToList();
 
-    public Result<CreatedAccount> Create(string actor, string? login, string? name, string? role)
+    public Result<CreatedAccount> Create(string actor, string? login, string? name, string? role, string? readScope = null)
     {
         if (_settings.IsOpen) return Result<CreatedAccount>.Fail(Failure.Invalid, "La gestion des comptes est indisponible en mode ouvert.");
         if (!Roles.IsValid(role)) return Result<CreatedAccount>.Fail(Failure.Invalid, "Rôle inconnu.");
+        if (readScope is not null && !AeTool.Core.ReadScope.IsKnown(readScope)) return Result<CreatedAccount>.Fail(Failure.Invalid, "Accès en lecture inconnu : « tout » ou « metier ».");
         var result = _users.Write(list =>
         {
             var id = NormalizeLogin(login);
@@ -216,6 +217,8 @@ public sealed class AuthService
             var account = temporary is null
                 ? new UserAccount { Id = "u-" + Guid.NewGuid().ToString("N"), Login = id, DisplayName = name!.Trim(), Role = role!, CreatedAt = Now, Origin = AccountOrigin.Entra }
                 : NewLocal(id, name!, role!, temporary, mustChange: true);
+            // Un nouveau lecteur ne voit pas l'infrastructure, sauf choix contraire de l'administrateur (décision 012, point 2).
+            account.ReadScope = role == Roles.Reader ? readScope ?? AeTool.Core.ReadScope.Business : null;
             list.Add(account);
             return Result<CreatedAccount>.Success(new CreatedAccount(account, temporary));
         });
@@ -223,12 +226,14 @@ public sealed class AuthService
         return result;
     }
 
-    public Result<UserAccount> Update(string actor, string id, string? name, string? role, bool disabled)
+    public Result<UserAccount> Update(string actor, string id, string? name, string? role, bool disabled, string? readScope = null)
     {
         if (!Roles.IsValid(role)) return Result<UserAccount>.Fail(Failure.Invalid, "Rôle inconnu.");
+        if (readScope is not null && !AeTool.Core.ReadScope.IsKnown(readScope)) return Result<UserAccount>.Fail(Failure.Invalid, "Accès en lecture inconnu : « tout » ou « metier ».");
         if (string.IsNullOrWhiteSpace(name) || name.Trim().Length > 100) return Result<UserAccount>.Fail(Failure.Invalid, "Le nom est obligatoire (100 caractères au plus).");
         string? roleChange = null;
         bool? disabledChange = null;
+        string? scopeChange = null;
         var result = _users.Write(list =>
         {
             var account = list.FirstOrDefault(u => u.Id == id);
@@ -241,9 +246,13 @@ public sealed class AuthService
             account.DisplayName = name.Trim();
             account.Role = role!;
             account.Disabled = disabled;
+            var before = account.EffectiveScope;
+            if (readScope is not null) account.ReadScope = readScope;
+            if (account.EffectiveScope != before) scopeChange = $"{before} -> {account.EffectiveScope}";
             return Result<UserAccount>.Success(account);
         });
         if (!result.Ok) return result;
+        if (scopeChange is not null) _audit.Record(actor, "Accès en lecture modifié", id, $"{result.Value!.Login} : {scopeChange}");
         if (roleChange is not null) _audit.Record(actor, "Rôle modifié", id, $"{result.Value!.Login} : {roleChange}");
         if (disabledChange is bool d) _audit.Record(actor, d ? "Compte désactivé" : "Compte réactivé", id, result.Value!.Login);
         return result;

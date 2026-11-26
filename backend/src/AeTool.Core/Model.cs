@@ -275,6 +275,8 @@ public sealed class Repository
     [JsonIgnore] public Dictionary<string, string>? Projection { get; set; }
     /// <summary>Référentiel projeté seulement : objet remplacé → remplaçant. Les vues dessinent le remplaçant à la place.</summary>
     [JsonIgnore] public Dictionary<string, string>? Replacements { get; set; }
+    /// <summary>Périmètre « métier » : ce que la projection a retiré (vues et objets touchés). Nul hors de ce périmètre.</summary>
+    [JsonIgnore] public ScopeTrim? Scope { get; set; }
 
     /// <summary>Remplaçant final d'un objet dans un état projeté (en suivant les remplacements successifs), sinon l'objet lui-même.</summary>
     public string ReplacedBy(string id)

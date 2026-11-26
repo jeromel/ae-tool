@@ -130,6 +130,22 @@ AETOOL_Kestrel__Certificates__Default__Password=…
 3. Le serveur doit pouvoir joindre `login.microsoftonline.com` et `graph.microsoft.com`.
 
 Les rôles restent gérés dans l'outil : Entra ID dit qui est la personne, l'administrateur de l'outil dit ce qu'elle peut faire.
+
+**Réserver l'accès à des personnes nommées (décision 012)**. Sans ce réglage, toute personne du locataire qui se connecte
+reçoit un compte lecteur, sans que personne l'ait approuvée.
+1. Dans Entra ID › Applications d'entreprise › l'application de l'outil › Propriétés : **« Affectation obligatoire ? » = Oui**
+   (« Assignment required? » = Yes).
+2. Créer un groupe de sécurité des personnes approuvées (par exemple « Outil d'architecture – utilisateurs ») et l'affecter à
+   l'application (Utilisateurs et groupes › Ajouter). Seuls ses membres peuvent alors se connecter ; les autres reçoivent un
+   refus d'Entra ID, avant d'atteindre l'outil.
+3. Revoir la liste des membres à chaque ouverture à une nouvelle population, et au moins une fois par an, avec la liste des
+   comptes de l'outil (Administration › Utilisateurs).
+
+**Accès en lecture d'un lecteur**. Un compte lecteur est créé « sans l'infrastructure » : il ne voit ni les serveurs, ni
+les réseaux, ni les équipements, ni les flux techniques (décision 012, point 2). L'administrateur ouvre « tout le
+référentiel » compte par compte, dans Administration › Utilisateurs. Contributeurs, valideurs et administrateurs voient
+tout.
+
 **Ce mode n'a pas pu être essayé sur un locataire réel pendant le développement : le valider en recette avant de s'y fier.**
 
 ## Mettre à jour
@@ -140,6 +156,9 @@ Les rôles restent gérés dans l'outil : Entra ID dit qui est la personne, l'ad
 4. Redémarrer. Si le format des données a évolué, la migration se fait à la première lecture, après copie de l'original
    (`referentiel.avant-migration-v<n>.json`).
 5. Vérifier `https://<adresse>/api/health` : la version annoncée est la nouvelle.
+
+Passage à la 0.15.13 : les comptes **lecteurs déjà créés** passent « sans l'infrastructure » (décision 012). Pour rendre à
+l'un d'eux tout le référentiel, Administration › Utilisateurs › Accès en lecture.
 
 Revenir en arrière : remettre l'ancienne livraison **et** l'ancien fichier (la copie d'avant migration, renommée
 `referentiel.json`). Une version ancienne ne sait pas lire un format plus récent.

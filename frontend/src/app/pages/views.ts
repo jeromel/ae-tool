@@ -1,4 +1,5 @@
 import { Component, ElementRef, OnDestroy, computed, effect, inject, input, signal, untracked, viewChild } from '@angular/core';
+import { ScopeNote } from '../scope-note';
 import { NgTemplateOutlet } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import { Api, SOURCE_LABELS } from '../api';
@@ -13,7 +14,7 @@ import { readPref, readText, writePref, writeText } from '../prefs';
  * la fiche de l'élément sélectionné s'ouvre à droite sans quitter la vue.
  */
 @Component({
-  imports: [RouterLink, NgTemplateOutlet, DiagramView, NoteGauge],
+  imports: [RouterLink, NgTemplateOutlet, DiagramView, NoteGauge, ScopeNote],
   host: { '(document:fullscreenchange)': 'syncFullscreen()', '(document:keydown.escape)': 'selected.set(null); flow.set(null)', '(document:click)': 'closeMenu($event)' },
   template: `
     <div class="workspace" #workspace>
@@ -125,6 +126,7 @@ import { readPref, readText, writePref, writeText } from '../prefs';
             @if (d.nodes.length > denseThreshold) {
               <p class="dense small" role="note">Vue très chargée : utilisez « Repérer un élément » ou ouvrez une zone.</p>
             }
+            @if ($any(d).scopeTrimmed) { <app-scope-note text="Des éléments d'infrastructure de ce dessin ne sont pas affichés." /> }
             <app-diagram-view #plan [editing]="editing()" [diagram]="d" [selectedId]="selected()" [find]="find()" [dark]="dark()" [exact]="exact()" [layer]="layer()" [colorize]="colorize()"
               [pickedFlow]="flow()?.id ?? null" (selectFlow)="onFlow($event)"
               (select)="onSelect($event)" (openObject)="go(['/objets', $event])" (openView)="go(['/vues', $event])" />

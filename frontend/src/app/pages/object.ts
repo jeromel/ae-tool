@@ -1,4 +1,5 @@
 import { Component, computed, effect, inject, input, signal } from '@angular/core';
+import { ScopeNote } from '../scope-note';
 import { Router, RouterLink } from '@angular/router';
 import { Mark } from '../projection';
 import { Api, SOURCE_LABELS } from '../api';
@@ -10,8 +11,16 @@ import { HistoryRefresh, ObjectHistory } from '../object-history';
 
 /** Fiche d'un objet : propriétés, relations, vues, projets, analyse d'impact et visuel propre à l'élément. */
 @Component({
-  imports: [RouterLink, ObjectValidation, ObjectHistory, ObjectForm, ObjectRelations, Mark],
+  imports: [RouterLink, ObjectValidation, ObjectHistory, ObjectForm, ObjectRelations, Mark, ScopeNote],
   template: `
+    @if (missing()) {
+      <!-- Lien vers un objet hors de l'accès : le serveur répond comme pour un objet inexistant, sans trahir son existence
+           (décision 012). L'écran ne peut donc pas trancher entre les deux, et le dit. -->
+      <a routerLink="/referentiel">← Tous les objets</a>
+      <h1>Objet non disponible</h1>
+      <p>Cet objet n'existe pas, ou n'est pas dans votre accès.</p>
+      <app-scope-note text="Votre accès couvre les processus, applications, flux et données." />
+    }
     @if (d(); as d) {
       <a routerLink="/referentiel">← Tous les objets</a>
       <h1><span class="swatch" [style.background]="d.effectiveVisual.fill"></span>{{ d.brief.name || '(sans nom)' }}<app-mark [id]="d.brief.id" /></h1>
@@ -93,6 +102,7 @@ import { HistoryRefresh, ObjectHistory } from '../object-history';
           }
         </div>
       </div>
+      @if ($any(d).scopeTrimmed) { <app-scope-note text="Des relations vers l'infrastructure ne sont pas affichées." /> }
       @if (meta(); as m) {
         <app-object-relations [objectId]="d.brief.id" [objectName]="d.brief.name" [objectTypeKey]="d.brief.typeKey" [archived]="d.object.archived"
           [outgoing]="d.outgoing" [incoming]="d.incoming" [meta]="m" (changed)="changed()" />
@@ -144,6 +154,8 @@ export class ObjectPage {
   private api = inject(Api);
   private router = inject(Router);
   private session = inject(Session);
+  /** Objet introuvable pour un accès sans l'infrastructure : on l'explique au lieu de renvoyer à la liste. */
+  missing = signal(false);
   private changes = inject(HistoryRefresh);
   id = input.required<string>();
   d = signal<any>(null);
@@ -196,7 +208,11 @@ export class ObjectPage {
   }
 
   load(): void {
-    this.api.get(`/objects/${this.id()}`).then((d) => this.d.set(d)).catch(() => this.router.navigate(['/referentiel']));
+    this.missing.set(false);
+    this.api.get(`/objects/${this.id()}`).then((d) => this.d.set(d)).catch(() => {
+      if (this.session.business()) this.missing.set(true);
+      else this.router.navigate(['/referentiel']);
+    });
     this.loadImpact();
   }
 

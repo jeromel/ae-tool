@@ -39,6 +39,8 @@ public static class ObjectEndpoints
             {
                 Object = o,
                 Brief = Dto.Brief(repo, o),
+                // Périmètre « métier » : des relations vers l'infrastructure ne sont pas affichées (indicateur seulement).
+                ScopeTrimmed = repo.Scope?.Objects.Contains(o.Id) == true,
                 TypeVisual = repo.Metamodel.Type(o.TypeKey)?.Visual,
                 EffectiveVisual = repo.Metamodel.EffectiveVisual(o),
                 Properties = o.Properties.Select(p =>

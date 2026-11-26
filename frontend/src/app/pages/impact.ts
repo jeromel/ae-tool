@@ -1,4 +1,6 @@
 import { Component, computed, effect, inject, input, signal } from '@angular/core';
+import { ScopeNote } from '../scope-note';
+import { Session } from '../session';
 import { Router, RouterLink } from '@angular/router';
 import { Api, Brief } from '../api';
 import { ObjectSearch } from '../object-search';
@@ -10,10 +12,14 @@ interface Reached { id: string; name: string; typeKey: string; layer: string; de
  * Elle traverse toutes les couches, du serveur à la capacité, selon les relations du référentiel.
  */
 @Component({
-  imports: [RouterLink, ObjectSearch],
+  imports: [RouterLink, ObjectSearch, ScopeNote],
   template: `
     <h1>Analyse d'impact</h1>
-    <p class="lead">Choisissez un serveur, un réseau, une application ou une donnée : l'outil suit les relations pour dire ce qui est touché s'il tombe ou change, et ce dont il dépend.</p>
+    @if (session.business()) {
+      <p class="lead">Choisissez une application ou une donnée : l'outil suit les relations pour dire ce qui est touché si elle tombe ou change, et ce dont elle dépend.</p>
+    } @else {
+      <p class="lead">Choisissez un serveur, un réseau, une application ou une donnée : l'outil suit les relations pour dire ce qui est touché s'il tombe ou change, et ce dont il dépend.</p>
+    }
     <div class="card">
       <div class="tools" style="margin: 0">
         <div style="flex: 1; min-width: 240px; max-width: 420px"><app-object-search placeholder="Objet à analyser" (picked)="choose($event)" /></div>
@@ -32,6 +38,8 @@ interface Reached { id: string; name: string; typeKey: string; layer: string; de
         <div class="stat"><b>{{ applicationsDown() }}</b><span>dont applications</span></div>
         <div class="stat"><b>{{ upstream().length }}</b><span>dépendances en amont</span></div>
       </div>
+      <!-- Sans l'infrastructure, l'analyse s'arrête où elle commence : on le dit sous le résultat (maquette périmètre, §3). -->
+      @if (session.business()) { <app-scope-note text="Dépendances techniques non affichées : votre accès couvre les processus, applications, flux et données." /> }
       <div class="row">
         @for (side of sides(); track side.key) {
           <div class="card">
@@ -65,6 +73,7 @@ interface Reached { id: string; name: string; typeKey: string; layer: string; de
 export class ImpactPage {
   private api = inject(Api);
   private router = inject(Router);
+  readonly session = inject(Session);
   /** Objet analysé, porté par l'adresse (?objet=…) : l'analyse se partage par lien. */
   objet = input<string>();
   depth = signal(3);

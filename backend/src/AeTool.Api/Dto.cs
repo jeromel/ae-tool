@@ -117,6 +117,8 @@ public static class Dto
         return new
         {
             d.Id, d.Name, d.Documentation, d.Viewpoint, d.Source, Nodes = nodes, Layers = layers,
+            // Périmètre « métier » : la vue a perdu des formes d'infrastructure. Un indicateur, jamais un nombre (décision 012, maquette).
+            ScopeTrimmed = repo.Scope?.Diagrams.Contains(d.Id) == true,
             Layout = d.Layout is null ? null : new { Count = d.Layout.Count, By = d.LayoutBy, At = d.LayoutAt },
             Connections = d.Connections.Select(c =>
             {
