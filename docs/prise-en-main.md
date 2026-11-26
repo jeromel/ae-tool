@@ -69,17 +69,28 @@ fichier archive sa vue. L'export Archi complet n'emporte pas ces vues (Archi res
 ### Rapporter dans le modèle Archi ce qui a été créé ici
 
 Archi ne permet pas de copier-coller un objet d'un modèle à l'autre. Pour faire entrer dans le modèle maître les objets
-créés dans l'outil (depuis un dessin, une saisie ou un classeur), on passe par un modèle intermédiaire :
+créés dans l'outil (depuis un dessin, une saisie ou un classeur), on passe par un modèle intermédiaire.
 
-1. **Dans l'outil**, « Exporter vers Archi » (la vue, ou l'export complet) : un fichier au format d'échange Open Group.
+**Avant de commencer**, importer dans l'outil la dernière version du modèle maître (§ 2). La fusion remplace les valeurs
+du modèle maître par celles de l'export : sans ce réimport, une modification faite dans Archi depuis le dernier import
+serait écrasée par une valeur plus ancienne.
+
+1. **Dans l'outil**, **Administration › Imports › Exports › Référentiel au format d'échange ArchiMate**. « Exporter vers
+   Archi » d'une vue ne convient pas : il n'emporte que les objets dessinés dans cette vue.
 2. **Dans Archi**, *Fichier › Importer › Open Exchange XML Model* : le fichier s'ouvre comme un nouveau modèle.
 3. **Enregistrer** ce modèle en `.archimate`.
 4. **Ouvrir le modèle maître**, le sélectionner, puis *Fichier › Importer › Another Model into Selected Model* et choisir
    le `.archimate` de l'étape 3. Cocher « Update existing objects and folders », **décocher** « Update model information
    and top-level folders ».
+5. **Supprimer les dossiers restés vides.** Le format d'échange ne transporte pas l'identité des dossiers : Archi recrée
+   l'arborescence à côté de l'existante et y déplace les objets qu'il reconnaît. Un objet présent seulement dans le
+   modèle maître reste dans son ancien dossier.
 
-Les propriétés posées par l'outil passent la fusion. Quand le modèle maître revient dans l'outil (§ 2), l'import Archi
-reconnaît chaque objet à son identifiant : un objet dont l'identifiant n'a pas changé en route est mis à jour, pas dupliqué.
+Archi reconnaît chaque objet à son identifiant, qui ne change pas sur ce trajet : la fusion met à jour les objets
+existants sans les dupliquer, et les nouveaux s'y ajoutent. Les propriétés posées par l'outil passent la fusion, et un
+réimport du modèle maître dans l'outil ne crée pas de doublon. Au premier aller-retour, l'import signale comme modifiés
+des objets et des relations venus du classeur ou du catalogue, sans que leurs valeurs aient changé ; les suivants n'en
+signalent plus.
 
 Pour essayer l'outil sans données réelles, le dossier [`exemples/hydreane`](../exemples/hydreane/README.md) contient un
 jeu complet d'une entreprise fictive : modèle Archi, classeur d'urbanisation, dessin draw.io et présentation de la méthode.
