@@ -273,8 +273,23 @@ const verified = (s: string | null | undefined) => !s || s.trim().toLowerCase() 
                   }
                 </ul>
               }
+              @if (flowLinks(d); as fl) {
+                @if (fl.length) {
+                  <p class="small" style="margin-bottom: 2px"><b>Flux qui la transportent</b></p>
+                  <ul class="small aside-links">
+                    @for (x of fl; track x.id) {
+                      <li><button type="button" (click)="select(x.kind, x.id)" (dblclick)="go(x.id)">{{ x.label }}</button></li>
+                    }
+                  </ul>
+                }
+              }
               @if (d.list.length) {
-                <ul class="small" style="padding-left: 18px">@for (x of d.list; track $index) { <li>{{ x }}</li> }</ul>
+                @if (isOrdered(d)) {
+                  <p class="small" style="margin-bottom: 2px"><b>Chaîne technique</b></p>
+                  <ol class="small" style="padding-left: 22px">@for (x of d.list; track $index) { <li>{{ x }}</li> }</ol>
+                } @else {
+                  <ul class="small" style="padding-left: 18px">@for (x of d.list; track $index) { <li>{{ x }}</li> }</ul>
+                }
               }
               <p>
                 @if (d.id !== l.focus.id) { <button type="button" class="btn" (click)="go(d.id)">Recentrer le parcours ici</button> }
@@ -365,7 +380,10 @@ export class LineagePage {
         const d = l.data.find((x) => x.id === s.id); if (!d) return null;
         return { id: d.id, title: d.name, kind: d.derived ? `${d.typeLabel}, donnée dérivée` : d.typeLabel, object: true,
           props: [['Code', v(d.code)], ['Sensibilité', v(d.sensitivity)], ['Données personnelles', v(d.personal)], ['Data owner', v(d.owner)], ['Statut', v(d.status)]],
-          linksTitle: 'Applications', links: d.roles.map((r): PanelLink => ({ label: `${r.role} : ${r.appName}`, kind: 'application', id: r.appId })), list: [] as string[] };
+          linksTitle: 'Applications', links: d.roles.map((r): PanelLink => ({ label: `${r.role} : ${r.appName}`, kind: 'application', id: r.appId })), list: [] as string[],
+          // Là où renvoie l'invitation « choisissez un flux » : les flux qui la transportent, en liens (revue Camille L5).
+          flows: l.flows.filter((f) => f.dataIds.includes(d.id))
+            .map((f): PanelLink => ({ label: `${flowTag(l, f.id)} · ${name(f.sourceId)} → ${name(f.targetId)}`, kind: 'flux', id: f.id })) };
       }
       case 'application': {
         const a = l.applications.find((x) => x.id === s.id); if (!a) return null;
@@ -386,7 +404,9 @@ export class LineagePage {
             ...(f.dataIds.length > shownData.length ? [['Non affichées', `${f.dataIds.length - shownData.length} donnée(s) dérivée(s)`]] : []),
             ['Type', v(f.kind)], ['Périodicité', v(f.frequency)], ['Mode', v(f.mode)], ['Cycle de vie', v(f.lifecycle)], ['Statut', v(f.status)]],
           linksTitle: 'Données transportées', links: shownData.map((d): PanelLink => ({ label: l.data.find((x) => x.id === d)!.name, kind: 'donnee', id: d })),
-          list: f.steps.map((st, i) => `${i + 1}. ${tech.get(st.technicalId)?.name ?? '?'} (${tech.get(st.technicalId)?.step ?? 'étape'})${verified(st.status) ? '' : ' : ' + st.status}`) };
+          // Liste numérotée par l'élément <ol> : pas de puce et de numéro à la fois (revue Camille L6).
+          ordered: true,
+          list: f.steps.map((st) => `${tech.get(st.technicalId)?.name ?? '?'} (${tech.get(st.technicalId)?.step ?? 'étape'})${verified(st.status) ? '' : ' : ' + st.status}`) };
       }
       case 'etape': {
         const t = l.technical.find((x) => x.id === s.id); if (!t) return null;
@@ -413,6 +433,9 @@ export class LineagePage {
     }
     return null;
   });
+
+  flowLinks(d: object): PanelLink[] { return 'flows' in d ? (d.flows as PanelLink[]) : []; }
+  isOrdered(d: object): boolean { return 'ordered' in d && d.ordered === true; }
 
   constructor() {
     this.route.paramMap.subscribe((p) => {
@@ -577,7 +600,8 @@ export class LineagePage {
       l.data.forEach((d, i) => {
         const master = d.roles.find((r) => r.role === 'Maître')?.appName;
         dataBox.set(d.id, box({ id: d.id, kind: 'donnee', x: pos[i].x, y: pos[i].y, w, h, title: fit((d.code ? d.code + ' ' : '') + d.name, w - 18),
-          sub: fit([d.derived ? 'dérivée' : null, master ? 'maître : ' + master : null, d.personal === 'Oui' ? 'données personnelles' : null].filter(Boolean).join(', ') || d.typeLabel, w - 18, 11),
+          // Le maître seul, avec le libellé du panneau ; les autres rôles sont au panneau (revue Camille L4).
+          sub: fit(master ? 'Maître : ' + master : d.derived ? 'Donnée dérivée' : d.typeLabel, w - 18, 11),
           full: d.name, dashed: d.derived || !verified(d.status), strong: d.id === l.focus.id }));
       });
       const bottom = Math.max(...pos.map((p) => p.y)) + h;

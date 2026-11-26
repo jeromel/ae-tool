@@ -205,7 +205,8 @@ const NORMAL: Record<Side, Point> = { N: { x: 0, y: -1 }, E: { x: 1, y: 0 }, S: 
 
       @if (legend(); as l) {
         <div class="legend" (pointerdown)="$event.stopPropagation()">
-          @if (l.badge) { <span class="badge-key"><i class="pill-key">1</i>{{ l.badge }}</span> }
+          @if (l.badge) { <span class="badge-key"><i class="pill-key round">1</i>{{ l.badge }}</span> }
+          @if (l.flows) { <span class="badge-key"><i class="pill-key">F1</i>{{ l.flows }}</span> }
           @if (l.title) { <b>{{ l.title }}</b> }
           @for (e of l.entries; track e.label) { <span><i [style.background]="e.color"></i>{{ e.label }}</span> }
         </div>
@@ -275,6 +276,7 @@ const NORMAL: Record<Side, Point> = { N: { x: 0, y: -1 }, E: { x: 1, y: 0 }, S: 
     .legend .badge-key { display: flex; align-items: center; gap: 6px; }
     .legend i.pill-key { font: 600 10px 'Segoe UI', system-ui, sans-serif; font-style: normal; display: inline-grid; place-items: center;
       width: auto; min-width: 18px; padding: 0 4px; height: 16px; border-radius: 8px; border: 1px solid #5c6c73; background: #fff; color: #14262d; }
+    .legend i.pill-key.round { width: 16px; min-width: 0; padding: 0; border-radius: 50%; }
     .flowlabel { font: 10px 'Segoe UI', system-ui, sans-serif; fill: var(--zone-ink); paint-order: stroke; stroke: var(--stage); stroke-width: 3.5px; stroke-linejoin: round; }
     .wire.on path { stroke: var(--signal, #e5a50a) !important; stroke-width: 2.6; }
     .wire.dim { opacity: .22; }
@@ -379,14 +381,17 @@ export class DiagramView implements OnDestroy {
 
   legend = computed(() => {
     const layer = this.activeLayer();
-    if (!layer || this.exact()) return null;
+    // Les pastilles de flux ont leur ligne de légende, calque ou non (revue Camille L2).
+    const wires = this.exact() ? [] : this.wires().filter((w) => w.flow);
+    const flows = wires.length ? 'Flux : code ou numéro, cliquez pour ses données' + (wires.some((w) => w.lock) ? ' · 🔒 chiffré' : '') : null;
+    if (!layer || this.exact()) return flows ? { title: null, badge: null, flows, entries: [] } : null;
     // Une pastille de calque porte toujours une légende visible, pour tous les profils (charte §3.4).
     const badges = this.nodes().some((n) => n.badge);
     const scale = layer.key === 'cm' ? ', de 1 (faible) à 4 (vitale)' : '';
     const badge = badges ? `Pastille : ${layer.label.toLowerCase()}${scale}` : null;
-    if (!this.colorize()) return badge ? { title: null, badge, entries: [] } : null;
+    if (!this.colorize()) return badge || flows ? { title: null, badge, flows, entries: [] } : null;
     const entries = [...this.layerColors()].map(([label, color]) => ({ label, color }));
-    return { title: layer.label, badge, entries: [...entries, { label: 'Sans valeur', color: NEUTRAL }] };
+    return { title: layer.label, badge, flows, entries: [...entries, { label: 'Sans valeur', color: NEUTRAL }] };
   });
 
   nodes = computed<NodeView[]>(() => {
@@ -532,7 +537,8 @@ export class DiagramView implements OnDestroy {
         dash: line === 'tirets' ? '7 5' : line === 'pointillés' ? '2 4' : null,
         head: head === 'aucune' || head.startsWith('losange') ? null : head === 'point' ? 'fleche' : head,
         tail: exact ? null : head.startsWith('losange') || head === 'point' ? head : null,
-        tag: c.flow ? (c.code?.trim() || String(++number)) : null,
+        // Sans code, « F » et un numéro : la pastille reste un rectangle et ne se confond pas avec le rond d'un calque (L2).
+        tag: c.flow ? (c.code?.trim() || 'F' + ++number) : null,
         name: c.name, protocol: c.protocol, encryption: c.encryption, carried: c.carried ?? [],
         lock: !!c.encryption && !/^(non|aucun|none|no)$/i.test(c.encryption.trim()),
         label: wrap(c.name, 30, 2),

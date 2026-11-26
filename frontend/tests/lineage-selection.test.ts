@@ -17,6 +17,7 @@ const L: SelLineage = {
     { id: 'hydro', name: 'HYDROVISION', hostIds: [] },
     { id: 'ondine', name: 'ONDINE', hostIds: ['vm-cli'] },
     { id: 'fineo', name: 'FINEO', hostIds: [] },
+    { id: 'sigma', name: 'SIGMA', hostIds: [] },
   ],
   flows: [
     { id: 'f12', code: 'FX-12', name: 'Relevés vers facturation', sourceId: 'hydro', targetId: 'ondine', dataIds: ['idx', 'abo'],
@@ -58,8 +59,8 @@ test('flux : ses données, ses deux applications, sa chaîne et les serveurs de 
 
 test('flux sans donnée renseignée ni chaîne : les deux le disent (§6)', () => {
   const g = lit(L, { kind: 'flux', id: 'f2' });
-  assert.equal(g.titles.donnees, 'Données · 2 : données transportées non renseignées au catalogue');
-  assert.equal(g.titles.chaine, 'Chaîne technique de 2 Factures : non décrite au catalogue');
+  assert.equal(g.titles.donnees, 'Données · F2 : données transportées non renseignées au catalogue');
+  assert.equal(g.titles.chaine, 'Chaîne technique de F2 Factures : non décrite au catalogue');
   assert.ok(![...g.keys].some((k) => k.startsWith('donnee:')));
 });
 
@@ -89,7 +90,10 @@ test('application : ses données tenues ou reçues, ses flux, ses serveurs ; pas
   const g = lit(L, { kind: 'application', id: 'ondine' });
   assert.equal(g.chainFlowId, null);
   for (const k of ['donnee:abo', 'donnee:ctr', 'donnee:idx', 'flux:f12', 'flux:f2', 'hote:vm-cli', 'application:ondine']) assert.ok(g.keys.has(k), k);
-  assert.ok(!g.keys.has(key('application', 'fineo')), 'les autres applications restent estompées (table du §3)');
+  // Revue Camille L7 : l'autre extrémité d'un flux allumé est en plein contraste, sans quoi le trait n'aboutit nulle part.
+  assert.ok(g.keys.has(key('application', 'fineo')) && g.keys.has(key('application', 'hydro')), 'autres extrémités de ses flux');
+  assert.ok(!g.keys.has(key('application', 'sigma')), 'une application sans flux avec elle reste estompée');
+  assert.ok(!g.keys.has(key('hote', 'vm-fin')), 'les serveurs des autres extrémités ne sont pas allumés');
 });
 
 test('étape : ses flux, leurs données, ses serveurs, montrée dans sa chaîne', () => {
@@ -113,7 +117,7 @@ test('objet inconnu : comme aucune sélection, sans erreur', () => {
 
 test('pastille : code, sinon numéro dans l\'ordre du parcours ; nombre de données, « ? » si rien (P3)', () => {
   assert.equal(flowTag(L, 'f12'), 'FX-12');
-  assert.equal(flowTag(L, 'f2'), '2');
+  assert.equal(flowTag(L, 'f2'), 'F2');
   assert.equal(flowPill(L, 'f12'), 'FX-12 · 2');
-  assert.equal(flowPill(L, 'f2'), '2 · ?');
+  assert.equal(flowPill(L, 'f2'), 'F2 · ?');
 });

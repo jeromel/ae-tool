@@ -148,13 +148,12 @@ import { readPref, readText, writePref, writeText } from '../prefs';
             <h3>Données transportées</h3>
             @for (d of f.carried; track $index) { <div class="line">{{ d }}</div> }
             @empty { <p class="muted small">Aucune donnée du catalogue n'est rattachée à ce flux.</p> }
-            @if (f.protocol || f.encryption) {
-              <h3>Échange</h3>
-              <dl class="props">
-                @if (f.protocol) { <dt>Protocole</dt><dd>{{ f.protocol }}</dd> }
-                @if (f.encryption) { <dt>Chiffrement</dt><dd>{{ f.encryption }}</dd> }
-              </dl>
-            }
+            <!-- Un champ attendu par la méthode et vide se montre vide : il ne disparaît pas (recette C2/C3, revue Camille L6). -->
+            <h3>Échange</h3>
+            <dl class="props">
+              <dt>Protocole</dt><dd [class.muted]="!f.protocol">{{ f.protocol || 'non renseigné' }}</dd>
+              <dt>Chiffrement</dt><dd [class.muted]="!f.encryption">{{ f.encryption || 'non renseigné' }}</dd>
+            </dl>
           </div>
         </aside>
       }
@@ -255,7 +254,7 @@ import { readPref, readText, writePref, writeText } from '../prefs';
     /* Le titre passe en premier et s'affiche en entier, sur deux lignes si besoin. */
     .bar h1 { margin: 0; font-size: 17px; line-height: 1.2; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
     .bar .title span { display: block; white-space: nowrap; }
-    .bar .find { width: 150px; }
+    .bar .find { width: 21ch; }
     .menu { position: relative; }
     .menu summary { list-style: none; padding: 6px 12px; }
     .menu summary::-webkit-details-marker { display: none; }

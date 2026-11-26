@@ -32,11 +32,11 @@ export interface Lit {
 
 export const key = (kind: Kind, id: string) => `${kind}:${id}`;
 
-/** Pastille d'un flux : son code, sinon un numéro court dans l'ordre du parcours (charte §3.3, P3). */
+/** Pastille d'un flux : son code, sinon « F » et un numéro court dans l'ordre du parcours (charte §3.3, P3 ; revue Camille L2). */
 export function flowTag(l: Pick<SelLineage, 'flows'>, flowId: string): string {
   const i = l.flows.findIndex((f) => f.id === flowId);
   const f = l.flows[i];
-  return f?.code?.trim() || String(i + 1);
+  return f?.code?.trim() || 'F' + (i + 1);
 }
 
 /** Pastille avec le nombre de données transportées : « FX-12 · 2 », « 3 · ? » quand rien n'est renseigné. */
@@ -114,7 +114,8 @@ export function lit(l: SelLineage, sel: Selection | null): Lit {
       const flows = l.flows.filter((f) => f.sourceId === a.id || f.targetId === a.id);
       const data = new Set([...l.data.filter((d) => d.roles.some((r) => r.appId === a.id)).map((d) => d.id),
         ...flows.filter((f) => f.targetId === a.id).flatMap((f) => f.dataIds)]);
-      add('application', [a.id]);
+      // L'autre extrémité d'un flux allumé reste en plein contraste : un trait allumé doit aboutir quelque part (revue Camille L7).
+      add('application', [a.id, ...flows.flatMap((f) => [f.sourceId, f.targetId])]);
       add('flux', flows.map((f) => f.id));
       add('donnee', data);
       const hosts = new Set([...a.hostIds, ...hostsOfApps(new Set([a.id]))]);
