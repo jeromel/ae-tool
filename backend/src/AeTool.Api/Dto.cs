@@ -94,12 +94,14 @@ public static class Dto
         foreach (var n in d.Nodes) Visit(n, 0, null);
 
         // Objets rattachés à une relation (ArchiMate autorise une relation vers une relation) : les données qu'un flux transporte.
+        // Seuls les objets de nature « donnée » comptent : un flux technique ou un bus rattaché au flux n'est pas transporté.
         var shown = d.Connections.Select(c => c.RelationshipId).Where(id => id is not null).ToHashSet();
+        var dataTypes = meta.TypeKeysWith(Roles.Data);
         var carried = new Dictionary<string, List<string>>();
         foreach (var r in repo.ActiveRelationships)
         {
             var (relationId, objectId) = shown.Contains(r.TargetId) ? (r.TargetId, r.SourceId) : shown.Contains(r.SourceId) ? (r.SourceId, r.TargetId) : (null, null);
-            if (relationId is null || !repo.Objects.TryGetValue(objectId!, out var o)) continue;
+            if (relationId is null || !repo.Objects.TryGetValue(objectId!, out var o) || !dataTypes.Contains(o.TypeKey)) continue;
             if (!carried.TryGetValue(relationId, out var list)) carried[relationId] = list = new List<string>();
             list.Add(o.Name);
         }
@@ -128,6 +130,8 @@ public static class Dto
                     SoftLine = type?.SoftLine ?? (c.Head is null ? DrawingDefaults.FallbackLine : c.Dashed ? "tirets" : "plein"),
                     Head = type?.Head ?? c.Head ?? DrawingDefaults.FallbackHead, c.Orthogonal,
                     Flow = r is not null && meta.RelIsA(r.TypeKey, Roles.Flow),
+                    // Code du flux (catalogue) : il sert de pastille en rendu lisible (charte §3.3).
+                    Code = r?.Properties.FirstOrDefault(p => p.Key == CatalogueModel.Code)?.Value,
                     Protocol = r?.Properties.FirstOrDefault(p => p.Key == meta.Settings.FlowProtocolKey)?.Value,
                     Encryption = r?.Properties.FirstOrDefault(p => p.Key == meta.Settings.FlowEncryptionKey)?.Value,
                     Carried = r is not null && carried.TryGetValue(r.Id, out var list) ? list : null,

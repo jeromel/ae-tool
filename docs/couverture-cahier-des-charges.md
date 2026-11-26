@@ -79,7 +79,7 @@
 | ET-04 Base relationnelle | **Dérogation** | stockage par fichier pour le pilote (décision 004) ; à lever avant généralisation |
 | ET-05 Pas de composant lourd | Couvert | un processus, un dossier |
 | ET-10 Spécifications et tests dans Git | Couvert | |
-| ET-11 Tests automatisés | Couvert | 361 tests ; les scripts échouent si un test échoue ; pas de chaîne d'intégration continue |
+| ET-11 Tests automatisés | Couvert | 362 tests ; les scripts échouent si un test échoue ; pas de chaîne d'intégration continue |
 | ET-12 Analyse statique et formatage | Partiel | avertissements du compilateur bloquants ; pas de règle de formatage automatisée |
 | ET-13 Revue par une seconde personne | **À la DSI** | le code a été produit avec une IA : la revue humaine reste entièrement à faire |
 | ET-14 Documentation minimale | Couvert | prise en main, architecture, décisions, exploitation, installation, sécurité |

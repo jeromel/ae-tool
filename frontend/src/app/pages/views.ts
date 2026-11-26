@@ -2,7 +2,7 @@ import { Component, ElementRef, OnDestroy, computed, effect, inject, input, sign
 import { NgTemplateOutlet } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import { Api, SOURCE_LABELS } from '../api';
-import { DiagramNode, DiagramView } from '../diagram-view';
+import { DiagramNode, DiagramView, FlowPick } from '../diagram-view';
 import { NoteGauge } from '../note-gauge';
 import { Session } from '../session';
 import { NavState } from '../nav';
@@ -14,7 +14,7 @@ import { readPref, readText, writePref, writeText } from '../prefs';
  */
 @Component({
   imports: [RouterLink, NgTemplateOutlet, DiagramView, NoteGauge],
-  host: { '(document:fullscreenchange)': 'syncFullscreen()', '(document:keydown.escape)': 'selected.set(null)', '(document:click)': 'closeMenu($event)' },
+  host: { '(document:fullscreenchange)': 'syncFullscreen()', '(document:keydown.escape)': 'selected.set(null); flow.set(null)', '(document:click)': 'closeMenu($event)' },
   template: `
     <div class="workspace" #workspace>
       @if (treeOpen()) {
@@ -126,6 +126,7 @@ import { readPref, readText, writePref, writeText } from '../prefs';
               <p class="dense small" role="note">Vue très chargée : utilisez « Repérer un élément » ou ouvrez une zone.</p>
             }
             <app-diagram-view #plan [editing]="editing()" [diagram]="d" [selectedId]="selected()" [find]="find()" [dark]="dark()" [exact]="exact()" [layer]="layer()" [colorize]="colorize()"
+              [pickedFlow]="flow()?.id ?? null" (selectFlow)="onFlow($event)"
               (select)="onSelect($event)" (openObject)="go(['/objets', $event])" (openView)="go(['/vues', $event])" />
           }
         } @else {
@@ -135,6 +136,28 @@ import { readPref, readText, writePref, writeText } from '../prefs';
           </div>
         }
       </section>
+
+      @if (flow(); as f) {
+        <aside class="pane inspector" aria-label="Flux">
+          <div class="pane-head">
+            <h2><span class="chip">{{ f.tag }}</span> {{ f.name || '(flux sans nom)' }}</h2>
+            <button type="button" class="icon" title="Fermer (Échap)" aria-label="Fermer le flux" (click)="flow.set(null)">×</button>
+          </div>
+          <div class="pane-body">
+            <p>{{ f.source }} → {{ f.target }}</p>
+            <h3>Données transportées</h3>
+            @for (d of f.carried; track $index) { <div class="line">{{ d }}</div> }
+            @empty { <p class="muted small">Aucune donnée du catalogue n'est rattachée à ce flux.</p> }
+            @if (f.protocol || f.encryption) {
+              <h3>Échange</h3>
+              <dl class="props">
+                @if (f.protocol) { <dt>Protocole</dt><dd>{{ f.protocol }}</dd> }
+                @if (f.encryption) { <dt>Chiffrement</dt><dd>{{ f.encryption }}</dd> }
+              </dl>
+            }
+          </div>
+        </aside>
+      }
 
       @if (detail(); as o) {
         <aside class="pane inspector">
@@ -294,6 +317,8 @@ export class ViewsPage implements OnDestroy {
   fullscreen = signal(false);
   /** Identifiant de l'objet sélectionné dans le plan, et sa fiche chargée. */
   selected = signal<string | null>(null);
+  /** Flux dont le panneau est ouvert (clic sur sa pastille). */
+  flow = signal<FlowPick | null>(null);
   detail = signal<any>(null);
   score = signal<any>(null);
   sources = SOURCE_LABELS;
@@ -360,6 +385,7 @@ export class ViewsPage implements OnDestroy {
       const d = this.diagram();
       const current = untracked(this.selected);
       this.find.set('');
+      this.flow.set(null);
       if (d && current && !d.nodes.some((n: DiagramNode) => n.elementId === current)) this.selected.set(null);
     });
     effect(() => {
@@ -412,6 +438,7 @@ export class ViewsPage implements OnDestroy {
 
   startEditing(): void {
     this.selected.set(null);
+    this.flow.set(null);
     this.editing.set(true);
   }
 
@@ -448,7 +475,14 @@ export class ViewsPage implements OnDestroy {
   }
 
   onSelect(node: DiagramNode | null): void {
+    this.flow.set(null);
     this.selected.set(node?.elementId ?? null);
+  }
+
+  /** Clic sur la pastille d'un flux : son panneau remplace la fiche d'objet. */
+  onFlow(f: FlowPick): void {
+    this.selected.set(null);
+    this.flow.set(f);
   }
 
   /** Depuis la fiche : sélectionne l'objet lié s'il est sur le plan, sinon ouvre sa fiche complète. */

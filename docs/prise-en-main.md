@@ -222,6 +222,14 @@ extrémités ; plusieurs liens dans un même couloir sont écartés pour rester 
 ressortir ses liens au premier plan. Le rendu « Comme dans Archi » garde le tracé et les points de passage d'Archi. Au-delà de 150 éléments,
 une note invite à repérer un élément ou à ouvrir une zone.
 
+En rendu lisible, un nom n'est jamais coupé au milieu d'un mot : il passe à la ligne entre deux mots, sur trois lignes au
+plus, puis sa police est réduite jusqu'à 11 px ; s'il ne tient toujours pas, il est abrégé par « … » à la fin d'un mot,
+et le nom complet s'affiche au survol. Un élément posé dans une zone n'est pas relié à elle par un trait : l'imbrication
+suffit. Chaque flux porte une pastille avec son code du catalogue (FA-015), ou à défaut un numéro ; son nom s'affiche
+au survol, et sous la pastille quand la place est libre. **Cliquer sur la pastille** ouvre le panneau du flux : ses
+extrémités, les données qu'il transporte, son protocole et son chiffrement. Quand un calque est choisi, une légende
+rappelle ce que porte la pastille des cartes (par défaut, la criticité métier de 1 à 4).
+
 La vue s'ouvre en rendu lisible, aux couleurs du type d'élément. Les **Réglages avancés**, ouverts à tous, proposent le
 rendu « Comme dans Archi », les couleurs d'Archi, le calque et le fond sombre, ainsi que « Exporter vers Archi » ; à
 partir du rôle contributeur, ils proposent aussi « Réorganiser ».
@@ -239,8 +247,8 @@ Dans **Vues**, **Réglages avancés › Réorganiser** (à partir du rôle contr
 
 La disposition enregistrée se superpose à celle d'Archi ou de draw.io : elle survit à leurs réimports et part vers
 Archi avec « Exporter vers Archi ». **Revenir à la disposition d'origine** l'efface. Chaque enregistrement est inscrit
-au journal. Dans toutes les vues, le libellé ou la pastille d'un lien qui tomberait sur une carte n'apparaît que
-lorsque l'on clique sur l'une de ses deux extrémités.
+au journal. Dans toutes les vues, le nom d'un lien qui tomberait sur une carte, une pastille ou un autre nom n'apparaît
+que lorsque l'on clique sur l'une de ses deux extrémités ; la pastille d'un flux, elle, reste toujours affichée.
 
 ### Étapes et scénarios d'un projet
 

@@ -4,6 +4,7 @@ import { glyphPath } from './glyphs';
 import { autoLayout, Box, snap } from './auto-layout';
 import { Point, Rect, Side, bezier, bezierMiddle, contains, facingSides, polylineMiddle, portPoint, roundedPath } from './geometry';
 import { RouteRequest, routeAll } from './routing';
+import { LABEL_MIN_FONT, LabelFit, Measure, canvasMeasure, fitLabel } from './label-fit';
 
 export interface DiagramNode {
   id: string; kind: string; elementId: string | null; name: string; typeLabel: string | null;
@@ -15,9 +16,14 @@ interface Connection {
   id: string; sourceNodeId: string; targetNodeId: string; bendpoints: Point[];
   lineStyle: string; softLine: string; head: string; flow: boolean; color: string; orthogonal?: boolean; mark?: string | null;
   name: string | null; typeKey: string | null; typeLabel: string | null;
-  protocol: string | null; encryption: string | null; carried: string[] | null;
+  protocol: string | null; encryption: string | null; carried: string[] | null; code?: string | null;
 }
 export interface DiagramLayer { key: string; label: string; kind: string; }
+/** Flux choisi d'un clic sur sa pastille : ce que le panneau en affiche. */
+export interface FlowPick {
+  id: string; tag: string; name: string | null; source: string; target: string;
+  protocol: string | null; encryption: string | null; carried: string[];
+}
 
 /** Nœud prêt à dessiner : aspect, police et placement du texte calculés une fois par vue. */
 interface NodeView extends DiagramNode {
@@ -25,8 +31,7 @@ interface NodeView extends DiagramNode {
   shown: string;          // couleur de fond affichée (celle du calque si la coloration est active)
   radius: number;
   font: number;           // taille du nom, en unités du plan
-  fontMax: number;        // plus grande taille qui tient encore dans la forme sur une ligne
-  lines: number;
+  fit: LabelFit;          // nom rangé dans sa case, au zoom 1 : lignes coupées entre deux mots (charte §2.1)
   text: Rect;             // boîte du nom
   left: boolean;          // nom aligné à gauche (pictogramme devant) ou centré
   glyphBox: Rect | null;
@@ -38,6 +43,7 @@ interface NodeView extends DiagramNode {
 interface Wire {
   id: string; path: string; color: string; dash: string | null; head: string | null; tail: string | null;
   flow: boolean; mid: Point; tag: string | null; lock: boolean; label: string[]; title: string;
+  name: string | null; protocol: string | null; encryption: string | null; carried: string[];
   sourceId: string; targetId: string;
   mark: string | null;  // état projeté : ajouté, modifié, retiré
   crowded: boolean;   // libellé ou pastille qui tomberait sur une carte : montré seulement quand le lien est en vue
@@ -129,7 +135,7 @@ const NORMAL: Record<Side, Point> = { N: { x: 0, y: -1 }, E: { x: 1, y: 0 }, S: 
                   <div class="label" [class.top]="n.look === 'zone'" [class.left]="n.left" [style.color]="n.look === 'zone' && dark() ? null : n.textColor"
                     [style.font-size.px]="fontOf(n)" [style.font-weight]="n.bold || n.look === 'zone' ? 650 : n.look === 'exact' || n.look === 'note' ? 400 : 550"
                     [title]="(n.typeLabel ? n.typeLabel + ' : ' + n.name : n.name) + (n.replaces ? ' (remplace ' + n.replaces + ' à cette étape)' : '')">
-                    <span [style.-webkit-line-clamp]="linesOf(n)">{{ n.name }}</span>
+                    @for (line of fitOf(n).lines; track $index) { <span>{{ line }}</span> }
                   </div>
                 </foreignObject>
               }
@@ -162,17 +168,20 @@ const NORMAL: Record<Side, Point> = { N: { x: 0, y: -1 }, E: { x: 1, y: 0 }, S: 
               }
               @if (c.flow && !exact()) {
                 <g [attr.transform]="'translate(' + c.mid.x + ' ' + c.mid.y + ') scale(' + tagScale() + ')'">
-                  @if (c.tag && showTags() && (!c.crowded || isAttached(c))) {
-                    <rect class="tag pill" [attr.x]="-tagWidth(c) / 2" y="-8" [attr.width]="tagWidth(c)" height="16" rx="8" [style.stroke]="c.color" />
-                    @if (c.lock) { <path class="lock" [style.stroke]="c.color" [attr.transform]="'translate(' + (-tagWidth(c) / 2 + 5) + ' -5)'" d="M2 4.5h6v5H2zM3.5 4.5V3a1.5 1.5 0 0 1 3 0v1.5" /> }
-                    <text class="tagtext" [style.fill]="c.color" [attr.x]="c.lock ? 5 : 0" y="3.4" text-anchor="middle">{{ c.tag }}</text>
-                  } @else if (!c.crowded || isAttached(c)) {
-                    <!-- Point de flux sans protocole : comme une pastille, il ne se pose pas sur une carte que le trait contourne par-dessous. -->
-                    <circle class="tag" r="4" [style.fill]="c.color" />
+                  <!-- Tout flux porte une pastille, même sur une carte : son code, sinon un numéro ; clic : le panneau du flux. -->
+                  @if (showTags()) {
+                    <g class="pastille" [class.picked]="pickedFlow() === c.id" (click)="pickFlow(c, $event)" (dblclick)="$event.stopPropagation()" (pointerdown)="$event.stopPropagation()">
+                      <title>{{ c.title }}</title>
+                      <rect class="tag pill" [attr.x]="-tagWidth(c) / 2" y="-8" [attr.width]="tagWidth(c)" height="16" rx="8" [style.stroke]="c.color" />
+                      @if (c.lock) { <path class="lock" [style.stroke]="c.color" [attr.transform]="'translate(' + (-tagWidth(c) / 2 + 5) + ' -5)'" d="M2 4.5h6v5H2zM3.5 4.5V3a1.5 1.5 0 0 1 3 0v1.5" /> }
+                      <text class="tagtext" [style.fill]="c.color" [attr.x]="c.lock ? 5 : 0" y="3.4" text-anchor="middle">{{ c.tag }}</text>
+                    </g>
+                  } @else {
+                    <circle class="tag" r="4" [style.fill]="c.color"><title>{{ c.title }}</title></circle>
                   }
                   @if (showFlowLabel(c)) {
                     <text class="flowlabel" text-anchor="middle">
-                      @for (line of c.label; track $index) { <tspan x="0" [attr.y]="(c.tag ? 21 : 17) + $index * 12">{{ line }}</tspan> }
+                      @for (line of c.label; track $index) { <tspan x="0" [attr.y]="21 + $index * 12">{{ line }}</tspan> }
                     </text>
                   }
                 </g>
@@ -196,7 +205,8 @@ const NORMAL: Record<Side, Point> = { N: { x: 0, y: -1 }, E: { x: 1, y: 0 }, S: 
 
       @if (legend(); as l) {
         <div class="legend" (pointerdown)="$event.stopPropagation()">
-          <b>{{ l.title }}</b>
+          @if (l.badge) { <span class="badge-key"><i class="pill-key">1</i>{{ l.badge }}</span> }
+          @if (l.title) { <b>{{ l.title }}</b> }
           @for (e of l.entries; track e.label) { <span><i [style.background]="e.color"></i>{{ e.label }}</span> }
         </div>
       }
@@ -245,10 +255,10 @@ const NORMAL: Record<Side, Point> = { N: { x: 0, y: -1 }, E: { x: 1, y: 0 }, S: 
     .badge rect { fill: #fff; stroke-width: 1; vector-effect: non-scaling-stroke; }
     .badge text { font: 600 10px 'Segoe UI', system-ui, sans-serif; fill: #14262d; }
 
-    .label { height: 100%; display: flex; align-items: center; justify-content: center; text-align: center; padding: 0 2px;
+    .label { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
       line-height: 1.16; overflow: hidden; font-family: 'Segoe UI', system-ui, sans-serif; }
-    .label span { display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
-    .label.left { justify-content: flex-start; text-align: left; }
+    .label span { display: block; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .label.left { align-items: flex-start; text-align: left; }
     .label.top { align-items: flex-start; justify-content: flex-start; text-align: left; color: var(--zone-ink); }
 
     .wire path { stroke-width: 1.4; vector-effect: non-scaling-stroke; }
@@ -260,6 +270,11 @@ const NORMAL: Record<Side, Point> = { N: { x: 0, y: -1 }, E: { x: 1, y: 0 }, S: 
     :host(.dark) .tag.pill { fill: var(--stage); }
     .tagtext { font: 700 8.5px 'Segoe UI', system-ui, sans-serif; letter-spacing: .02em; }
     .lock { fill: none; stroke-width: 1.2; }
+    .pastille { cursor: pointer; }
+    .pastille.picked .tag.pill { stroke: #e5a50a !important; stroke-width: 2.6; }
+    .legend .badge-key { display: flex; align-items: center; gap: 6px; }
+    .legend i.pill-key { font: 600 10px 'Segoe UI', system-ui, sans-serif; font-style: normal; display: inline-grid; place-items: center;
+      width: auto; min-width: 18px; padding: 0 4px; height: 16px; border-radius: 8px; border: 1px solid #5c6c73; background: #fff; color: #14262d; }
     .flowlabel { font: 10px 'Segoe UI', system-ui, sans-serif; fill: var(--zone-ink); paint-order: stroke; stroke: var(--stage); stroke-width: 3.5px; stroke-linejoin: round; }
     .wire.on path { stroke: var(--signal, #e5a50a) !important; stroke-width: 2.6; }
     .wire.dim { opacity: .22; }
@@ -308,6 +323,9 @@ export class DiagramView implements OnDestroy {
   });
 
   select = output<DiagramNode | null>();
+  /** Flux dont le panneau est ouvert (sa pastille est mise en avant). */
+  pickedFlow = input<string | null>(null);
+  selectFlow = output<FlowPick>();
   openObject = output<string>();
   openView = output<string>();
 
@@ -361,9 +379,14 @@ export class DiagramView implements OnDestroy {
 
   legend = computed(() => {
     const layer = this.activeLayer();
-    if (!layer || !this.colorize() || this.exact()) return null;
+    if (!layer || this.exact()) return null;
+    // Une pastille de calque porte toujours une légende visible, pour tous les profils (charte §3.4).
+    const badges = this.nodes().some((n) => n.badge);
+    const scale = layer.key === 'cm' ? ', de 1 (faible) à 4 (vitale)' : '';
+    const badge = badges ? `Pastille : ${layer.label.toLowerCase()}${scale}` : null;
+    if (!this.colorize()) return badge ? { title: null, badge, entries: [] } : null;
     const entries = [...this.layerColors()].map(([label, color]) => ({ label, color }));
-    return { title: layer.label, entries: [...entries, { label: 'Sans valeur', color: NEUTRAL }] };
+    return { title: layer.label, badge, entries: [...entries, { label: 'Sans valeur', color: NEUTRAL }] };
   });
 
   nodes = computed<NodeView[]>(() => {
@@ -385,7 +408,7 @@ export class DiagramView implements OnDestroy {
         // Calque coloré : une carte sans valeur garde sa teinte, très estompée, pour ne pas concurrencer les autres.
         shown: colorize && look !== 'zone' && n.elementId ? (value ? colors.get(value)! : `color-mix(in srgb, ${n.fill} 22%, ${NEUTRAL})`) : n.fill,
         radius: n.kind === 'Label' ? 3 : look === 'zone' ? 9 : look === 'rond' ? n.h / 2 : look === 'exact' ? (n.shape === 'arrondi' ? 12 : 2) : Math.min(8, n.h / 5),
-        font: n.fontSize * 1.33, fontMax: n.fontSize * 1.33, lines: 6, innerCards: [], left: false, glyphBox: null, badge: exact || look === 'zone' ? null : shorten(value, 16),
+        font: n.fontSize * 1.33, fit: { font: n.fontSize * 1.33, lines: [], truncated: false }, innerCards: [], left: false, glyphBox: null, badge: exact || look === 'zone' ? null : shorten(value, 16),
         text: { x: n.x + 6, y: n.y + 2, w: n.w - 12, h: n.h - 4 },
         header: kids.length ? Math.max(0, Math.min(...kids.map((k) => k.y)) - n.y) : n.h,
         innerZones: kids.filter((k) => zones.has(k.id)).map((k) => k.id),
@@ -394,6 +417,7 @@ export class DiagramView implements OnDestroy {
       if (look === 'note' && n.w < 70) view.text = { x: n.x + n.w / 2 - 50, y: n.y - 4, w: 100, h: n.h + 8 };
       if (look === 'zone') layoutZone(view, exact);
       else if (look === 'carte' || look === 'rond') layoutCard(view);
+      else layoutPlain(view);
       return view;
     });
     for (const z of views) if (zones.has(z.id)) z.innerCards = inside(z).filter((k) => !zones.has(k.id)).map((k) => k.id);
@@ -433,7 +457,9 @@ export class DiagramView implements OnDestroy {
       // Un nœud déplacé rend caducs les points de passage dessinés pour l'ancienne position.
       .map((c) => (moved[c.sourceNodeId] || moved[c.targetNodeId] ? { ...c, bendpoints: [] } : c))
       .map((c) => ({ c, s: byId.get(c.sourceNodeId), t: byId.get(c.targetNodeId) }))
-      .filter((e): e is { c: Connection; s: NodeView; t: NodeView } => !!e.s && !!e.t); // extrémité portée par une autre connexion : non dessinée
+      .filter((e): e is { c: Connection; s: NodeView; t: NodeView } => !!e.s && !!e.t) // extrémité portée par une autre connexion : non dessinée
+      // Rendu lisible : pas de lien entre un élément et la zone qui le contient, l'imbrication le dit déjà (charte §3.3).
+      .filter((e) => exact || e.s.id === e.t.id || !(contains(e.s, e.t) || contains(e.t, e.s)));
 
     // Rendu lisible : chaque lien s'accroche au côté qui fait face à l'autre extrémité, et les liens d'un même côté s'y répartissent.
     const sides = new Map<string, [Side, Side]>();
@@ -464,24 +490,13 @@ export class DiagramView implements OnDestroy {
       for (const { c, s, t } of drawn) {
         if (s.id === t.id) continue;
         const [a, b] = sides.get(c.id)!;
-        if (contains(s, t) || contains(t, s)) {
-          // Lien vers la zone qui contient l'élément : il sort par le côté le plus proche du bord et suit le couloir jusqu'au bord.
-          const innerIsSource = contains(t, s);
-          const inner = innerIsSource ? s : t;
-          const outer = innerIsSource ? t : s;
-          const at = port(inner, a, c.id + (innerIsSource ? '>' : '<'));
-          const edge = a === 'W' ? { x: outer.x, y: at.y } : a === 'E' ? { x: outer.x + outer.w, y: at.y } : a === 'N' ? { x: at.x, y: outer.y } : { x: at.x, y: outer.y + outer.h };
-          const out = NORMAL[a];
-          const innerEnd = { at, dir: out };
-          const outerEnd = { at: edge, dir: { x: -out.x, y: -out.y } };
-          requests.push({ id: c.id, from: innerIsSource ? innerEnd : outerEnd, to: innerIsSource ? outerEnd : innerEnd });
-        } else {
-          requests.push({ id: c.id, from: { at: port(s, a, c.id + '>'), dir: NORMAL[a] }, to: { at: port(t, b, c.id + '<'), dir: NORMAL[b] } });
-        }
+        requests.push({ id: c.id, from: { at: port(s, a, c.id + '>'), dir: NORMAL[a] }, to: { at: port(t, b, c.id + '<'), dir: NORMAL[b] } });
       }
       routed = routeAll(requests, this.boxNodes());
     }
 
+    // Pastille d'un flux : son code, sinon un numéro court dans l'ordre de la vue (charte §3.3).
+    let number = 0;
     return drawn.map(({ c, s, t }) => {
       let path: string;
       let mid: Point;
@@ -517,7 +532,8 @@ export class DiagramView implements OnDestroy {
         dash: line === 'tirets' ? '7 5' : line === 'pointillés' ? '2 4' : null,
         head: head === 'aucune' || head.startsWith('losange') ? null : head === 'point' ? 'fleche' : head,
         tail: exact ? null : head.startsWith('losange') || head === 'point' ? head : null,
-        tag: shorten(c.protocol?.split(/[\s,;/(]+/)[0]?.toUpperCase() ?? null, 7),
+        tag: c.flow ? (c.code?.trim() || String(++number)) : null,
+        name: c.name, protocol: c.protocol, encryption: c.encryption, carried: c.carried ?? [],
         lock: !!c.encryption && !/^(non|aucun|none|no)$/i.test(c.encryption.trim()),
         label: wrap(c.name, 30, 2),
         title: [
@@ -534,15 +550,23 @@ export class DiagramView implements OnDestroy {
 
   wires = computed<Wire[]>(() => {
     const list = this.traced().map((w) => ({ ...w }));
-    // Libellé ou pastille posés sur une carte : on les garde pour le moment où le lien est mis en avant.
-    const cards = this.boxNodes();
+    // Nom d'un flux qui tomberait sur une carte, une pastille ou un autre nom : il passe au survol, la pastille reste
+    // (charte §3.3). Il revient quand le lien est mis en avant.
     const k = this.tagScale();
+    const hit = (a: Rect, b: Rect) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+    const taken: Rect[] = this.boxNodes().map((n) => ({ x: n.x, y: n.y, w: n.w, h: n.h }));
     for (const w of list) {
+      if (!w.flow) continue;
       const tagW = w.tag ? this.tagWidth(w) * k : 8 * k;
+      taken.push({ x: w.mid.x - tagW / 2, y: w.mid.y - 8 * k, w: tagW, h: 16 * k });
+    }
+    for (const w of list) {
       const textW = Math.max(0, ...w.label.map((l) => l.length)) * 6.2 * k;
-      const boxes = [{ x: w.mid.x - tagW / 2, y: w.mid.y - 8 * k, w: tagW, h: 16 * k }];
-      if (textW > 0) boxes.push({ x: w.mid.x - textW / 2, y: w.mid.y + 10 * k, w: textW, h: 12 * w.label.length * k });
-      w.crowded = cards.some((n) => boxes.some((b) => b.x < n.x + n.w && b.x + b.w > n.x && b.y < n.y + n.h && b.y + b.h > n.y));
+      if (textW === 0) continue;
+      const top = w.flow ? w.mid.y + 10 * k : w.mid.y - 15 * k;
+      const box = { x: w.mid.x - textW / 2, y: top, w: textW, h: 12 * w.label.length * k };
+      w.crowded = taken.some((b) => hit(box, b));
+      if (!w.crowded) taken.push(box);
     }
     return list;
   });
@@ -607,19 +631,31 @@ export class DiagramView implements OnDestroy {
     return n.name.length > 0 && (n.look === 'exact' || n.look === 'note' || this.exact() || this.fontOf(n) * this.scale() >= (n.look === 'zone' ? MIN_SCREEN_TEXT : 7.5));
   }
 
-  /** Taille du nom : quand on dézoome, il grossit jusqu'à remplir sa forme pour rester lisible. */
+  /** Taille du nom à l'écran. */
   fontOf(n: NodeView): number {
-    if (n.look !== 'carte' && n.look !== 'rond') return n.font;
-    const target = 10.5 / this.scale();
-    if (n.font >= target) return n.font;
-    if (n.fontMax >= target) return target;
-    // Le nom entier ne tient pas à cette taille : on l'abrège si au moins six caractères restent visibles.
-    const abridged = target * 1.15 <= n.text.h && n.text.w / (CHAR * target) >= 6;
-    return abridged ? target : n.fontMax;
+    return this.fitOf(n).font;
   }
 
-  linesOf(n: NodeView): number {
-    return n.look === 'zone' ? 1 : Math.max(1, Math.floor(n.text.h / (this.fontOf(n) * 1.16)));
+  private zoomFits = new WeakMap<NodeView, { target: number; fit: LabelFit }>();
+
+  /**
+   * Nom rangé pour le zoom courant. Quand on dézoome, il grossit pour rester lisible (10,5 px à l'écran), toujours
+   * coupé entre deux mots ; s'il ne tient plus en entier, il est abrégé à la fin d'un mot, à condition qu'au moins un
+   * mot de six caractères ou plus reste visible. Sinon, il garde sa taille et le zoom sémantique le masque.
+   */
+  fitOf(n: NodeView): LabelFit {
+    if (n.look !== 'carte' && n.look !== 'rond') return n.fit;
+    const target = Math.round((10.5 / this.scale()) * 4) / 4;
+    if (n.font >= target) return n.fit;
+    const cached = this.zoomFits.get(n);
+    if (cached && cached.target === target) return cached.fit;
+    const measure = measureFor(n);
+    const grown = fitLabel(n.name, n.text.w, n.text.h, { max: target, min: target, floor: target, measure });
+    const fits = grown.lines.length > 0 && grown.lines.every((l) => measure(l) * grown.font <= n.text.w + 0.5);
+    const visible = grown.lines.join(' ').replace(/ ?…$/, '').length;
+    const fit = fits && (!grown.truncated || visible >= 6) ? grown : n.fit;
+    this.zoomFits.set(n, { target, fit });
+    return fit;
   }
 
   showGlyph(n: NodeView): boolean {
@@ -815,6 +851,16 @@ export class DiagramView implements OnDestroy {
     else this.select.emit(null);
   }
 
+  pickFlow(c: Wire, event: Event): void {
+    event.stopPropagation();
+    if (this.justDragged || this.editing()) return;
+    const byId = new Map(this.nodes().map((n) => [n.id, n]));
+    this.selectFlow.emit({
+      id: c.id, tag: c.tag ?? '', name: c.name, source: byId.get(c.sourceId)?.name ?? '', target: byId.get(c.targetId)?.name ?? '',
+      protocol: c.protocol, encryption: c.encryption, carried: c.carried,
+    });
+  }
+
   open(n: DiagramNode, event: Event): void {
     event.stopPropagation();
     if (this.editing()) return;
@@ -847,6 +893,16 @@ export class DiagramView implements OnDestroy {
   }
 }
 
+const FAMILY = "'Segoe UI', system-ui, sans-serif";
+const measures = new Map<number, Measure>();
+/** Mesure du nom avec la graisse qu'il aura à l'écran (voir le gabarit : 650 zone ou gras, 400 note et rendu exact, 550 sinon). */
+function measureFor(n: NodeView): Measure {
+  const weight = n.bold || n.look === 'zone' ? 650 : n.look === 'exact' || n.look === 'note' ? 400 : 550;
+  let m = measures.get(weight);
+  if (!m) measures.set(weight, (m = canvasMeasure(weight, FAMILY)));
+  return m;
+}
+
 /** Carte ou rond : pictogramme devant le nom si la forme est allongée, sinon nom centré et pictogramme en coin. */
 function layoutCard(n: NodeView): void {
   const pad = Math.max(5, Math.min(12, n.h * 0.16));
@@ -862,20 +918,32 @@ function layoutCard(n: NodeView): void {
     n.glyphBox = n.h >= 44 && n.w >= 70 ? { x: n.x + 5, y: n.y + 5, w: g, h: g } : null;
     n.text = { x: n.x + pad, y: n.y + 2, w: n.w - 2 * pad, h: n.h - 4 };
   }
-  // La plus grande police qui tient sur une, deux ou trois lignes, plafonnée à 30 % de la hauteur de la forme.
-  let best = 0;
-  let lines = 1;
-  for (let count = 1; count <= 3; count++) {
-    const perLine = Math.ceil(n.name.length / count) + (count > 1 ? 3 : 0);
-    const size = Math.min(n.text.w / (CHAR * Math.max(perLine, 3)), n.text.h / (1.2 * count));
-    if (size > best * 1.12) {
-      best = size;
-      lines = count;
+  // La plus grande police à laquelle le nom tient entre deux mots, sur trois lignes au plus, plafonnée à 30 % de la
+  // hauteur de la forme ; puis 11 px au minimum ; puis abrégé à la fin d'un mot (charte §2.1).
+  const max = Math.max(LABEL_MIN_FONT, Math.min(n.h * 0.3, 44));
+  const measure = measureFor(n);
+  let fit = fitLabel(n.name, n.text.w, n.text.h, { max, measure });
+  // Forme allongée dont le nom ne tient pas derrière le pictogramme (tronqué ou sous 11 px) : le pictogramme passe en
+  // coin, le nom prend la largeur.
+  if (wide && (fit.truncated || fit.font < LABEL_MIN_FONT)) {
+    const g = Math.max(9, Math.min(n.h * 0.2, 16));
+    const text = { x: n.x + pad, y: n.y + 2, w: n.w - 2 * pad, h: n.h - 4 };
+    const roomy = fitLabel(n.name, text.w, text.h, { max, measure });
+    // Un nom entier l'emporte sur un nom abrégé, puis la plus grande police.
+    if (Number(!roomy.truncated) * 1000 + roomy.font > Number(!fit.truncated) * 1000 + fit.font) {
+      fit = roomy;
+      n.text = text;
+      n.left = false;
+      n.glyphBox = n.h >= 44 && n.w >= 70 && n.look === 'carte' ? { x: n.x + 5, y: n.y + 5, w: g, h: g } : null;
     }
   }
-  n.font = Math.max(7, Math.min(best, n.h * 0.3, 44));
-  n.fontMax = Math.max(n.font, Math.min(best, n.text.h * 0.72));
-  n.lines = lines;
+  n.fit = fit;
+  n.font = fit.font;
+}
+
+/** Note, forme de dessin, rendu « Comme dans Archi » : la police d'Archi est gardée, le nom est coupé entre deux mots. */
+function layoutPlain(n: NodeView): void {
+  n.fit = fitLabel(n.name, n.text.w, n.text.h, { max: n.font, min: n.font, floor: n.font, maxLines: 99, measure: measureFor(n) });
 }
 
 /** Zone : titre en haut à gauche, dans l'espace laissé libre au-dessus des éléments contenus. */
@@ -883,12 +951,13 @@ function layoutZone(n: NodeView, exact: boolean): void {
   n.left = true;
   if (exact) {
     n.text = { x: n.x + 6, y: n.y + 4, w: n.w - 12, h: Math.min(n.h, n.fontSize * 4) };
+    n.fit = fitLabel(n.name, n.text.w, n.text.h, { max: n.font, min: n.font, floor: n.font, maxLines: 99, measure: measureFor(n) });
     return;
   }
   const room = n.header < n.h ? n.header : n.h * 0.3;
   n.font = Math.max(9, Math.min(room * 0.62, n.fontSize * 1.33 * 1.5, n.h * 0.2, 30));
-  n.lines = 1;
   n.text = { x: n.x + 8, y: n.y + Math.max(2, (room - n.font * 1.25) / 2), w: n.w - 16, h: n.font * 1.3 };
+  n.fit = fitLabel(n.name, n.text.w, n.text.h, { max: n.font, min: n.font, floor: n.font, maxLines: 1, measure: measureFor(n) });
 }
 
 /** Coude à angles droits entre deux formes : sortie par le côté qui fait face, segment du milieu perpendiculaire. */
@@ -931,9 +1000,13 @@ function luminance(hex: string): number {
   return (0.299 * (v >> 16) + 0.587 * ((v >> 8) & 255) + 0.114 * (v & 255)) / 255;
 }
 
+/** Abrège à la fin d'un mot (charte §2.1) ; un mot seul trop long est le seul cas coupé, faute de mieux. */
 function shorten(text: string | null | undefined, max: number): string | null {
   if (!text) return null;
-  return text.length > max ? text.slice(0, max - 1).trimEnd() + '…' : text;
+  if (text.length <= max) return text;
+  const head = text.slice(0, max - 1);
+  const cut = head.lastIndexOf(' ');
+  return (cut > 0 ? head.slice(0, cut) : head).trimEnd() + '…';
 }
 
 /** Coupe un libellé aux espaces en lignes d'au plus « width » caractères ; le surplus est abrégé. */

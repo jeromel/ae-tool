@@ -111,6 +111,22 @@ public static class ExampleDatasetTests
             }
             finally { repo.Scenarios.Remove(s.Id); }
         });
+
+        Test("jeu Hydréane : une vue de flux porte le code de chaque flux et seules ses données transportées", () =>
+        {
+            // Référentiel à part : le catalogue modifie le modèle, les contrôles précédents portent sur le modèle seul.
+            var dir = Locate()!;
+            var local = new Repository();
+            using (var s = File.OpenRead(Path.Combine(dir, "hydreane-referentiel.xml"))) ArchimateExchange.Import(s, local);
+            using (var s = File.OpenRead(Path.Combine(dir, "hydreane-catalogue-donnees-flux.xlsx"))) CatalogueImporter.Apply(s, "catalogue.xlsx", local, "test", null);
+            var view = local.ActiveDiagrams.Single(d => d.Name.StartsWith("Flux - Finances"));
+            var json = System.Text.Json.JsonSerializer.SerializeToElement(AeTool.Api.Dto.Diagram(local, view, true));
+            var flows = json.GetProperty("Connections").EnumerateArray().Where(c => c.GetProperty("Flow").GetBoolean()).ToList();
+            var fa015 = flows.Single(c => c.GetProperty("Code").GetString() == "FA-015");
+            var carried = fa015.GetProperty("Carried").EnumerateArray().Select(x => x.GetString()).ToList();
+            True(carried.Contains("Dossiers salariés"), "donnée transportée : " + string.Join(", ", carried));
+            True(!carried.Any(x => x!.Contains("Bus") || x.Contains("Export RH")), "ni bus ni flux technique : " + string.Join(", ", carried));
+        });
     }
 
     internal static string? Locate()
