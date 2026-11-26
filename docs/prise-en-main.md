@@ -66,6 +66,21 @@ le même fichier met à jour ses vues sans doublon, même si un objet a été re
 fichier archive sa vue. L'export Archi complet n'emporte pas ces vues (Archi reste maître des siennes) ; le bouton
 « Exporter vers Archi » d'une vue draw.io l'y fait passer.
 
+### Rapporter dans le modèle Archi ce qui a été créé ici
+
+Archi ne permet pas de copier-coller un objet d'un modèle à l'autre. Pour faire entrer dans le modèle maître les objets
+créés dans l'outil (depuis un dessin, une saisie ou un classeur), on passe par un modèle intermédiaire :
+
+1. **Dans l'outil**, « Exporter vers Archi » (la vue, ou l'export complet) : un fichier au format d'échange Open Group.
+2. **Dans Archi**, *Fichier › Importer › Open Exchange XML Model* : le fichier s'ouvre comme un nouveau modèle.
+3. **Enregistrer** ce modèle en `.archimate`.
+4. **Ouvrir le modèle maître**, le sélectionner, puis *Fichier › Importer › Another Model into Selected Model* et choisir
+   le `.archimate` de l'étape 3. Cocher « Update existing objects and folders », **décocher** « Update model information
+   and top-level folders ».
+
+Les propriétés posées par l'outil passent la fusion. Quand le modèle maître revient dans l'outil (§ 2), l'import Archi
+reconnaît chaque objet à son identifiant : un objet dont l'identifiant n'a pas changé en route est mis à jour, pas dupliqué.
+
 Pour essayer l'outil sans données réelles, le dossier [`exemples/hydreane`](../exemples/hydreane/README.md) contient un
 jeu complet d'une entreprise fictive : modèle Archi, classeur d'urbanisation, dessin draw.io et présentation de la méthode.
 
