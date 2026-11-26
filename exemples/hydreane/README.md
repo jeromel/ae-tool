@@ -13,6 +13,7 @@ rien anonymiser.
 | `hydreane-cmdb-postes.csv` | export de la CMDB : 94 postes de travail (et deux autres équipements), avec site, entité, modèle et le code de leur profil de poste |
 | `hydreane-referentiel-urbanisation.xlsx` | classeur d'urbanisation : 38 applications, 1 080 preuves de notation, formules recalculées |
 | `hydreane-facturation-saas.drawio` | dessin draw.io d'une équipe projet : la facturation en SaaS en formes ArchiMate (page 1) et un croquis de l'existant en formes ordinaires, page compressée (page 2) |
+| `facturation-cible.drawio`, `facturation-cible-v2.drawio`, `infra-facturation-2027.drawio` | dessins « de collègue » pour la recette du rapprochement (EV-05) : formes ordinaires, noms approchés, aucun `ae.id` ; la v2 est une copie de la v1 renvoyée sous un autre nom |
 | `Hydreane-methode-urbanisation.pptx` | présentation de la méthode de notation et des premiers résultats, chiffres tirés du classeur |
 
 ## Charger le jeu
@@ -61,3 +62,24 @@ applications ; dans la CMDB, des postes sans profil, trois avec un code inconnu 
 lieu de son code.
 
 Le test `ExampleDatasetTests` importe ce jeu à chaque exécution des tests et vérifie qu'il reste cohérent.
+
+### Les dessins « de collègue » (recette d'EV-05)
+
+Contenu métier : `note-dessins-collegues-hydreane-haussman` (instance de l'équipe). **Base de départ** : modèle Archi,
+classeur et catalogue chargés, **sans** `hydreane-facturation-saas.drawio`, sinon « Facturation SaaS » existe déjà.
+
+- `facturation-cible.drawio`, par le chef de projet « Facturation en SaaS » : une page « Facturation cible », 12 formes
+  (dont un rectangle grisé « Ondine (à décommissionner) », « Bus + ETL » qui désigne deux applications, un cylindre
+  « Oracle factu », un fichier « Suivi relances (Excel) » et une note) et 9 flèches, dont une sans libellé. Aucune flèche
+  entre CRM et Ondine, alors que le référentiel relie CRM Usagers à ONDINE : c'est un lien manquant attendu.
+- `facturation-cible-v2.drawio`, trois semaines plus tard : **copie** de la v1, donc même identifiant de page et mêmes
+  identifiants de formes, sous un autre nom de fichier. « Portail » devient « Mon Espace Eau (portail) » ; « Archivage »
+  (avec sa flèche « factures PDF ») et « Coffre-fort abonnés » sont ajoutés ; « Suivi relances (Excel) » et sa flèche
+  disparaissent. À l'import, la question « même dessin ? » doit se poser, et la bonne réponse est oui.
+- `infra-facturation-2027.drawio`, par l'équipe infrastructure : autre fichier, autre identifiant de page, une page
+  « Hébergement facturation », 5 formes et 3 flèches. « Portail » doit être rapproché de Mon Espace Eau grâce au nom
+  retenu au dessin 1.
+
+Ce que la version 0.15 fait aujourd'hui de ces dessins (avant EV-05) : seuls les noms identiques à la casse près sont
+rattachés (Capta, Ondine, VM-FACT-01) ; toutes les autres formes restent du dessin, sans proposition. Le résultat attendu
+de chaque forme, critère par critère, est dans la note de Haussman.

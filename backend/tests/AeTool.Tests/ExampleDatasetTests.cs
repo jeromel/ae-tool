@@ -59,6 +59,22 @@ public static class ExampleDatasetTests
     /// <summary>Le dessin draw.io du jeu se rattache au référentiel Hydréane : les chiffres annoncés dans le README d'exemple.</summary>
     public static void RunDrawing(Repository repo, string dir)
     {
+        Test("jeu Hydréane : dessins de collègue pour EV-05, lisibles, v2 copie de la v1, dessin 2 distinct", () =>
+        {
+            // Contenu : note-dessins-collegues-hydreane-haussman. On vérifie la structure, pas le rapprochement (EV-05 à venir).
+            DrawioAnalysis Read(string f) { using var s = File.OpenRead(Path.Combine(dir, f)); return DrawioImporter.Analyse(s, f, repo); }
+            var v1 = Read("facturation-cible.drawio");
+            var v2 = Read("facturation-cible-v2.drawio");
+            var infra = Read("infra-facturation-2027.drawio");
+            foreach (var (a, name) in new[] { (v1, "v1"), (v2, "v2"), (infra, "infra") }) Equal(0, a.Anomalies.Count, "anomalies " + name);
+            Equal("12/9", $"{v1.Pages.Single().Shapes}/{v1.Pages.Single().Links}", "formes et flèches de la v1");
+            Equal("13/9", $"{v2.Pages.Single().Shapes}/{v2.Pages.Single().Links}", "v2 : deux formes ajoutées, une retirée ; une flèche ajoutée, une retirée");
+            Equal("5/3", $"{infra.Pages.Single().Shapes}/{infra.Pages.Single().Links}", "dessin 2");
+            Equal(v1.Pages.Single().Id, v2.Pages.Single().Id, "v2 copiée de la v1 : même identifiant de page");
+            True(infra.Pages.Single().Id != v1.Pages.Single().Id, "dessin 2 : autre identifiant de page");
+            foreach (var f in new[] { "facturation-cible.drawio", "facturation-cible-v2.drawio", "infra-facturation-2027.drawio" })
+                True(!File.ReadAllText(Path.Combine(dir, f)).Contains("ae.id"), "aucun ae.id dans " + f);
+        });
         Test("jeu Hydréane : le dessin draw.io se rattache au référentiel comme annoncé", () =>
         {
             var path = Path.Combine(dir, "hydreane-facturation-saas.drawio");
