@@ -17,3 +17,4 @@ et ce qui a été écarté. Une décision ne se modifie pas : on en écrit une n
 | [010](010-rapprochement-dessins-par-proprietes.md) | Rapprochement des dessins : les autres noms et l'identifiant de l'outil sont des propriétés | Acceptée |
 | [011](011-stockage-fichier-generalisation.md) | Le stockage par fichier est conservé pour la généralisation ; remplace la 004 | Acceptée |
 | [012](012-acces-reserve-a-des-personnes-nommees.md) | Données sensibles : des personnes nommées, un périmètre de lecture selon le besoin d'en connaître | Acceptée |
+| [013](013-description-openapi-generee-sans-paquet.md) | La description OpenAPI est produite par l'outil à partir de ses routes, sans paquet ; cible : API publique de lecture | Acceptée |
