@@ -127,7 +127,10 @@ public static class ArchimateExchange
             var local = existing.Properties.Where(p => (repo.Metamodel.Property(p.Key)?.Source != SourceTag || CatalogueModel.IsOwned(p.Key))
                                                        && incoming.Properties.All(i => i.Key != p.Key)).ToList();
             incoming.Properties.AddRange(local);
-            var changed = existing.Archived || existing.TypeKey != incoming.TypeKey || existing.ArchimateType != incoming.ArchimateType
+            // Un objet créé dans l'outil n'a pas encore de concept : celui que l'export lui a donné ne compte pas comme une modification.
+            var sameConcept = existing.ArchimateType == incoming.ArchimateType
+                              || existing.ArchimateType is null && transcoder.ExportElement(existing).Concept == incoming.ArchimateType;
+            var changed = existing.Archived || existing.TypeKey != incoming.TypeKey || !sameConcept
                           || existing.Name != incoming.Name
                           || existing.Documentation != incoming.Documentation || !Same(existing.Properties, incoming.Properties);
             if (!changed) { tally.Unchanged++; continue; }
@@ -351,7 +354,12 @@ public static class ArchimateExchange
 
     private static string? Text(XElement? e) => e is null ? null : e.Value;
     private static string Json(object o) => JsonSerializer.Serialize(o);
-    private static bool Same(List<PropertyValue> a, List<PropertyValue> b) => Json(a) == Json(b);
+    /// <summary>
+    /// Mêmes propriétés, dans le même ordre. Une valeur absente et une valeur vide sont égales : le format d'échange ne sait
+    /// pas écrire « pas de valeur », une propriété sans valeur revient vide.
+    /// </summary>
+    private static bool Same(List<PropertyValue> a, List<PropertyValue> b) =>
+        a.Count == b.Count && a.Zip(b).All(p => p.First.Key == p.Second.Key && (p.First.Value ?? "") == (p.Second.Value ?? ""));
 
     private static string Summary(ImportReport r) => string.Join(" ; ",
         r.Counts.Select(c => $"{c.Key} +{c.Value.Added} ~{c.Value.Updated} ={c.Value.Unchanged} -{c.Value.Archived}"))

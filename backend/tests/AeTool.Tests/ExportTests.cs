@@ -20,6 +20,31 @@ public static class ExportTests
             Equal(0, report.Anomalies.Count, "anomalies au réimport");
             Equal(Canonical(repo), Canonical(copy));
         });
+        Test("aller-retour dans le même référentiel : rien n'est signalé modifié (valeur vide, concept pas encore fixé)", () =>
+        {
+            // Essai du PO sur Archi réel (26/11) : au premier aller-retour, des objets non modifiés étaient comptés « modifiés ».
+            var repo = Imported(out _);
+            var itsm = repo.Objects["id-itsm"];
+            itsm.Properties.Add(new PropertyValue { Key = "commentaire", Value = null });
+            // Objet créé dans l'outil : pas encore de concept ArchiMate, une propriété sans valeur.
+            repo.Objects["id-saisi"] = new ArchObject { Id = "id-saisi", TypeKey = repo.Objects["id-report"].TypeKey, Name = "Créé dans l'outil",
+                Source = "saisie", Properties = { new PropertyValue { Key = "commentaire", Value = null } } };
+            var before = Canonical(repo);
+            var report = ArchimateExchange.Import(Fixtures.Stream(ArchimateExchange.Export(repo).ToString()), repo);
+            Equal(0, report.Counts["Objets"].Updated, "objets signalés modifiés");
+            Equal(0, report.Counts["Objets"].Added, "objets ajoutés");
+            Equal(before, Canonical(repo), "référentiel inchangé");
+        });
+        Test("aller-retour : une vraie modification reste signalée, et le concept reçu est alors gardé", () =>
+        {
+            var repo = Imported(out _);
+            repo.Objects["id-saisi"] = new ArchObject { Id = "id-saisi", TypeKey = repo.Objects["id-report"].TypeKey, Name = "Créé dans l'outil", Source = "saisie" };
+            var xml = ArchimateExchange.Export(repo).ToString().Replace(">Créé dans l'outil<", ">Renommé dans Archi<");
+            var report = ArchimateExchange.Import(Fixtures.Stream(xml), repo);
+            Equal(1, report.Counts["Objets"].Updated, "objets signalés modifiés");
+            Equal("Renommé dans Archi", repo.Objects["id-saisi"].Name);
+            Equal("ApplicationComponent", repo.Objects["id-saisi"].ArchimateType);
+        });
         Test("export d'une seule vue : uniquement ses objets et relations", () =>
         {
             var repo = Imported(out _);
