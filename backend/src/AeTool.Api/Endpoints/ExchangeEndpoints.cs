@@ -18,6 +18,31 @@ public static class ExchangeEndpoints
         return n.Length == 0 ? "dessin.drawio" : n.Length > 120 ? n[..120] : n;
     }
 
+    /// <summary>État de « Pas encore dans Archi » : nombres toujours, listes pour la partie repliée, exclusions comptées.</summary>
+    private static object PendingSummary(Repository repo, ArchiPending p)
+    {
+        var meta = repo.Metamodel;
+        string NameOf(string id) => repo.Objects.TryGetValue(id, out var o) ? o.Name : repo.Relationships.TryGetValue(id, out var r) ? r.Name ?? meta.RelType(r.TypeKey)?.Label ?? r.TypeKey : id;
+        return new
+        {
+            p.LastImport, p.NeverImported,
+            Objects = p.Objects.Select(o => new { Brief = Dto.Brief(repo, o), o.ValidatedBy, o.ValidatedAt }),
+            Relations = p.Relations.Select(r => new
+            {
+                r.Id, r.Name, TypeLabel = meta.RelType(r.TypeKey)?.Label ?? r.TypeKey, r.Source,
+                From = NameOf(r.SourceId), To = NameOf(r.TargetId),
+            }).Concat(p.Impacts.Select(i => new
+            {
+                Id = ArchiPending.ImpactId(i), Name = (string?)$"Impact : {i.Nature}", TypeLabel = "Impact de projet", Source = "impact",
+                From = NameOf(i.ProjectId), To = NameOf(i.ObjectId),
+            })),
+            p.ExcludedProposed, p.ExcludedDrafts, p.ExcludedRelations,
+            CitedObjects = p.CitedObjects.Count,
+            // Vues créées ici (dessins draw.io, parcours enregistrés) : elles ne partent pas, l'écran le dit.
+            ViewsHere = repo.ActiveDiagrams.Count(d => d.Source != ArchimateExchange.SourceTag),
+        };
+    }
+
     public static void Map(RouteGroupBuilder api)
     {
         api.MapPost("/import/archimate", async (Workspace ws, HttpRequest req) =>
@@ -59,6 +84,24 @@ public static class ExchangeEndpoints
             using (var writer = System.Xml.XmlWriter.Create(ms, new System.Xml.XmlWriterSettings { Indent = true, Encoding = new UTF8Encoding(false) }))
                 doc.Save(writer);
             return Results.File(ms.ToArray(), "application/xml", diagram is null ? "referentiel-archimate.xml" : "vue-archimate.xml");
+        }));
+
+        // Export B, « Pas encore dans Archi » (maquette de Camille, décisions 014 et 015) : l'état, puis le fichier. Sous
+        // /api/export, donc fermé au périmètre « métier » : la sélection lit tout le référentiel, pas la lecture filtrée.
+        api.MapGet("/export/a-reporter", (Workspace ws) => ws.Read((repo, _) => PendingSummary(repo, ArchiPending.Of(repo))));
+
+        api.MapGet("/export/a-reporter/fichier", (Workspace ws) => ws.Read((repo, _) =>
+        {
+            var pending = ArchiPending.Of(repo);
+            if (pending.NeverImported)
+                return Results.Json(new { error = "Aucun modèle Archi n'a encore été importé : utilisez l'export complet." }, statusCode: StatusCodes.Status409Conflict);
+            if (pending.IsEmpty)
+                return Results.Json(new { error = "Rien à reporter : tout ce qui a été créé et validé ici est déjà dans Archi." }, statusCode: StatusCodes.Status409Conflict);
+            var doc = ArchimateExchange.Export(repo, pending: pending);
+            using var ms = new MemoryStream();
+            using (var writer = System.Xml.XmlWriter.Create(ms, new System.Xml.XmlWriterSettings { Indent = true, Encoding = new UTF8Encoding(false) }))
+                doc.Save(writer);
+            return Results.File(ms.ToArray(), "application/xml", "pas-encore-dans-archi.xml");
         }));
 
         api.MapGet("/export/json", (Workspace ws) => ws.Read((repo, _) =>

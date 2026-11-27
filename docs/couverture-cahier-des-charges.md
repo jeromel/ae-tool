@@ -99,7 +99,7 @@
 | Exigence | État | Précision |
 |---|---|---|
 | ED-01 Export complet | Couvert | JSON : objets, relations, métamodèle, historique |
-| ED-02 Export ArchiMate | Couvert | |
+| ED-02 Export ArchiMate | Couvert | export complet ; export B « Pas encore dans Archi » (0.15.25) : objets validés créés ici et leurs relations, objets d'Archi cités par identifiant, type et nom, sans dossiers ni vues ; la liste se vide au réimport du modèle maître. Preuve : tests « pas encore dans Archi » (fusion simulée puis réimport). **À valider** : fusion avec Archi réel, les deux cases cochées et décochées |
 | ED-03 Identifiants stables | Couvert | |
 | ED-04 Source maître, donnée synchronisée non modifiable | Couvert | l'écran grise le champ et nomme son maître ; le serveur refuse la modification. Décision 014 (0.15.17) : le maître se juge objet par objet (une propriété déclarée par Archi se saisit sur un objet créé ici), un objet revenu d'Archi devient un objet d'Archi, le compte rendu d'import liste chaque valeur saisie ici remplacée ou effacée. Preuve : tests « décision 014 » (import) et « propriété déclarée par Archi sur un objet créé ici » (maîtrise). Décision 015 (0.15.23) : une relation revenue d'Archi devient une relation d'Archi, catalogue compris ; nom et description au compte rendu du premier retour. Preuve : tests « décision 015 » et aller-retour Hydréane. **À valider** : non essayé avec Archi réel |
 | ED-05 Propriétaire nommé | Partiel | champ « Responsable », non obligatoire |

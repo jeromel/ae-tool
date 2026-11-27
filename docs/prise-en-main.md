@@ -72,29 +72,39 @@ fichier archive sa vue. L'export Archi complet n'emporte pas ces vues (Archi res
 ### Rapporter dans le modèle Archi ce qui a été créé ici
 
 Archi ne permet pas de copier-coller un objet d'un modèle à l'autre. Pour faire entrer dans le modèle maître les objets
-créés dans l'outil (depuis un dessin, une saisie ou un classeur), on passe par un modèle intermédiaire.
+créés dans l'outil (depuis un dessin, une saisie ou un classeur), on passe par un modèle intermédiaire, qui ne contient
+que ce qui n'est pas encore dans Archi.
 
-**Avant de commencer**, importer dans l'outil la dernière version du modèle maître (§ 2). La fusion remplace les valeurs
-du modèle maître par celles de l'export : sans ce réimport, une modification faite dans Archi depuis le dernier import
-serait écrasée par une valeur plus ancienne.
+**À valider › Pas encore dans Archi** (valideur et administrateur) liste les objets validés créés ici et absents du
+dernier import du modèle Archi, avec les relations qui les accompagnent. Ce qui en est exclu :
+- les objets proposés ou brouillons, et les relations qui les touchent : on valide d'abord ;
+- les vues : Archi reste maître de ses vues. Les objets et les relations qu'elles contiennent partent ;
+- les dossiers : Archi range les nouveaux objets dans les dossiers par défaut de leur type.
 
-1. **Dans l'outil**, **Administration › Imports › Exports › Référentiel au format d'échange ArchiMate**. « Exporter vers
-   Archi » d'une vue ne convient pas : il n'emporte que les objets dessinés dans cette vue.
+Un objet d'Archi relié à un objet nouveau figure dans le fichier par son identifiant, son type et son nom seulement : la
+fusion ne touche pas ses valeurs.
+
+1. **Dans l'outil**, **Télécharger pour Archi**.
 2. **Dans Archi**, *Fichier › Importer › Open Exchange XML Model* : le fichier s'ouvre comme un nouveau modèle.
-3. **Enregistrer** ce modèle en `.archimate`.
-4. **Ouvrir le modèle maître**, le sélectionner, puis *Fichier › Importer › Another Model into Selected Model* et choisir
-   le `.archimate` de l'étape 3. Cocher « Update existing objects and folders », **décocher** « Update model information
-   and top-level folders ».
-5. **Supprimer les dossiers restés vides.** Le format d'échange ne transporte pas l'identité des dossiers : Archi recrée
-   l'arborescence à côté de l'existante et y déplace les objets qu'il reconnaît. Un objet présent seulement dans le
-   modèle maître reste dans son ancien dossier.
+   **Enregistrer** ce modèle en `.archimate`.
+3. **Ouvrir le modèle maître**, le sélectionner, puis *Fichier › Importer › Another Model into Selected Model* et choisir
+   le `.archimate` de l'étape 2. **Cocher « Update existing objects and folders »**, **décocher « Update model
+   information and top-level folders »**.
+4. **Ranger les nouveaux objets**, qu'Archi a posés dans les dossiers par défaut de leur type.
 
-Archi reconnaît chaque objet à son identifiant, qui ne change pas sur ce trajet : la fusion met à jour les objets
-existants sans les dupliquer, et les nouveaux s'y ajoutent. Les propriétés posées par l'outil passent la fusion, et un
-réimport du modèle maître dans l'outil ne crée pas de doublon. Un aller-retour sans modification ne signale aucun
-changement. Après le trajet, les flux venus du catalogue des données et des flux sont des relations d'Archi, comme le
-reste : supprimés dans Archi, ils sont archivés ici au réimport suivant, et le réimport du catalogue les recrée. Leur
-code et leurs caractéristiques restent tenus par le catalogue : modifiez-les dans le catalogue, pas dans Archi.
+Ensuite, réimporter le modèle maître dans l'outil (§ 2) : ce qui vient d'y entrer passe sous la maîtrise d'Archi, et la
+liste se vide. Si on oublie, rien n'est perdu : la liste reste pleine, et un nouveau téléchargement ne contient toujours
+que ce qui manque à Archi.
+
+Archi reconnaît chaque objet à son identifiant, qui ne change pas sur ce trajet : la fusion ajoute les nouveaux objets
+sans dupliquer les autres, et un réimport du modèle maître dans l'outil ne crée pas de doublon. Après le trajet, les
+flux venus du catalogue des données et des flux sont des relations d'Archi, comme le reste : supprimés dans Archi, ils
+sont archivés ici au réimport suivant, et le réimport du catalogue les recrée. Leur code et leurs caractéristiques
+restent tenus par le catalogue : modifiez-les dans le catalogue, pas dans Archi.
+
+L'export complet (**Administration › Imports › Exports › Référentiel au format d'échange ArchiMate**) reste disponible
+pour un premier passage, quand aucun modèle Archi n'a encore été importé. Il recrée toute l'arborescence des dossiers et
+réécrit les valeurs du modèle maître : ne pas l'utiliser pour ce trajet.
 
 Pour essayer l'outil sans données réelles, le dossier [`exemples/hydreane`](../exemples/hydreane/README.md) contient un
 jeu complet d'une entreprise fictive : modèle Archi, classeur d'urbanisation, dessin draw.io et présentation de la méthode.

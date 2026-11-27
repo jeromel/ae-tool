@@ -12,7 +12,7 @@ public static class ArchimateExchange
 {
     private static readonly XNamespace A = "http://www.opengroup.org/xsd/archimate/3.0/";
     private static readonly XNamespace Xsi = "http://www.w3.org/2001/XMLSchema-instance";
-    private const string SourceTag = "archi";
+    public const string SourceTag = "archi";
 
     // ------------------------------------------------------------------ Import
 
@@ -438,8 +438,10 @@ public static class ArchimateExchange
     /// Produit un fichier réimportable dans Archi. Chaque type de l'outil est écrit avec le concept que désigne la matrice de
     /// transcodification ; un type sans règle prend le concept de repli, avec un marqueur pour le retrouver au réimport.
     /// Les impacts projet qualifiés deviennent des associations nommées.
+    /// Avec <paramref name="pending"/> (export B, « Pas encore dans Archi ») : seulement ce qui n'est pas encore dans Archi, sans
+    /// dossiers ni vues ; les objets et relations d'Archi cités n'y figurent que par leur identifiant, leur type et leur nom.
     /// </summary>
-    public static XDocument Export(Repository repo, IEnumerable<string>? onlyDiagramIds = null)
+    public static XDocument Export(Repository repo, IEnumerable<string>? onlyDiagramIds = null, ArchiPending? pending = null)
     {
         var lang = repo.Language;
         var transcoder = new Transcoder(repo.Metamodel);
@@ -456,16 +458,17 @@ public static class ArchimateExchange
         XElement? Plain(List<PropertyValue> props) => Properties(transcoder.ArchiProperties(props));
 
         // Archi reste maître de ses vues : l'export complet n'emporte pas les schémas draw.io, l'export d'une vue choisie si.
-        var diagrams = repo.ActiveDiagrams.Where(d => onlyDiagramIds is null ? d.Source != DrawioImporter.SourceTag : onlyDiagramIds.Contains(d.Id)).ToList();
+        var diagrams = pending is not null ? new List<Diagram>()
+            : repo.ActiveDiagrams.Where(d => onlyDiagramIds is null ? d.Source != DrawioImporter.SourceTag : onlyDiagramIds.Contains(d.Id)).ToList();
         HashSet<string>? scope = null;
         if (onlyDiagramIds is not null)
         {
             scope = diagrams.SelectMany(d => d.AllNodes()).Where(n => n.ElementId is not null).Select(n => n.ElementId!).ToHashSet();
             foreach (var d in diagrams) foreach (var c in d.Connections) if (c.RelationshipId is not null) scope.Add(c.RelationshipId);
         }
-        var objects = repo.ActiveObjects.Where(o => scope is null || scope.Contains(o.Id)).ToList();
+        var objects = pending?.Objects ?? repo.ActiveObjects.Where(o => scope is null || scope.Contains(o.Id)).ToList();
         var objectIds = objects.Select(o => o.Id).ToHashSet();
-        var relations = repo.ActiveRelationships.Where(r => scope is null || scope.Contains(r.Id)).ToList();
+        var relations = pending?.Relations ?? repo.ActiveRelationships.Where(r => scope is null || scope.Contains(r.Id)).ToList();
 
         var elements = new XElement(A + "elements", objects.Select(o =>
         {
@@ -476,6 +479,10 @@ public static class ArchimateExchange
                 o.Documentation is null ? null : Named("documentation", o.Documentation),
                 Properties(transcoder.ArchiProperties(o.Properties, choice.Extra)));
         }));
+        // Objets d'Archi cités (export B) : ni documentation ni propriétés, la fusion d'Archi garde alors leurs valeurs.
+        if (pending is not null)
+            elements.Add(pending.CitedObjects.Select(o => new XElement(A + "element",
+                new XAttribute("identifier", o.Id), new XAttribute(Xsi + "type", transcoder.ExportElement(o).Concept), Named("name", o.Name))));
 
         var relationships = new XElement(A + "relationships", relations.Select(r =>
         {
@@ -490,12 +497,17 @@ public static class ArchimateExchange
                 r.Documentation is null ? null : Named("documentation", r.Documentation),
                 Properties(transcoder.ArchiProperties(r.Properties, choice.Extra)));
         }));
+        if (pending is not null)
+            relationships.Add(pending.CitedRelations.Select(r => new XElement(A + "relationship",
+                new XAttribute("identifier", r.Id), new XAttribute("source", r.SourceId), new XAttribute("target", r.TargetId),
+                new XAttribute(Xsi + "type", transcoder.ExportRelation(r).Concept))));
 
         // Impacts qualifiés : association nommée projet -> objet, identifiant dérivé donc stable d'un export à l'autre.
-        foreach (var impact in repo.Impacts.Where(i => i.Nature != ImpactNature.ToQualify && i.Nature != "Hors périmètre"
-                                                       && objectIds.Contains(i.ProjectId) && objectIds.Contains(i.ObjectId)))
+        var impacts = pending?.Impacts ?? repo.Impacts.Where(i => i.Nature != ImpactNature.ToQualify && i.Nature != "Hors périmètre"
+                                                       && objectIds.Contains(i.ProjectId) && objectIds.Contains(i.ObjectId));
+        foreach (var impact in impacts)
         {
-            var id = $"id-impact-{Short(impact.ProjectId)}-{Short(impact.ObjectId)}";
+            var id = ArchiPending.ImpactId(impact);
             if (repo.Relationships.ContainsKey(id)) continue;
             relationships.Add(new XElement(A + "relationship", new XAttribute("identifier", id),
                 new XAttribute("source", impact.ProjectId), new XAttribute("target", impact.ObjectId),
@@ -508,7 +520,8 @@ public static class ArchimateExchange
             f.Children.Where(c => c.Source is null).Select(Item),
             f.Entries.Where(exported.Contains)
                 .Select(e => new XElement(A + "item", new XAttribute("identifierRef", e))));
-        var archiFolders = repo.Folders.Where(f => f.Source is null).ToList();
+        // Export B : pas de dossiers. Archi range les nouveaux objets dans les dossiers par défaut de leur type.
+        var archiFolders = pending is not null ? new List<Folder>() : repo.Folders.Where(f => f.Source is null).ToList();
         var organizations = archiFolders.Count == 0 ? null : new XElement(A + "organizations", archiFolders.Select(Item));
 
         var views = diagrams.Count == 0 ? null : new XElement(A + "views", new XElement(A + "diagrams", diagrams.Select(d =>
@@ -534,7 +547,6 @@ public static class ArchimateExchange
         return new XDocument(new XDeclaration("1.0", "UTF-8", null), root);
     }
 
-    private static string Short(string id) => id.StartsWith("id-") ? id[3..] : id;
 
     /// <summary>Nœud tel qu'affiché : une disposition retouchée dans l'outil part vers Archi.</summary>
     private static XElement WriteNode(DiagramNode n, string lang, Diagram d)

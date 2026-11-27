@@ -18,6 +18,7 @@ DrawingTests.Run();
 ScoringTests.Run();
 ImportTests.Run();
 ExportTests.Run();
+ArchiPendingTests.Run();
 AnalysisTests.Run();
 UrbaTests.Run();
 ReconciliationTests.Run();

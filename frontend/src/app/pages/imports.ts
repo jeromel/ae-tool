@@ -34,6 +34,7 @@ import { Api } from '../api';
       <div class="card">
         <h2>Exports</h2>
         <p><a [href]="api.url('/export/archimate')">Référentiel au format d'échange ArchiMate</a> <span class="muted small">(réimportable dans Archi)</span></p>
+        <p class="small">Pour reporter dans Archi ce qui a été créé ici, voir <a routerLink="/validations" fragment="archi-title">À valider › Pas encore dans Archi</a>.</p>
         <p><a [href]="api.url('/export/json')">Référentiel complet en JSON</a> <span class="muted small">(réversibilité : tout l'état de l'outil)</span></p>
         <p><a [href]="api.url('/export/objects.csv')">Objets et propriétés en CSV</a></p>
         <p style="margin-bottom: 0"><a [href]="api.url('/metamodel/export')">Métamodèle en JSON</a></p>
