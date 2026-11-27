@@ -28,15 +28,17 @@ public sealed class LineageReader
     private readonly Repository _repo;
     private readonly Metamodel _meta;
     private readonly DataFlowRule _rule;
+    private readonly HostedApplications _hosting;
     private readonly ILookup<string, Relationship> _from;
     private readonly ILookup<string, Relationship> _to;
-    private readonly HashSet<string> _apps, _data, _technical, _infra, _shares, _profiles, _carriers, _flowTypes, _decomposition, _locations;
+    private readonly HashSet<string> _apps, _data, _technical, _shares, _profiles, _carriers, _flowTypes, _decomposition, _locations;
 
     public LineageReader(Repository repo)
     {
         _repo = repo;
         _meta = repo.Metamodel;
         _rule = new DataFlowRule(repo);
+        _hosting = new HostedApplications(repo);
         var active = repo.ActiveRelationships.Where(r => Exists(r.SourceId) && Exists(r.TargetId)).ToList();
         _from = active.ToLookup(r => r.SourceId);
         _to = active.ToLookup(r => r.TargetId);
@@ -45,7 +47,6 @@ public sealed class LineageReader
         _technical = _meta.TypeKeysWith(Roles.TechnicalFlow);
         _shares = _meta.TypeKeysWith(Roles.FileShare);
         _profiles = _meta.TypeKeysWith(Roles.Workstation);
-        _infra = _meta.TypeKeysWith(Roles.Infrastructure);
         _carriers = _meta.TypeKeysWith(Roles.DataCarrier);
         _flowTypes = _meta.RelTypeKeysWith(Roles.Flow);
         _decomposition = _meta.RelTypeKeysWith(Roles.Decomposition);
@@ -61,7 +62,7 @@ public sealed class LineageReader
     private bool IsData(string id) => Is(id, _data);
     private bool IsTechnical(string id) => Is(id, _technical);
     private bool IsProfile(string id) => Is(id, _profiles);
-    private bool IsHost(string id) => Is(id, _infra) && !IsProfile(id) && !IsTechnical(id);
+    private bool IsHost(string id) => _hosting.IsHost(id);
     /// <summary>Flux de données : la règle unique du cœur (<see cref="DataFlowRule"/>).</summary>
     private bool IsFlow(Relationship r) => _rule.IsDataFlow(r);
 
@@ -165,13 +166,9 @@ public sealed class LineageReader
                 case "partage":
                 case "infrastructure":
                     hostFocus.Add(id);
-                    var scope = new HashSet<string> { id };
-                    // Un serveur et ce qu'il agrège (logiciels système, machines virtuelles d'une grappe).
-                    // Un composant partagé par plusieurs serveurs (logiciel système commun) n'élargit pas le périmètre.
-                    foreach (var r in _from[id].Where(r => _decomposition.Contains(r.TypeKey) && IsHost(r.TargetId)
-                                                           && _to[r.TargetId].Count(x => _decomposition.Contains(x.TypeKey) && IsHost(x.SourceId)) == 1))
-                        scope.Add(r.TargetId);
-                    var hosted = scope.SelectMany(Neighbours).Where(IsApp).ToHashSet();
+                    // Règle du cœur : le serveur et ce qu'il agrège en propre ; un composant partagé n'élargit pas le périmètre.
+                    var scope = _hosting.Scope(id);
+                    var hosted = _hosting.Of(id);
                     appSet.UnionWith(hosted);
                     foreach (var a in hosted) dataSet.UnionWith(Accesses(a).Select(x => x.DataId));
                     foreach (var carrier in scope.SelectMany(Neighbours).Where(x => Is(x, _carriers)))

@@ -182,6 +182,20 @@ public static class CatalogueTests
             True(!vm.Applications.Any(x => x.Name == "PAIE RH"), "le logiciel système partagé n'élargit pas le périmètre");
         });
 
+        // Règle du cœur extraite de DataLineage (revue de coût d'EV-06 de Colbert, §3) : le parcours et la grille la partagent.
+        Test("jeu Hydréane : applications hébergées par un serveur, règle du cœur, et le parcours la suit", () =>
+        {
+            var hosting = new HostedApplications(repo);
+            var vm = Id("VM-FACT-01");
+            var apps = hosting.Of(vm).Select(a => repo.Objects[a].Name).ToHashSet();
+            True(apps.Contains("ONDINE"), "ONDINE hébergée : " + string.Join(", ", apps));
+            True(!apps.Contains("PAIE RH"), "le logiciel système partagé n'élargit pas le périmètre");
+            True(hosting.Scope(vm).Contains(vm) && hosting.Scope(vm).All(hosting.IsHost), "le périmètre ne contient que de l'hébergement");
+            var lineage = new LineageReader(repo).Read(vm, derived: false);
+            True(apps.All(a => lineage.Applications.Any(x => x.Name == a)), "le parcours retrouve toutes les applications hébergées");
+            Equal(0, hosting.Of(Id("ONDINE")).Count, "une application n'héberge rien");
+        });
+
         Test("jeu Hydréane : contrôles de cohérence du catalogue", () =>
         {
             var q = new CatalogueQuality(repo).Check();
