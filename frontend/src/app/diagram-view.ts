@@ -56,6 +56,8 @@ const MARGIN = 32;
 const CHAR = 0.56;          // largeur moyenne d'un caractère, en fraction de la taille de police
 const MIN_SCREEN_TEXT = 9;  // en dessous, un texte est masqué plutôt qu'affiché illisible
 const MIN_OPEN_SCALE = 0.7; // zoom d'ouverture minimal : en dessous, les noms des cartes ne se lisent plus
+const MAP_OPEN_SCALE = 0.5; // carte de capacités : plancher d'ouverture (réponses de Camille §5), le palier 3 garde les noms lisibles
+const MAP_STEP = 0.05;      // pas de remontée du zoom quand une carte couperait son nom
 const NOTE_COLORS = ['#cfe6d6', '#f4e6a6', '#f4bd86', '#e58a78'];
 const CATEGORY_COLORS = ['#bcdcf5', '#f6d6a8', '#cdebc5', '#f3c4d3', '#d9cdf3', '#f5efaa', '#bfe8e4', '#e3d5c5'];
 const DECISION_COLORS: Record<string, string> = {
@@ -74,7 +76,8 @@ const NORMAL: Record<Side, Point> = { N: { x: 0, y: -1 }, E: { x: 1, y: 0 }, S: 
  *
  * Ordre de dessin : zones, traits des liens, boîtes, puis pastilles et lien sélectionné : un lien ne barre jamais une boîte.
  * Navigation : molette pour zoomer autour du pointeur, glisser pour déplacer, double-clic sur le fond pour recadrer.
- * À l'ouverture, jamais sous 70 % : une vue trop grande s'ouvre sur son coin haut gauche.
+ * À l'ouverture, jamais sous 70 % : une vue trop grande s'ouvre sur son coin haut gauche. Une carte de capacités s'ouvre à la
+ * largeur, jamais sous 50 %, et défile en hauteur.
  * Lecture seule dans ce lot ; l'édition graphique relève du lot « modélisation ».
  */
 @Component({
@@ -784,6 +787,10 @@ export class DiagramView implements OnDestroy {
    * Si elle ne tient pas à ce zoom, on l'ouvre en haut à gauche ; « Tout voir » montre l'ensemble.
    */
   frame(): void {
+    if (this.diagram().capabilityMap) {
+      this.frameMap();
+      return;
+    }
     if (this.fitScale() >= MIN_OPEN_SCALE) {
       this.fit();
     } else {
@@ -792,6 +799,36 @@ export class DiagramView implements OnDestroy {
       this.offset.set({ x: MARGIN - b.x * MIN_OPEN_SCALE, y: MARGIN - b.y * MIN_OPEN_SCALE });
     }
     this.framing = 'ouverture';
+  }
+
+  /**
+   * Carte de capacités (réponses de Camille §5) : ouverture à la largeur, en haut, quitte à défiler en hauteur. À ce zoom,
+   * chaque nom doit rester à 10,5 px à l'écran sans être coupé ; sinon le zoom remonte par pas de 5 %, jusqu'à 70 % au plus.
+   * Plancher à 50 % : si la largeur demande moins, la carte s'ouvre à 50 % en haut à gauche ; « Tout voir » montre l'ensemble.
+   */
+  private frameMap(): void {
+    const el = this.stage().nativeElement;
+    const b = this.box();
+    const width = Math.min(1.25, (el.clientWidth - 2 * MARGIN) / b.w);
+    let scale = Math.max(MAP_OPEN_SCALE, width);
+    while (scale < MIN_OPEN_SCALE && !this.namesReadableAt(scale)) scale = Math.min(MIN_OPEN_SCALE, scale + MAP_STEP);
+    this.scale.set(scale);
+    const left = scale <= width ? (el.clientWidth - b.w * scale) / 2 - b.x * scale : MARGIN - b.x * scale;
+    this.offset.set({ x: left, y: MARGIN - b.y * scale });
+    this.framing = 'ouverture';
+  }
+
+  /** Vrai si, à ce zoom, le nom de chaque carte est entier et lu à 10,5 px au moins à l'écran (palier 3 compris). */
+  namesReadableAt(scale: number): boolean {
+    const before = this.scale();
+    this.scale.set(scale);
+    const ok = this.nodes().every((n) => {
+      if (n.look !== 'carte' && n.look !== 'rond') return true;
+      const f = this.fitOf(n);
+      return !f.truncated && f.font * scale >= 10.5 - 0.2;
+    });
+    this.scale.set(before);
+    return ok;
   }
 
   actualSize(): void {

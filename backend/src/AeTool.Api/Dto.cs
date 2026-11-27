@@ -35,6 +35,20 @@ public static class Dto
     }
 
     /// <summary>
+    /// Carte de capacités : le point de vue d'Archi le dit, ou tous les éléments de la vue sont des capacités (les zones de
+    /// regroupement ne comptent pas). Une vue qui mêle capacités et applications n'en est pas une : elle garde la règle des 70 %.
+    /// </summary>
+    public static bool IsCapabilityMap(Repository repo, Diagram d)
+    {
+        if (d.Viewpoint?.Contains("capabilit", StringComparison.OrdinalIgnoreCase) == true) return true;
+        var meta = repo.Metamodel;
+        var capabilities = meta.TypeKeysWith(Roles.Capability);
+        var types = d.AllNodes().Select(n => n.ElementId is null ? null : repo.Objects.GetValueOrDefault(n.ElementId)?.TypeKey)
+            .OfType<string>().Where(t => meta.ConceptOf(t) != "Grouping").ToList();
+        return types.Count > 0 && types.All(capabilities.Contains);
+    }
+
+    /// <summary>
     /// Vue prête à dessiner. Ordre de priorité du visuel : réglage du diagramme, puis visuel de l'élément, puis visuel du type.
     /// Avec <paramref name="metamodelVisuals"/>, le réglage du diagramme est ignoré.
     /// </summary>
@@ -119,6 +133,9 @@ public static class Dto
             d.Id, d.Name, d.Documentation, d.Viewpoint, d.Source, Nodes = nodes, Layers = layers,
             // Périmètre « métier » : la vue a perdu des formes d'infrastructure. Un indicateur, jamais un nombre (décision 012, maquette).
             ScopeTrimmed = repo.Scope?.Diagrams.Contains(d.Id) == true,
+            // Carte de capacités (réponses de Camille §5) : point de vue « Capability Map » d'Archi, ou vue dont tous les éléments
+            // sont des capacités. Elle s'ouvre à la largeur, avec un plancher de 50 % au lieu de 70 %.
+            CapabilityMap = IsCapabilityMap(repo, d),
             Layout = d.Layout is null ? null : new { Count = d.Layout.Count, By = d.LayoutBy, At = d.LayoutAt },
             Connections = d.Connections.Select(c =>
             {

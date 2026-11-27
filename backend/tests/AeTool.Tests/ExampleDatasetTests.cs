@@ -25,6 +25,15 @@ public static class ExampleDatasetTests
             Equal(58, repo.ActiveDiagrams.Count(), "vues");
             Equal(0, repo.Objects.Values.Count(o => o.TypeKey == "autre"), "objets non classés");
         });
+        Test("jeu Hydréane : seule la carte des capacités s'ouvre comme une carte (réponses de Camille §5)", () =>
+        {
+            var maps = repo.ActiveDiagrams.Where(d => AeTool.Api.Dto.IsCapabilityMap(repo, d)).Select(d => d.Name).ToList();
+            Equal("Capacités - Carte des capacités", string.Join(" | ", maps), "cartes de capacités");
+            var mixed = repo.ActiveDiagrams.First(d => d.Name == "Capacités - Applications : distribuer l'eau");
+            mixed.Viewpoint = "Capability Map";
+            True(AeTool.Api.Dto.IsCapabilityMap(repo, mixed), "le point de vue d'Archi suffit");
+            mixed.Viewpoint = null;
+        });
         Test("jeu Hydréane : rejeu du modèle sans écart", () =>
         {
             using var s = File.OpenRead(Path.Combine(dir, "hydreane-referentiel.xml"));
