@@ -78,8 +78,8 @@ export const FLOWS: SpaceConfig = {
   ],
   questions: [
     { key: 'tous', label: 'Tous les flux' },
-    { key: 'sans-protocole', label: 'Lesquels n\'ont pas de protocole renseigné ?', filter: (r) => !r.protocol },
-    { key: 'sans-chiffrement', label: 'Lesquels n\'ont pas de chiffrement renseigné ?', filter: (r) => !r.encryption, hint: 'Non renseigné ne veut pas dire non chiffré.' },
+    { key: 'sans-protocole', label: 'Lesquels n\'ont pas de protocole renseigné ?', filter: (r) => r.protocolExpected && !r.protocol },
+    { key: 'sans-chiffrement', label: 'Lesquels n\'ont pas de chiffrement renseigné ?', filter: (r) => r.protocolExpected && !r.encryption, hint: 'Non renseigné ne veut pas dire non chiffré.' },
     { key: 'avec-donnees', label: 'Lesquels transportent des données identifiées ?', filter: (r) => r.carried.length > 0 },
     {
       key: 'frontiere', label: 'Lesquels traversent la frontière IT/OT ?', infra: true,

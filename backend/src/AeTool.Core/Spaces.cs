@@ -8,7 +8,7 @@ public sealed record CapabilityNode(string Id, string Name, List<CapabilityNode>
 public sealed record ApplicationRow(string Id, string Name, string Source, int Relations, int Flows, int Technical, int Data,
     int Capabilities, int Projects, int? Cm, string? Decision);
 public sealed record FlowRow(string Id, string? Name, string SourceId, string SourceName, string TargetId, string TargetName,
-    string? Protocol, string? Encryption, List<string> Carried);
+    string? Protocol, string? Encryption, List<string> Carried, bool ProtocolExpected);
 public sealed record DataRow(string Id, string Name, string TypeLabel, int Applications, int Artifacts);
 public sealed record InfrastructureRow(string Id, string Name, string TypeLabel, int Applications, int Relations);
 
@@ -113,12 +113,16 @@ public sealed class SpaceReader
         }).ToList();
     }
 
-    /// <summary>Flux entre objets, avec protocole, chiffrement et objets rattachés au flux (les données qu'il transporte).</summary>
+    /// <summary>
+    /// Flux de données (<see cref="DataFlowRule"/>), avec protocole, chiffrement et objets rattachés au flux (les données qu'il
+    /// transporte). Un flux entre deux étapes de chaîne ou de processus n'y figure pas. Chaque ligne dit si un protocole est
+    /// attendu : l'interface ne recopie pas la règle.
+    /// </summary>
     public List<FlowRow> Flows()
     {
         var settings = _repo.Metamodel.Settings;
-        var flows = _repo.ActiveRelationships
-            .Where(r => _flowTypes.Contains(r.TypeKey) && IsActive(r.SourceId) && IsActive(r.TargetId)).ToList();
+        var rule = new DataFlowRule(_repo);
+        var flows = rule.DataFlows.ToList();
         var ids = flows.Select(f => f.Id).ToHashSet();
         var carried = new Dictionary<string, List<string>>();
         foreach (var r in _repo.ActiveRelationships)
@@ -132,7 +136,7 @@ public sealed class SpaceReader
         }
         string? Property(Relationship r, string key) => r.Properties.FirstOrDefault(p => p.Key == key)?.Value is { Length: > 0 } v ? v : null;
         return flows.Select(f => new FlowRow(f.Id, f.Name, f.SourceId, _repo.Objects[f.SourceId].Name, f.TargetId, _repo.Objects[f.TargetId].Name,
-                Property(f, settings.FlowProtocolKey), Property(f, settings.FlowEncryptionKey), carried.GetValueOrDefault(f.Id, new List<string>())))
+                Property(f, settings.FlowProtocolKey), Property(f, settings.FlowEncryptionKey), carried.GetValueOrDefault(f.Id, new List<string>()), rule.ExpectsProtocol(f)))
             .OrderBy(f => f.SourceName).ThenBy(f => f.TargetName).ToList();
     }
 

@@ -136,7 +136,7 @@ public sealed class CatalogueQuality
         var h = _h;
         var rows = new List<RegisterRow>();
         var flows = h.Flows.ToList();
-        string Zone(string appId) => (_repo.Objects[appId].Get(CatalogueModel.AppZone) ?? (h.IsApp(appId) ? "IT" : "EXTERNE")).Replace(" ", "").ToUpperInvariant();
+        string Zone(string appId) => (_repo.Objects[appId].Get(CatalogueModel.AppZone) ?? (h.IsApplicative(appId) ? "IT" : "EXTERNE")).Replace(" ", "").ToUpperInvariant();
         // Traverse la frontière IT/OT : les deux zones diffèrent et l'une touche l'OT.
         bool Crosses(Relationship f) => Zone(f.SourceId) != Zone(f.TargetId) && (Zone(f.SourceId).Contains("OT") || Zone(f.TargetId).Contains("OT"));
         var sharesData = new Dictionary<string, (HashSet<string> Data, HashSet<string> Files)>();
@@ -185,7 +185,12 @@ public sealed class LineageHelpers
         _apps = m.TypeKeysWith(Roles.Application); _data = m.TypeKeysWith(Roles.Data); _technical = m.TypeKeysWith(Roles.TechnicalFlow);
         _infra = m.TypeKeysWith(Roles.Infrastructure); _shares = m.TypeKeysWith(Roles.FileShare); _profiles = m.TypeKeysWith(Roles.Workstation);
         _carriers = m.TypeKeysWith(Roles.DataCarrier); _flowTypes = m.RelTypeKeysWith(Roles.Flow);
+        _rule = new DataFlowRule(repo);
     }
+
+    private readonly DataFlowRule _rule;
+    /// <summary>Extrémité applicative d'un flux de données (composant, service, fonction…).</summary>
+    public bool IsApplicative(string id) => _rule.IsApplicative(id);
 
     public IEnumerable<ArchObject> Objects => _repo.ActiveObjects;
     private bool Is(string id, HashSet<string> t) => _repo.Objects.TryGetValue(id, out var o) && !o.Archived && t.Contains(o.TypeKey);
@@ -196,7 +201,8 @@ public sealed class LineageHelpers
     public bool IsHost(string id) => Is(id, _infra) && !Is(id, _profiles) && !IsTechnical(id);
     public string Name(string id) => _repo.Objects.TryGetValue(id, out var o) ? o.Name : id;
     public string? P(Relationship r, string key) => r.Properties.FirstOrDefault(p => p.Key == key)?.Value is { Length: > 0 } v ? v : null;
-    public IEnumerable<Relationship> Flows => _repo.ActiveRelationships.Where(r => _flowTypes.Contains(r.TypeKey) && Active(r.SourceId) && Active(r.TargetId) && (IsApp(r.SourceId) || IsApp(r.TargetId)));
+    /// <summary>Flux de données : la règle unique du cœur (<see cref="DataFlowRule"/>).</summary>
+    public IEnumerable<Relationship> Flows => _rule.DataFlows;
     private bool Active(string id) => _repo.Objects.TryGetValue(id, out var o) && !o.Archived;
     private IEnumerable<Relationship> Links(string id) => _from[id].Concat(_to[id]);
     private static string Other(Relationship r, string id) => r.SourceId == id ? r.TargetId : r.SourceId;

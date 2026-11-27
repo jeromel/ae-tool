@@ -130,7 +130,8 @@ export class QualityPage {
 
   todo = computed(() => {
     const apps = this.applications();
-    const flows = this.flows();
+    // Protocole et chiffrement : seuls les flux où le serveur dit qu'un protocole est attendu (règle « flux de données »).
+    const flows = this.flows().filter((f) => f.protocolExpected);
     const data = this.data();
     return [
       { count: apps.filter((a) => a.relations === 0).length, total: apps.length, label: 'Applications sans aucune relation',

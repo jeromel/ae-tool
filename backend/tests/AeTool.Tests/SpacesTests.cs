@@ -39,6 +39,38 @@ public static class SpacesTests
             True(flows[0].Carried.SequenceEqual(new[] { "Ticket de support" }), "données transportées");
             True(flows[0].Protocol is null, "protocole non renseigné");
         });
+        Test("règle « flux de données » : étapes exclues, service et partage inclus, protocole attendu hors fonctions, même lecture partout", () =>
+        {
+            var repo = Imported(out _);
+            CatalogueModel.Ensure(repo.Metamodel);
+            void Obj(string id, string type) => repo.Objects[id] = new ArchObject { Id = id, Name = id, TypeKey = type };
+            void Flow(string id, string from, string to) => repo.Relationships[id] = new Relationship { Id = id, TypeKey = "flux", SourceId = from, TargetId = to };
+            Obj("vs-1", "chaine-valeur"); Obj("vs-2", "chaine-valeur");
+            Obj("svc", "service-applicatif"); Obj("bf-1", "bloc-fonctionnel"); Obj("bf-2", "bloc-fonctionnel");
+            Obj("share", CatalogueModel.FileShareType);
+            Flow("f-etapes", "vs-1", "vs-2");      // entre deux étapes : exclu
+            Flow("f-service", "id-itsm", "svc");   // vers un service applicatif : inclus, protocole attendu
+            Flow("f-blocs", "bf-1", "bf-2");       // entre deux blocs fonctionnels : inclus, pas de protocole attendu
+            Flow("f-partage", "id-itsm", "share"); // d'une application vers un partage : inclus
+            var rule = new DataFlowRule(repo);
+            var expected = new[] { "f-blocs", "f-partage", "f-service", "id-r3" };
+            True(rule.DataFlows.Select(f => f.Id).Order().SequenceEqual(expected), "flux de données : " + string.Join(", ", rule.DataFlows.Select(f => f.Id).Order()));
+            True(rule.ExpectsProtocol(repo.Relationships["f-service"]), "protocole attendu vers un service");
+            True(!rule.ExpectsProtocol(repo.Relationships["f-blocs"]), "pas de protocole entre blocs fonctionnels");
+            True(rule.ExpectsProtocol(repo.Relationships["f-partage"]), "protocole attendu vers un partage");
+            True(!rule.ExpectsProtocol(repo.Relationships["f-etapes"]), "rien d'attendu entre étapes");
+            // Les trois lecteurs voient les mêmes flux : c'est leur divergence qui faisait le défaut.
+            var space = new SpaceReader(repo, new Analyzer(repo)).Flows();
+            True(space.Select(f => f.Id).Order().SequenceEqual(expected), "espace Flux : " + string.Join(", ", space.Select(f => f.Id).Order()));
+            True(space.Single(f => f.Id == "f-blocs").ProtocolExpected == false && space.Single(f => f.Id == "f-service").ProtocolExpected, "champ protocole attendu");
+            True(new LineageHelpers(repo).Flows.Select(f => f.Id).Order().SequenceEqual(expected), "contrôles du catalogue");
+            var lineage = new LineageReader(repo).Read("id-itsm", false);
+            True(lineage.Flows.Any(f => f.Id == "f-service") && lineage.Flows.Any(f => f.Id == "f-partage"), "parcours : flux vers le service et le partage");
+            True(new LineageReader(repo).Read("vs-1", false).Flows.All(f => f.Id != "f-etapes"), "parcours : aucun flux entre étapes");
+            var svc = lineage.Applications.Single(a => a.Id == "svc");
+            True(!svc.External, "un service applicatif n'est pas un destinataire externe");
+            True(!lineage.Gaps.Any(g => g.Contains("Hébergement de svc")), "un service n'a pas d'hébergement à renseigner");
+        });
         Test("espaces données et infrastructure : applications utilisatrices et applications portées", () =>
         {
             var repo = Imported(out _);

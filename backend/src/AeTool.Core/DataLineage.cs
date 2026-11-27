@@ -27,6 +27,7 @@ public sealed class LineageReader
 
     private readonly Repository _repo;
     private readonly Metamodel _meta;
+    private readonly DataFlowRule _rule;
     private readonly ILookup<string, Relationship> _from;
     private readonly ILookup<string, Relationship> _to;
     private readonly HashSet<string> _apps, _data, _technical, _infra, _shares, _profiles, _carriers, _flowTypes, _decomposition, _locations;
@@ -35,6 +36,7 @@ public sealed class LineageReader
     {
         _repo = repo;
         _meta = repo.Metamodel;
+        _rule = new DataFlowRule(repo);
         var active = repo.ActiveRelationships.Where(r => Exists(r.SourceId) && Exists(r.TargetId)).ToList();
         _from = active.ToLookup(r => r.SourceId);
         _to = active.ToLookup(r => r.TargetId);
@@ -60,8 +62,8 @@ public sealed class LineageReader
     private bool IsTechnical(string id) => Is(id, _technical);
     private bool IsProfile(string id) => Is(id, _profiles);
     private bool IsHost(string id) => Is(id, _infra) && !IsProfile(id) && !IsTechnical(id);
-    /// <summary>Flux applicatif : une relation de flux dont une extrémité au moins est une application (l'autre peut être un acteur externe).</summary>
-    private bool IsFlow(Relationship r) => _flowTypes.Contains(r.TypeKey) && Obj(r.SourceId) is not null && Obj(r.TargetId) is not null && (IsApp(r.SourceId) || IsApp(r.TargetId));
+    /// <summary>Flux de données : la règle unique du cœur (<see cref="DataFlowRule"/>).</summary>
+    private bool IsFlow(Relationship r) => _rule.IsDataFlow(r);
 
     private IEnumerable<Relationship> Links(string id) => _from[id].Concat(_to[id]);
     private static string Other(Relationship r, string id) => r.SourceId == id ? r.TargetId : r.SourceId;
@@ -237,7 +239,7 @@ public sealed class LineageReader
                 var roles = Accesses(a).Where(x => dataSet.Contains(x.DataId)).Select(x => x.Role).Distinct().OrderBy(RoleRank).ToList();
                 return new LineageApp(a, app.Name, P(app, CatalogueModel.Code), P(app, CatalogueModel.AppZone), P(app, CatalogueModel.InfoStatus), roles,
                     HostsOf(a).Where(hostUsage.ContainsKey).Concat(HostsOf(a).SelectMany(h => _to[h].Where(r => _decomposition.Contains(r.TypeKey) && hostUsage.ContainsKey(r.SourceId)).Select(r => r.SourceId))).Distinct().ToList(),
-                    ProfilesOf(a), !IsApp(a));
+                    ProfilesOf(a), !_rule.IsApplicative(a));
             }).OrderBy(a => a.Name).ToList(),
             flows.Select(f => new LineageFlow(f.Id, P(f, CatalogueModel.Code), f.Name ?? $"{Obj(f.SourceId)!.Name} → {Obj(f.TargetId)!.Name}", f.SourceId, f.TargetId,
                 Carried(f), P(f, CatalogueModel.FlowKind), P(f, CatalogueModel.FlowFrequency), P(f, CatalogueModel.FlowMode), P(f, CatalogueModel.Lifecycle),
@@ -294,7 +296,8 @@ public sealed class LineageReader
         var unverified = new Dictionary<string, List<string>>();
         if (!scoped)
         {
-            foreach (var a in l.Applications.Where(a => a.HostIds.Count == 0 && !a.External))
+            // Seul un composant s'héberge : un service ou une fonction applicative n'a pas de serveur à renseigner.
+            foreach (var a in l.Applications.Where(a => a.HostIds.Count == 0 && IsApp(a.Id)))
                 l.Gaps.Add($"Hébergement de {a.Name} non renseigné.");
             var noProfile = l.Applications.Where(a => storing.Contains(a.Id) && a.ProfileIds.Count == 0).Select(a => a.Name).ToList();
             if (noProfile.Count > 0 && focus.Kind is "donnee" or "application")
@@ -306,7 +309,7 @@ public sealed class LineageReader
             // Un flux hors catalogue (sans code) n'a pas à décrire sa chaîne : seul le catalogue en porte.
             if (f.Steps.Count == 0) { if (f.Code is not null) l.Gaps.Add($"{label} : chaîne technique non décrite."); continue; }
             var target = l.Applications.FirstOrDefault(a => a.Id == f.TargetId);
-            if (target is { External: false } && !f.Steps.Any(s => tech.GetValueOrDefault(s.TechnicalId)?.AppId == f.TargetId))
+            if (target is not null && IsApp(target.Id) && !f.Steps.Any(s => tech.GetValueOrDefault(s.TechnicalId)?.AppId == f.TargetId))
             {
                 var last = tech.GetValueOrDefault(f.Steps[^1].TechnicalId);
                 l.Gaps.Add($"{label} : la chaîne technique n'atteint pas {target.Name} (dernière étape : {last?.Name ?? "?"}{(last?.Step is { } st ? $", {st.ToLowerInvariant()}" : "")}).");
