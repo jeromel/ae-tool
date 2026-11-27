@@ -1,10 +1,11 @@
 import { Component, computed, effect, inject, input, signal } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { ScopeNote } from '../scope-note';
 import { Session } from '../session';
 import { Router, RouterLink } from '@angular/router';
 import { Api, Brief } from '../api';
 import { ObjectSearch } from '../object-search';
-import { type ReachedItem, type ServesRow, carriers, countersOf, natureOf, readingOf, servesTable, subjectOf } from '../impact-reading';
+import { type ReachedItem, type ServesRow, carriers, cellRank, countersOf, natureOf, readingOf, servesTable, subjectOf } from '../impact-reading';
 
 interface TypeInfo { label: string; layer: string; roles: string[]; concept: string | null; }
 type Side = 'aval' | 'amont';
@@ -15,7 +16,7 @@ type Side = 'aval' | 'amont';
  * l'objet »). Les décisions de lecture sont dans impact-reading.ts, testé hors navigateur.
  */
 @Component({
-  imports: [RouterLink, ObjectSearch, ScopeNote],
+  imports: [RouterLink, ObjectSearch, ScopeNote, NgTemplateOutlet],
   template: `
     <h1>Analyse d'impact</h1>
     <p class="lead">Choisissez un objet, quel qu'il soit. L'outil suit les relations pour dire ce qui le porte et ce qui en dépend.</p>
@@ -62,7 +63,7 @@ type Side = 'aval' | 'amont';
                         <span role="cell"><a [routerLink]="['/objets', r.id]">{{ r.name || '(sans nom)' }}</a></span>
                         <span role="cell" class="cell">
                           @for (i of r.direct; track i.id; let last = $last) {
-                            <a [routerLink]="['/objets', i.id]">{{ i.name }}</a>
+                            <a [routerLink]="['/objets', i.id]">{{ i.name }}</a><span class="muted small type">{{ types()[i.typeKey]?.label }}</span>
                             @if (i.also.length) { <span class="muted small"> (aussi : {{ i.also.join(', ') }})</span> }
                             @if (!last) { <span class="muted"> · </span> }
                           }
@@ -70,7 +71,7 @@ type Side = 'aval' | 'amont';
                             @if (open().has(r.id)) {
                               <span class="muted"> · </span>
                               @for (i of r.below; track i.id; let last = $last) {
-                                <a [routerLink]="['/objets', i.id]">{{ i.name }}</a>
+                                <a [routerLink]="['/objets', i.id]">{{ i.name }}</a><span class="muted small type">{{ types()[i.typeKey]?.label }}</span>
                                 @if (i.also.length) { <span class="muted small"> (aussi : {{ i.also.join(', ') }})</span> }
                                 @if (!last) { <span class="muted"> · </span> }
                               }
@@ -88,9 +89,26 @@ type Side = 'aval' | 'amont';
                     }
                   </div>
                 }
-                @if (side.groups.length) { <h3 class="others">Aussi dans ce sens</h3> }
               }
-              @for (g of side.groups; track g.layer) {
+              <!-- Sous un tableau : ce qui est atteint sans en être une ligne, replié, compteur dans le titre (revue de Camille, I7). -->
+              @if (side.table && side.groups.length) {
+                <details class="others">
+                  <summary><h3 style="display: inline">{{ side.table.others }} ({{ count(side.groups) }})</h3></summary>
+                  <ng-container *ngTemplateOutlet="groupsTpl; context: { $implicit: side.groups }" />
+                </details>
+              } @else {
+                <ng-container *ngTemplateOutlet="groupsTpl; context: { $implicit: side.groups }" />
+                @if (!side.groups.length && !side.table) { <p class="muted">Rien à cette distance.</p> }
+              }
+            </div>
+          }
+        </div>
+      }
+    } @else {
+      <div class="card muted">Aucun objet choisi. Cherchez-le par son nom, ou utilisez l'action « Impact » proposée sur les listes et les vues.</div>
+    }
+    <ng-template #groupsTpl let-groups>
+              @for (g of groups; track g.layer) {
                 <h3>{{ g.label }} ({{ g.items.length }})</h3>
                 @for (r of g.items; track r.id) {
                   <div class="item">
@@ -100,20 +118,14 @@ type Side = 'aval' | 'amont';
                     <a class="small right" routerLink="/impact" [queryParams]="{ objet: r.id }">Analyser</a>
                   </div>
                 }
-              } @empty {
-                @if (!side.table) { <p class="muted">Rien à cette distance.</p> }
               }
-            </div>
-          }
-        </div>
-      }
-    } @else {
-      <div class="card muted">Aucun objet choisi. Cherchez-le par son nom, ou utilisez l'action « Impact » proposée sur les listes et les vues.</div>
-    }
+    </ng-template>
   `,
   styles: `
     h3 { margin: 14px 0 4px; font-size: 12.5px; color: var(--muted); font-weight: 600; }
-    h3.others { margin-top: 18px; }
+    details.others { margin-top: 18px; }
+    .cell .type { margin-left: 4px; }
+    details.others summary { cursor: pointer; }
     .item { display: flex; gap: 8px; align-items: baseline; padding: 4px 0; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
     /* L'alignement remplace la flèche : une ligne par application, ce qui la sert à droite (maquette, §3). */
     .serves .head, .serves .line { display: grid; grid-template-columns: minmax(180px, 1fr) 2fr; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--line); }
@@ -174,15 +186,19 @@ export class ImpactPage {
       const carrying = this.rows();
       const isRow = (r: ReachedItem) => carrying.has(r.id);
       const isCell = (r: ReachedItem) => spec.cells === 'technique' ? roles.natureOf(r.typeKey) === 'technique' : roles.isCapability(r.typeKey);
-      const rows: ServesRow[] = servesTable(this.reached(), key, isRow, isCell);
+      const t = this.types();
+      const rank = spec.cells === 'technique' ? (k: string) => cellRank(t[k]?.roles ?? [], t[k]?.concept) : undefined;
+      const rows: ServesRow[] = servesTable(this.reached(), key, isRow, isCell, rank);
       const inTable = new Set(rows.flatMap((r) => [r.id, ...r.direct.map((i) => i.id), ...r.below.map((i) => i.id)]));
       return {
         key, title: reading.titles[key], hint: reading.hints[key],
-        table: { rows, rowsLabel: spec.rowsLabel, cellsLabel: spec.cellsLabel, cells: spec.cells },
+        table: { rows, rowsLabel: spec.rowsLabel, cellsLabel: spec.cellsLabel, cells: spec.cells, others: spec.others },
         groups: this.group(list.filter((r) => !inTable.has(r.id))),
       };
     });
   });
+
+  count(groups: { items: unknown[] }[]): number { return groups.reduce((n, g) => n + g.items.length, 0); }
 
   /** Cellule vide : jamais blanche (maquette, §4). */
   emptyCell = computed(() => {

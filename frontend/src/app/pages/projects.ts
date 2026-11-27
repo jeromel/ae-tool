@@ -1,18 +1,22 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { Api } from '../api';
+import { ScopeNote } from '../scope-note';
+import { Session } from '../session';
 
 @Component({
-  imports: [RouterLink],
+  imports: [RouterLink, ScopeNote],
   template: `
     <h1>Projets et adhérences</h1>
     <p class="lead">
       Un projet est un objet du référentiel. Ses impacts sont d'abord déduits des vues rangées dans son dossier, puis qualifiés par le chef
       de projet. Deux projets sont adhérents s'ils touchent le même objet ou deux objets directement reliés.
     </p>
+    <!-- Lecteur « métier » : le nombre ne change pas, c'est ce qu'il compte qui est nommé (Camille, 27/11, §2 ; décision 012). -->
+    @if (session.business()) { <app-scope-note text="Impacts sur l'infrastructure non affichés pour votre accès." /> }
     <div class="card">
       <table>
-        <tr><th>Projet</th><th>Statut</th><th class="num">Vues</th><th class="num">Objets impactés</th><th class="num">À qualifier</th></tr>
+        <tr><th>Projet</th><th>Statut</th><th class="num">Vues</th><th class="num">{{ session.business() ? 'Impacts métier et applicatifs' : 'Objets impactés' }}</th><th class="num">À qualifier</th></tr>
         @for (p of projects(); track p.id) {
           <tr class="click" (click)="open(p.id)">
             <td><a [routerLink]="['/projets', p.id]">{{ p.name }}</a></td><td>{{ p.status }}</td>
@@ -67,6 +71,7 @@ export class ProjectsPage {
   projects = signal<any[]>([]);
   pairs = signal<any[]>([]);
   selected = signal<any>(null);
+  readonly session = inject(Session);
   withImpacts = computed(() => this.projects().filter((p) => p.impacts > 0));
 
   constructor() {

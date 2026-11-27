@@ -3,10 +3,11 @@ import { Session } from '../session';
 import { RouterLink } from '@angular/router';
 import { Api } from '../api';
 import { ProjectTrajectories } from './project-trajectories';
+import { ScopeNote } from '../scope-note';
 
 /** Fiche projet : vues du dossier projet et objets impactés par couche, avec la nature de chaque impact. */
 @Component({
-  imports: [RouterLink, ProjectTrajectories],
+  imports: [RouterLink, ProjectTrajectories, ScopeNote],
   template: `
     @if (d(); as d) {
       <a routerLink="/projets">← Projets</a>
@@ -17,6 +18,7 @@ import { ProjectTrajectories } from './project-trajectories';
       </p>
       @if (d.documentation) { <div class="card" style="white-space: pre-wrap">{{ d.documentation }}</div> }
       <!-- Scénarios et trajectoires : lus sans le filtre de périmètre, fermés à un accès sans l'infrastructure (décision 012). -->
+      @if (session.business()) { <app-scope-note text="Impacts sur l'infrastructure non affichés pour votre accès." /> }
       @if (!session.business()) { <app-project-trajectories [projectId]="id()" [projectName]="d.project.name" /> }
       <div class="card">
         <h2>Vues du projet ({{ d.diagrams.length }})</h2>
@@ -25,7 +27,7 @@ import { ProjectTrajectories } from './project-trajectories';
       </div>
       <div class="card">
         <div class="tools">
-          <h2 style="margin: 0">Objets impactés ({{ d.impacts.length }})</h2>
+          <h2 style="margin: 0">{{ session.business() ? 'Impacts métier et applicatifs' : 'Objets impactés' }} ({{ d.impacts.length }})</h2>
           <span class="chip warn">{{ toQualify() }} à qualifier</span>
           <select (change)="layer.set($any($event.target).value)">
             <option value="">Toutes les couches</option>
@@ -52,6 +54,8 @@ import { ProjectTrajectories } from './project-trajectories';
                   </select>
                 </td>
               </tr>
+            } @empty {
+              @if (session.business()) { <tr><td colspan="5" class="muted">Aucun impact métier ou applicatif.</td></tr> }
             }
           </table>
         </div>

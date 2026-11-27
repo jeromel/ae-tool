@@ -91,7 +91,7 @@ export class ListSpacePage {
   scoped = computed<SpaceConfig>(() => {
     const c = this.config();
     if (!this.session.business()) return c;
-    return { ...c, columns: c.columns.filter((x) => !x.infra), questions: c.questions.filter((q) => !q.infra) };
+    return { ...c, lead: c.leadBusiness ?? c.lead, columns: c.columns.filter((x) => !x.infra), questions: c.questions.filter((q) => !q.infra) };
   });
   /** Question présélectionnée par l'adresse (?question=…), pour arriver depuis l'accueil ou un lien partagé. */
   question = input<string>();

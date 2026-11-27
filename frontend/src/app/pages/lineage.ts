@@ -108,8 +108,9 @@ const verified = (s: string | null | undefined) => !s || s.trim().toLowerCase() 
       <h1>{{ l.focus.kind === 'donnee' ? 'Parcours de la donnée' : 'Parcours' }} : {{ l.focus.name }}</h1>
       <p class="lead">{{ l.focus.typeLabel }}.
         @switch (l.focus.kind) {
-          @case ('donnee') { Où elle vit, par quels flux elle circule, par quelles étapes techniques chacun passe, et qui y accède. }
-          @case ('application') { Les données qu'elle tient ou reçoit, ses flux entrants et sortants, et leur réalisation technique. }
+          <!-- Lecteur « métier » : le chapeau ne cite que ce que l'écran montre ; le bandeau dit ce qui manque (Camille, 27/11, §1). -->
+          @case ('donnee') { @if (session.business()) { Où elle vit et par quels flux elle passe d'une application à l'autre. } @else { Où elle vit, par quels flux elle circule, par quelles étapes techniques chacun passe, et qui y accède. } }
+          @case ('application') { @if (session.business()) { Les données qu'elle tient ou reçoit, et ses flux entrants et sortants. } @else { Les données qu'elle tient ou reçoit, ses flux entrants et sortants, et leur réalisation technique. } }
           @case ('flux-technique') { Les flux applicatifs qui passent par cette étape : ce qui s'arrête si elle tombe. }
           @case ('infrastructure') { Ce qui est hébergé ici, les données qui y sont stockées ou y transitent. }
           @case ('partage') { Les fichiers déposés ici et les données qu'ils contiennent. }
@@ -117,7 +118,7 @@ const verified = (s: string | null | undefined) => !s || s.trim().toLowerCase() 
           @default { }
         }
         <a [routerLink]="['/objets', l.focus.id]">Ouvrir la fiche</a></p>
-      @if (session.business()) { <app-scope-note text="Chaîne technique et hébergement non affichés pour votre accès." /> }
+      @if (session.business()) { <app-scope-note text="Étapes techniques, hébergement et postes non affichés pour votre accès." /> }
       @if (!l.focus.supported) {
         <div class="note">{{ l.focus.message }}</div>
       } @else {
@@ -246,9 +247,9 @@ const verified = (s: string | null | undefined) => !s || s.trim().toLowerCase() 
             </div>
             <div class="legend">
               <span><i></i>constaté</span><span><i class="d"></i>proposé, à confirmer ou à définir</span>
-              <span>Hébergement : trait plein, la donnée y est stockée ; pointillé, elle y transite</span>
+              @if (!session.business()) { <span>Hébergement : trait plein, la donnée y est stockée ; pointillé, elle y transite</span> }
               <span>Clic ou Entrée : choisir · double clic ou Maj+Entrée : recentrer · Échap ou clic sur le fond : tout montrer</span>
-              @if (l.censusAt) { <span>Postes comptés le {{ date(l.censusAt) }}</span> }
+              @if (l.censusAt && !session.business()) { <span>Postes comptés le {{ date(l.censusAt) }}</span> }
             </div>
             @if (l.gaps.length) {
               <div class="card" style="margin-top: 14px">
@@ -300,7 +301,7 @@ const verified = (s: string | null | undefined) => !s || s.trim().toLowerCase() 
             } @else {
               <h2>Détail</h2>
               <p class="muted small">Cliquez sur une case ou sur la pastille d'un flux : ce qui lui est relié reste en plein contraste dans toutes les bandes,
-                le reste s'estompe. La chaîne technique est celle du flux choisi.</p>
+                le reste s'estompe.@if (!session.business()) { La chaîne technique est celle du flux choisi.}</p>
               <dl class="props">
                 <dt>Données</dt><dd>{{ l.data.length }}</dd><dt>Applications</dt><dd>{{ l.applications.length }}</dd>
                 <dt>Flux applicatifs</dt><dd>{{ l.flows.length }}</dd>

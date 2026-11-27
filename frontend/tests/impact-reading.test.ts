@@ -1,7 +1,7 @@
 // Tests de impact-reading.ts (maquette « analyse d'impact selon l'objet, et qui sert qui »), hors navigateur.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { type Nature, type ReachedItem, carriers, countersOf, natureOf, readingOf, servesTable, subjectOf } from '../src/app/impact-reading.ts';
+import { type Nature, type ReachedItem, carriers, cellRank, countersOf, natureOf, readingOf, servesTable, subjectOf } from '../src/app/impact-reading.ts';
 
 /**
  * « Gestion des contrats », capacité, en amont : Contrats Web et GED Juridique la portent ; srv-bdd-03 sert les deux ;
@@ -48,7 +48,9 @@ test('nature : rôles d\'abord, puis concept transcodé ; aucune clé de couche'
   assert.equal(natureOf(['partage'], 'Node'), 'technique');
   assert.equal(natureOf(['processus'], null), 'metier', 'rôle sans concept');
   assert.equal(natureOf(['application'], 'Grouping'), 'application', 'le rôle l\'emporte sur le concept');
-  assert.equal(natureOf([], 'Grouping'), 'autre', 'zone du plan d\'occupation des sols : ni porteuse ni pont');
+  assert.equal(natureOf([], 'Grouping'), 'regroupement', 'zone du plan d\'occupation des sols : ni porteuse ni pont');
+  assert.equal(readingOf(subjectOf('regroupement')).titles.aval, 'Ce qu\'elle regroupe', 'une zone ne tombe pas (Camille §3)');
+  assert.deepEqual(countersOf('regroupement', reached, types), [], 'aucun compteur de gravité');
   assert.equal(natureOf([], 'WorkPackage'), 'autre');
 });
 
@@ -61,7 +63,7 @@ test('lignes : un métamodèle aux couches renommées garde la même lecture', (
 
 test('compteurs : pour une capacité, les applications qui la portent, pas « 0 application en aval » (I3)', () => {
   const c = countersOf('porte', reached, types);
-  assert.deepEqual(c.map((x) => `${x.value} ${x.label}`), ['3 applications qui la portent', '4 serveurs et réseaux en dessous']);
+  assert.deepEqual(c.map((x) => `${x.value} ${x.label}`), ['3 applications qui la portent', '4 objets techniques en dessous']);
 });
 
 test('qui sert qui : une ligne par application, l\'infrastructure partagée sous chacune avec « aussi » (I4)', () => {
@@ -128,4 +130,27 @@ test('compteurs : avec un tableau, le second compte les objets distincts de ses 
   const rows = new Set(['Contrats Web', 'GED Juridique', 'Signature électronique']);
   const c = countersOf('porte', reached, types, rows, new Set(['srv-app-12', 'srv-bdd-03']));
   assert.deepEqual(c.map((x) => x.value), [3, 2]);
+});
+
+// Revue de Camille (0.15.14), I5 à I7.
+test('cellule infrastructure : la machine d\'abord, puis le logiciel, puis le poste ; type de chaque objet donné (I6)', () => {
+  assert.equal(cellRank([], 'Node'), 0);
+  assert.equal(cellRank([], 'CommunicationNetwork'), 0);
+  assert.equal(cellRank([], 'SystemSoftware'), 1);
+  assert.equal(cellRank(['poste', 'infrastructure'], 'Device'), 2, 'un poste est un équipement, mais vient en dernier');
+  const list: ReachedItem[] = [
+    R('App', 1, [CAP], 'application', 'applicative'),
+    R('Windows', 2, ['App'], 'logiciel', 'technique'),
+    R('PC', 2, ['App'], 'poste', 'technique'),
+    R('VM-A', 2, ['App'], 'noeud', 'technique'),
+  ];
+  const rank = (k: string) => ({ noeud: 0, logiciel: 1, poste: 2 } as Record<string, number>)[k] ?? 1;
+  const [row] = servesTable(list, 'amont', (r) => r.id === 'App', (r) => r.layer === 'technique', rank);
+  assert.deepEqual(row.direct.map((i) => `${i.name}:${i.typeKey}`), ['VM-A:noeud', 'Windows:logiciel', 'PC:poste']);
+});
+
+test('libellés : le compteur dit ce qu\'il compte, le bloc replié dit ce qu\'il contient (I5, I7)', () => {
+  assert.equal(countersOf('porte', reached, types)[1].label, 'objets techniques en dessous');
+  assert.equal(readingOf('porte').table!.others, 'Reliés plus loin, sans la porter');
+  assert.equal(readingOf('technique').table!.others, 'Reliés plus loin');
 });

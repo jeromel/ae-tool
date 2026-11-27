@@ -15,6 +15,8 @@ export interface SpaceQuestion extends Question { filter?: (row: any) => boolean
 export interface SpaceConfig {
   title: string;
   lead: string;
+  /** Chapeau pour un accès sans l'infrastructure : il ne cite que ce que l'écran montre (Camille, 27/11, §1). */
+  leadBusiness?: string;
   endpoint: string;
   noun: string;
   searchKeys: string[];
@@ -31,7 +33,8 @@ export interface SpaceConfig {
 
 export const APPLICATIONS: SpaceConfig = {
   title: 'Applications',
-  lead: 'Chaque application avec ce qui la relie au reste du système d\'information : flux, socle technique, données, capacités et projets.',
+  lead: 'Chaque application avec ce qui la relie au reste du système d\'information : flux, serveurs, données, capacités et projets.',
+  leadBusiness: 'Chaque application avec ce qui la relie au reste du système d\'information : flux, données, capacités et projets.',
   endpoint: '/spaces/applications',
   noun: 'application(s)',
   searchKeys: ['name', 'decision'],

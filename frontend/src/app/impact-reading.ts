@@ -16,7 +16,7 @@ export interface ReachedItem {
  * Jamais d'après la clé de sa couche (décision 002) : une couche se renomme et un type peut en changer, et la lecture
  * d'impact casserait alors sans aucune erreur (revue de coût d'EV-06 de Colbert, §5).
  */
-export type Nature = 'capacite' | 'metier' | 'fonction' | 'application' | 'technique' | 'donnee' | 'autre';
+export type Nature = 'capacite' | 'metier' | 'fonction' | 'application' | 'technique' | 'donnee' | 'regroupement' | 'autre';
 
 const TECHNICAL_ROLES = ['infrastructure', 'flux-technique', 'partage', 'poste', 'support-donnee'];
 const STRATEGY_CONCEPTS = ['Capability', 'ValueStream', 'Resource', 'CourseOfAction'];
@@ -37,11 +37,12 @@ export function natureOf(roles: string[], concept: string | null | undefined): N
   if (c === 'ApplicationFunction') return 'fonction';
   if (c.startsWith('Application')) return 'application';
   if (c.startsWith('Technology') || TECHNICAL_CONCEPTS.includes(c)) return 'technique';
+  if (c === 'Grouping') return 'regroupement';
   return 'autre';
 }
 
 /** Lecture de l'objet analysé selon sa nature. */
-export type Subject = 'porte' | 'application' | 'technique' | 'donnee' | 'autre';
+export type Subject = 'porte' | 'application' | 'technique' | 'donnee' | 'regroupement' | 'autre';
 
 export function subjectOf(nature: Nature): Subject {
   switch (nature) {
@@ -49,6 +50,7 @@ export function subjectOf(nature: Nature): Subject {
     case 'capacite': case 'metier': case 'fonction': return 'porte';
     case 'technique': return 'technique';
     case 'donnee': return 'donnee';
+    case 'regroupement': return 'regroupement';
     default: return 'autre';
   }
 }
@@ -59,7 +61,7 @@ export interface Reading {
   titles: Record<'aval' | 'amont', string>;
   hints: Record<'aval' | 'amont', string>;
   /** Tableau « qui sert qui » dans la première colonne : lignes et cellules, ou null pour une liste par couche. */
-  table: { rows: 'application'; cells: 'technique' | 'capacite'; rowsLabel: string; cellsLabel: string } | null;
+  table: { rows: 'application'; cells: 'technique' | 'capacite'; rowsLabel: string; cellsLabel: string; others: string } | null;
 }
 
 export function readingOf(subject: Subject): Reading {
@@ -69,7 +71,8 @@ export function readingOf(subject: Subject): Reading {
         first: 'amont',
         titles: { amont: 'Ce qui la porte', aval: 'Ce qui en dépend' },
         hints: { amont: 'Les applications qui la portent, et l\'infrastructure qui sert chacune.', aval: 'Ce qu\'elle sert ou réalise.' },
-        table: { rows: 'application', cells: 'technique', rowsLabel: 'Application', cellsLabel: 'Infrastructure qui la sert' },
+        // « others » : ce qui est atteint sans être une ligne du tableau, replié (revue de Camille, I7).
+        table: { rows: 'application', cells: 'technique', rowsLabel: 'Application', cellsLabel: 'Infrastructure qui la sert', others: 'Reliés plus loin, sans la porter' },
       };
     case 'application':
       return {
@@ -83,13 +86,21 @@ export function readingOf(subject: Subject): Reading {
         first: 'aval',
         titles: { aval: 'Ce qui est touché s\'il tombe ou change', amont: 'Ce dont il dépend' },
         hints: { aval: 'Les applications qu\'il sert, et les capacités que porte chacune.', amont: 'Ce qui le sert ou le contient.' },
-        table: { rows: 'application', cells: 'capacite', rowsLabel: 'Application', cellsLabel: 'Capacités qu\'elle porte' },
+        table: { rows: 'application', cells: 'capacite', rowsLabel: 'Application', cellsLabel: 'Capacités qu\'elle porte', others: 'Reliés plus loin' },
       };
     case 'donnee':
       return {
         first: 'amont',
         titles: { amont: 'Qui l\'utilise', aval: 'D\'où elle vient' },
         hints: { amont: 'Les applications et processus qui la lisent ou l\'écrivent.', aval: 'Ce qu\'elle réalise ou alimente.' },
+        table: null,
+      };
+    // Une zone ne tombe pas : elle regroupe (Camille, 27/11, §3). Pas de compteur de gravité.
+    case 'regroupement':
+      return {
+        first: 'aval',
+        titles: { aval: 'Ce qu\'elle regroupe', amont: 'Ce qui la regroupe' },
+        hints: { aval: 'Les éléments rangés dans ce regroupement.', amont: 'Les regroupements qui la contiennent.' },
         table: null,
       };
     default:
@@ -136,15 +147,27 @@ export function countersOf(subject: Subject, reached: ReachedItem[], t: TypeRole
   const caps = (d: 'aval' | 'amont') => side(d).filter((r) => t.isCapability(r.typeKey) && (!cells || cells.has(r.id))).length;
   const tech = (d: 'aval' | 'amont') => side(d).filter((r) => t.natureOf(r.typeKey) === 'technique' && (!cells || cells.has(r.id))).length;
   switch (subject) {
-    case 'porte': return [{ value: apps('amont'), label: 'applications qui la portent' }, { value: tech('amont'), label: 'serveurs et réseaux en dessous', infra: true }];
-    case 'application': return [{ value: caps('aval'), label: 'capacités touchées', alert: caps('aval') > 0 }, { value: tech('amont'), label: 'serveurs dont elle dépend', infra: true }];
+    case 'porte': return [{ value: apps('amont'), label: 'applications qui la portent' }, { value: tech('amont'), label: 'objets techniques en dessous', infra: true }];
+    case 'application': return [{ value: caps('aval'), label: 'capacités touchées', alert: caps('aval') > 0 }, { value: tech('amont'), label: 'objets techniques dont elle dépend', infra: true }];
     case 'technique': return [{ value: apps('aval'), label: 'applications touchées', alert: apps('aval') > 0 }, { value: caps('aval'), label: 'capacités touchées' }];
     case 'donnee': return [{ value: apps('amont'), label: 'applications qui la lisent ou l\'écrivent' }];
+    case 'regroupement': return [];
     default: return [{ value: side('aval').length, label: 'objets touchés en aval', alert: side('aval').length > 0 }, { value: side('amont').length, label: 'dépendances en amont' }];
   }
 }
 
-export interface CellItem { id: string; name: string; /** Autres lignes que cet objet sert aussi (noms). */ also: string[]; }
+export interface CellItem { id: string; name: string; typeKey: string; /** Autres lignes que cet objet sert aussi (noms). */ also: string[]; }
+
+const MACHINE_CONCEPTS = ['Node', 'Device', 'Equipment', 'Facility', 'CommunicationNetwork', 'Path', 'DistributionNetwork'];
+
+/**
+ * Ordre dans une cellule « infrastructure » (revue de Camille, I6) : la machine ou le réseau d'abord, c'est ce qu'on cherche
+ * en cas de panne ; puis le logiciel système et le reste ; puis le poste.
+ */
+export function cellRank(roles: string[], concept: string | null | undefined): number {
+  if (roles.includes('poste')) return 2;
+  return MACHINE_CONCEPTS.includes(concept ?? '') ? 0 : 1;
+}
 export interface ServesRow { id: string; name: string; direct: CellItem[]; below: CellItem[]; }
 
 /**
@@ -153,7 +176,7 @@ export interface ServesRow { id: string; name: string; direct: CellItem[]; below
  * partagé apparaît sous chaque ligne qu'il sert, avec « aussi : … » : c'est l'information utile en cas de panne.
  */
 export function servesTable(reached: ReachedItem[], direction: 'aval' | 'amont', isRow: (r: ReachedItem) => boolean,
-  isCell: (r: ReachedItem) => boolean): ServesRow[] {
+  isCell: (r: ReachedItem) => boolean, rank: (typeKey: string) => number = () => 0): ServesRow[] {
   const side = reached.filter((r) => r.direction === direction);
   const children = new Map<string, ReachedItem[]>();
   for (const r of side) for (const f of r.from) children.set(f, [...(children.get(f) ?? []), r]);
@@ -185,10 +208,11 @@ export function servesTable(reached: ReachedItem[], direction: 'aval' | 'amont',
   return rows.map((row) => {
     const found = reach.get(row.id)!;
     const item = (id: string): CellItem => ({
-      id, name: name(id),
+      id, name: name(id), typeKey: byId.get(id)?.typeKey ?? '',
       also: rows.filter((o) => o.id !== row.id && reach.get(o.id)!.has(id)).map((o) => o.name),
     });
-    const sorted = [...found.entries()].sort((a, b) => a[1] - b[1] || name(a[0]).localeCompare(name(b[0]), 'fr'));
+    const order = (id: string) => rank(byId.get(id)?.typeKey ?? '');
+    const sorted = [...found.entries()].sort((a, b) => a[1] - b[1] || order(a[0]) - order(b[0]) || name(a[0]).localeCompare(name(b[0]), 'fr'));
     // Premier niveau montré : le plus proche de la ligne où la colonne apparaît ; le reste est replié (« + N en dessous »).
     const nearest = sorted.length ? sorted[0][1] : 0;
     return {
