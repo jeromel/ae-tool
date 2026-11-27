@@ -2687,6 +2687,9 @@
         <property propertyDefinitionRef="propid-16">
           <value xml:lang="fr">Salle informatique principale (siège)</value>
         </property>
+        <property propertyDefinitionRef="propid-22">
+          <value xml:lang="fr">Grappe de virtualisation</value>
+        </property>
       </properties>
     </element>
     <element identifier="id-d7feb709f1f95f8699db8906b68440e8" xsi:type="Node">
@@ -2694,6 +2697,9 @@
       <properties>
         <property propertyDefinitionRef="propid-16">
           <value xml:lang="fr">Salle informatique de secours (usine des Sablons)</value>
+        </property>
+        <property propertyDefinitionRef="propid-22">
+          <value xml:lang="fr">Grappe de virtualisation</value>
         </property>
       </properties>
     </element>
@@ -2703,6 +2709,9 @@
         <property propertyDefinitionRef="propid-16">
           <value xml:lang="fr">Salle informatique principale (siège)</value>
         </property>
+        <property propertyDefinitionRef="propid-22">
+          <value xml:lang="fr">VM</value>
+        </property>
       </properties>
     </element>
     <element identifier="id-68735d96dad55f2992a83377f99ffe35" xsi:type="Node">
@@ -2710,6 +2719,9 @@
       <properties>
         <property propertyDefinitionRef="propid-16">
           <value xml:lang="fr">Salle informatique principale (siège)</value>
+        </property>
+        <property propertyDefinitionRef="propid-22">
+          <value xml:lang="fr">VM</value>
         </property>
       </properties>
     </element>
@@ -2719,6 +2731,9 @@
         <property propertyDefinitionRef="propid-16">
           <value xml:lang="fr">Salle informatique principale (siège)</value>
         </property>
+        <property propertyDefinitionRef="propid-22">
+          <value xml:lang="fr">VM</value>
+        </property>
       </properties>
     </element>
     <element identifier="id-1280ede07afd5053a6db3f31e2108118" xsi:type="Node">
@@ -2726,6 +2741,9 @@
       <properties>
         <property propertyDefinitionRef="propid-16">
           <value xml:lang="fr">Salle informatique principale (siège)</value>
+        </property>
+        <property propertyDefinitionRef="propid-22">
+          <value xml:lang="fr">VM</value>
         </property>
       </properties>
     </element>
@@ -2735,6 +2753,9 @@
         <property propertyDefinitionRef="propid-16">
           <value xml:lang="fr">Salle informatique principale (siège)</value>
         </property>
+        <property propertyDefinitionRef="propid-22">
+          <value xml:lang="fr">VM</value>
+        </property>
       </properties>
     </element>
     <element identifier="id-8f055c3a99a7543ca8008cdbe937a767" xsi:type="Node">
@@ -2742,6 +2763,9 @@
       <properties>
         <property propertyDefinitionRef="propid-16">
           <value xml:lang="fr">Salle informatique principale (siège)</value>
+        </property>
+        <property propertyDefinitionRef="propid-22">
+          <value xml:lang="fr">VM</value>
         </property>
       </properties>
     </element>
@@ -2751,6 +2775,9 @@
         <property propertyDefinitionRef="propid-16">
           <value xml:lang="fr">Salle informatique principale (siège)</value>
         </property>
+        <property propertyDefinitionRef="propid-22">
+          <value xml:lang="fr">VM</value>
+        </property>
       </properties>
     </element>
     <element identifier="id-1c0195a889425f52825ab7ab0366800c" xsi:type="Node">
@@ -2758,6 +2785,9 @@
       <properties>
         <property propertyDefinitionRef="propid-16">
           <value xml:lang="fr">Salle informatique principale (siège)</value>
+        </property>
+        <property propertyDefinitionRef="propid-22">
+          <value xml:lang="fr">VM</value>
         </property>
       </properties>
     </element>
@@ -2767,6 +2797,9 @@
         <property propertyDefinitionRef="propid-16">
           <value xml:lang="fr">Salle informatique principale (siège)</value>
         </property>
+        <property propertyDefinitionRef="propid-22">
+          <value xml:lang="fr">VM</value>
+        </property>
       </properties>
     </element>
     <element identifier="id-891f5c26ea315523b804fdc0d615e1e7" xsi:type="Node">
@@ -2774,6 +2807,9 @@
       <properties>
         <property propertyDefinitionRef="propid-16">
           <value xml:lang="fr">Salle informatique principale (siège)</value>
+        </property>
+        <property propertyDefinitionRef="propid-22">
+          <value xml:lang="fr">VM</value>
         </property>
       </properties>
     </element>
@@ -2783,6 +2819,9 @@
         <property propertyDefinitionRef="propid-16">
           <value xml:lang="fr">Salle informatique principale (siège)</value>
         </property>
+        <property propertyDefinitionRef="propid-22">
+          <value xml:lang="fr">VM</value>
+        </property>
       </properties>
     </element>
     <element identifier="id-6d98cbad717056d6af21fa7b28c5f2f9" xsi:type="Node">
@@ -2790,6 +2829,9 @@
       <properties>
         <property propertyDefinitionRef="propid-16">
           <value xml:lang="fr">Salle informatique principale (siège)</value>
+        </property>
+        <property propertyDefinitionRef="propid-22">
+          <value xml:lang="fr">VM</value>
         </property>
       </properties>
     </element>
@@ -2799,6 +2841,9 @@
         <property propertyDefinitionRef="propid-16">
           <value xml:lang="fr">Salle informatique principale (siège)</value>
         </property>
+        <property propertyDefinitionRef="propid-22">
+          <value xml:lang="fr">VM</value>
+        </property>
       </properties>
     </element>
     <element identifier="id-9e1f8cef53105f5d9989a8a79e0c88e9" xsi:type="Node">
@@ -2806,6 +2851,9 @@
       <properties>
         <property propertyDefinitionRef="propid-16">
           <value xml:lang="fr">Salle informatique principale (siège)</value>
+        </property>
+        <property propertyDefinitionRef="propid-22">
+          <value xml:lang="fr">VM</value>
         </property>
       </properties>
     </element>
@@ -3148,6 +3196,49 @@
         </property>
       </properties>
     </element>
+    <element identifier="id-hyd-etape-facture-souscrire" xsi:type="ValueStream">
+      <name xml:lang="fr">Souscrire</name>
+    </element>
+    <element identifier="id-hyd-etape-facture-relever" xsi:type="ValueStream">
+      <name xml:lang="fr">Relever</name>
+    </element>
+    <element identifier="id-hyd-etape-facture-facturer" xsi:type="ValueStream">
+      <name xml:lang="fr">Facturer</name>
+    </element>
+    <element identifier="id-hyd-etape-facture-encaisser" xsi:type="ValueStream">
+      <name xml:lang="fr">Encaisser</name>
+    </element>
+    <element identifier="id-hyd-etape-incident-detecter" xsi:type="ValueStream">
+      <name xml:lang="fr">Détecter</name>
+    </element>
+    <element identifier="id-hyd-etape-incident-mobiliser" xsi:type="ValueStream">
+      <name xml:lang="fr">Mobiliser</name>
+    </element>
+    <element identifier="id-hyd-etape-incident-intervenir" xsi:type="ValueStream">
+      <name xml:lang="fr">Intervenir</name>
+    </element>
+    <element identifier="id-hyd-etape-incident-retablir" xsi:type="ValueStream">
+      <name xml:lang="fr">Rétablir et informer</name>
+    </element>
+    <element identifier="id-hyd-reponse-dict" xsi:type="BusinessObject">
+      <name xml:lang="fr">Réponse à la déclaration de travaux</name>
+      <documentation xml:lang="fr">Réponse adressée au déclarant : réseaux concernés et recommandations.</documentation>
+    </element>
+    <element identifier="id-hyd-evt-reception-dict" xsi:type="BusinessEvent">
+      <name xml:lang="fr">Réception d'une déclaration de travaux</name>
+    </element>
+    <element identifier="id-hyd-dict-recevoir" xsi:type="BusinessProcess">
+      <name xml:lang="fr">Recevoir la déclaration</name>
+    </element>
+    <element identifier="id-hyd-dict-localiser" xsi:type="BusinessProcess">
+      <name xml:lang="fr">Localiser les réseaux concernés</name>
+    </element>
+    <element identifier="id-hyd-dict-rediger" xsi:type="BusinessProcess">
+      <name xml:lang="fr">Rédiger la réponse</name>
+    </element>
+    <element identifier="id-hyd-dict-envoyer" xsi:type="BusinessProcess">
+      <name xml:lang="fr">Envoyer la réponse</name>
+    </element>
   </elements>
   <relationships>
     <relationship identifier="id-b74d501000425cf8bda97d30f3c59981" source="id-15cc4ada43ec5940a7eca80c975c5b24" target="id-a9541d2cadca58b1b36fd3596f18ac59" xsi:type="Composition" />
@@ -3218,20 +3309,20 @@
     <relationship identifier="id-6f64b0719b5b5afea770187c5b2ed914" source="id-731a022a85ba59c699c6b8a1626fc557" target="id-816c77f7023d5ca090573b085789021b" xsi:type="Serving" />
     <relationship identifier="id-76a3676f186b54d68638b33b8058326c" source="id-cd9c359e158a5246b74ebb0b68b4164a" target="id-816c77f7023d5ca090573b085789021b" xsi:type="Serving" />
     <relationship identifier="id-f11b844951015ee0afb65481d2726621" source="id-5a078a2c03cc59b9947d45cc85ac13fa" target="id-816c77f7023d5ca090573b085789021b" xsi:type="Serving" />
-    <relationship identifier="id-12c9cac46b055844927194f6f9cdd9a1" source="id-9b3caa05787d514dbf6aa9751f189251" target="id-03ca0fd304e95baf87480dc3855d4d13" xsi:type="Serving" />
-    <relationship identifier="id-16a85fb40b4755b390e7866af6aeeba3" source="id-e422819bdd4e50ad9ef3e0ac17b0854e" target="id-03ca0fd304e95baf87480dc3855d4d13" xsi:type="Serving" />
-    <relationship identifier="id-d22a188ade6552c18ad1c5fa77556f79" source="id-a77286a9a2db5185b072f8fe7121bd9a" target="id-03ca0fd304e95baf87480dc3855d4d13" xsi:type="Serving" />
-    <relationship identifier="id-2c08ccedb1b75f3aacaca5713ef9badd" source="id-779ed479205c5c13801bd4fadf1c94eb" target="id-03ca0fd304e95baf87480dc3855d4d13" xsi:type="Serving" />
+    <relationship identifier="id-12c9cac46b055844927194f6f9cdd9a1" source="id-9b3caa05787d514dbf6aa9751f189251" target="id-hyd-etape-facture-souscrire" xsi:type="Serving" />
+    <relationship identifier="id-16a85fb40b4755b390e7866af6aeeba3" source="id-e422819bdd4e50ad9ef3e0ac17b0854e" target="id-hyd-etape-facture-relever" xsi:type="Serving" />
+    <relationship identifier="id-d22a188ade6552c18ad1c5fa77556f79" source="id-a77286a9a2db5185b072f8fe7121bd9a" target="id-hyd-etape-facture-facturer" xsi:type="Serving" />
+    <relationship identifier="id-2c08ccedb1b75f3aacaca5713ef9badd" source="id-779ed479205c5c13801bd4fadf1c94eb" target="id-hyd-etape-facture-encaisser" xsi:type="Serving" />
     <relationship identifier="id-fc5f6792db0b5feb8d5430c3ace9735e" source="id-b84960dd39b65e79b1863d4b076c0610" target="id-03ca0fd304e95baf87480dc3855d4d13" xsi:type="Serving" />
     <relationship identifier="id-d7dd5fd53fc950109ac867febcf628ab" source="id-33d39bbdb4f154688d59255396b17329" target="id-ac446906736a54e190e8be599c329394" xsi:type="Serving" />
     <relationship identifier="id-e57fe886940550b7b5108c4d70c8dec2" source="id-f4f12f8c70305bb7bd31aea478f11bbe" target="id-ac446906736a54e190e8be599c329394" xsi:type="Serving" />
     <relationship identifier="id-1455484f2d0b5bcd80ff6c07df8f1c49" source="id-19677429d9d25b6f84583003e76bd4c8" target="id-ac446906736a54e190e8be599c329394" xsi:type="Serving" />
     <relationship identifier="id-083a1e7371f4598a90f93be57b017e0b" source="id-8f09f16984545acc8a2750ffb30cc3a6" target="id-ac446906736a54e190e8be599c329394" xsi:type="Serving" />
-    <relationship identifier="id-12a92f696c8855499053ef4d6a4c6945" source="id-2c2517ee421a50d7b4bc4df4ec0802b1" target="id-ea3c82f4e9d15b778a8e0f416bdd25cd" xsi:type="Serving" />
-    <relationship identifier="id-a4fd8bd43bd9540b8acf048953200c23" source="id-dd6f15b857145edc80bcbe9188884808" target="id-ea3c82f4e9d15b778a8e0f416bdd25cd" xsi:type="Serving" />
-    <relationship identifier="id-05b5feabec9d522ca47a481f44a42eab" source="id-2cec53e0789757e6ab7f71be7881b427" target="id-ea3c82f4e9d15b778a8e0f416bdd25cd" xsi:type="Serving" />
-    <relationship identifier="id-5da94de2a0ac5f1d881157f034320fc7" source="id-7d497a591b0e510e8ab24875a814f286" target="id-ea3c82f4e9d15b778a8e0f416bdd25cd" xsi:type="Serving" />
-    <relationship identifier="id-135e997884705e43990ea5fad799e40e" source="id-97e49356c56d5e839859874f0f758366" target="id-ea3c82f4e9d15b778a8e0f416bdd25cd" xsi:type="Serving" />
+    <relationship identifier="id-12a92f696c8855499053ef4d6a4c6945" source="id-2c2517ee421a50d7b4bc4df4ec0802b1" target="id-hyd-etape-incident-mobiliser" xsi:type="Serving" />
+    <relationship identifier="id-a4fd8bd43bd9540b8acf048953200c23" source="id-dd6f15b857145edc80bcbe9188884808" target="id-hyd-etape-incident-detecter" xsi:type="Serving" />
+    <relationship identifier="id-05b5feabec9d522ca47a481f44a42eab" source="id-2cec53e0789757e6ab7f71be7881b427" target="id-hyd-etape-incident-intervenir" xsi:type="Serving" />
+    <relationship identifier="id-5da94de2a0ac5f1d881157f034320fc7" source="id-7d497a591b0e510e8ab24875a814f286" target="id-hyd-etape-incident-detecter" xsi:type="Serving" />
+    <relationship identifier="id-135e997884705e43990ea5fad799e40e" source="id-97e49356c56d5e839859874f0f758366" target="id-hyd-etape-incident-retablir" xsi:type="Serving" />
     <relationship identifier="id-30b251b8e91557719d53a8ac6411eea0" source="id-9374f303221555b0a555b141c76f6ebd" target="id-50949b0d836253c4b38e4eeb6ac5c7cd" xsi:type="Influence" />
     <relationship identifier="id-3276973b3423572797fe3b5baa7e2dd1" source="id-660e3b1565955fb3b976f52504c99aa6" target="id-50949b0d836253c4b38e4eeb6ac5c7cd" xsi:type="Influence" />
     <relationship identifier="id-f6395086265351cfb56d7b955ced0e79" source="id-1f70fe13ba7c5e0bb19332296a26240e" target="id-366d198ac6f15134b2b8cdd5021ed68a" xsi:type="Influence" />
@@ -3257,33 +3348,33 @@
     <relationship identifier="id-e29a83f46d065b10b5adfa0b8bc2410c" source="id-95650070418c5c3b96d9c190481363fa" target="id-6664b6b4a3295ee088af2e5f88ef4dfa" xsi:type="Realization" />
     <relationship identifier="id-b4c54c8a32c759939d476c58d1f34b24" source="id-de280d7cd344565c9ce06aa22fe00216" target="id-95650070418c5c3b96d9c190481363fa" xsi:type="Assignment" />
     <relationship identifier="id-3e7b14e880e75303a3502d03ee6bf2bc" source="id-95650070418c5c3b96d9c190481363fa" target="id-ac536c14eeaf54c08b3af04fd8034728" xsi:type="Access" accessType="Read" />
-    <relationship identifier="id-432b214e3f3b5f6e9ff0d525fee1246c" source="id-95650070418c5c3b96d9c190481363fa" target="id-f03668d9a053576baee6c1107f6cce33" xsi:type="Access" accessType="Read" />
+    <relationship identifier="id-432b214e3f3b5f6e9ff0d525fee1246c" source="id-95650070418c5c3b96d9c190481363fa" target="id-f03668d9a053576baee6c1107f6cce33" xsi:type="Access" accessType="Write" />
     <relationship identifier="id-5b616a770cfb58ff8c71aa7dfdf3bc26" source="id-db77c8fcbd4952c4832fcec288c0a88b" target="id-a77286a9a2db5185b072f8fe7121bd9a" xsi:type="Realization" />
     <relationship identifier="id-41d918056b2355d3a7898e7e1503448d" source="id-0b91fa3cda04530abf2ee9f73949cb63" target="id-db77c8fcbd4952c4832fcec288c0a88b" xsi:type="Assignment" />
     <relationship identifier="id-7d2c52b6a6b25351a543d4a0ac905657" source="id-db77c8fcbd4952c4832fcec288c0a88b" target="id-f03668d9a053576baee6c1107f6cce33" xsi:type="Access" accessType="Read" />
-    <relationship identifier="id-6b4ae39b84585f6984a5ef47bbf468f7" source="id-db77c8fcbd4952c4832fcec288c0a88b" target="id-9d810ac023d455d2977ca71ab26146d7" xsi:type="Access" accessType="Read" />
+    <relationship identifier="id-6b4ae39b84585f6984a5ef47bbf468f7" source="id-db77c8fcbd4952c4832fcec288c0a88b" target="id-9d810ac023d455d2977ca71ab26146d7" xsi:type="Access" accessType="Write" />
     <relationship identifier="id-f37b2536e48b5e2980cccdb7ce937bde" source="id-db77c8fcbd4952c4832fcec288c0a88b" target="id-8aecbf836c6a573bac9020ddb9438a6d" xsi:type="Access" accessType="Read" />
     <relationship identifier="id-0648b9c3595153a2816f9a6b7051bf12" source="id-95fcc88dfd785a3896f0951bad3b29f7" target="id-9b3caa05787d514dbf6aa9751f189251" xsi:type="Realization" />
     <relationship identifier="id-17c39ad6a8f1545dbb75000d2c5cf6ec" source="id-0b91fa3cda04530abf2ee9f73949cb63" target="id-95fcc88dfd785a3896f0951bad3b29f7" xsi:type="Assignment" />
-    <relationship identifier="id-ea9988a7af875479acf9e84fbd6dd6bc" source="id-95fcc88dfd785a3896f0951bad3b29f7" target="id-a39afc8726635c22a3ab5376ee00612f" xsi:type="Access" accessType="Read" />
-    <relationship identifier="id-6ce45c002f2d5d829b0332d954f2df7c" source="id-95fcc88dfd785a3896f0951bad3b29f7" target="id-8aecbf836c6a573bac9020ddb9438a6d" xsi:type="Access" accessType="Read" />
+    <relationship identifier="id-ea9988a7af875479acf9e84fbd6dd6bc" source="id-95fcc88dfd785a3896f0951bad3b29f7" target="id-a39afc8726635c22a3ab5376ee00612f" xsi:type="Access" accessType="ReadWrite" />
+    <relationship identifier="id-6ce45c002f2d5d829b0332d954f2df7c" source="id-95fcc88dfd785a3896f0951bad3b29f7" target="id-8aecbf836c6a573bac9020ddb9438a6d" xsi:type="Access" accessType="Write" />
     <relationship identifier="id-d85b340435b65420adc0a637773b982f" source="id-95fcc88dfd785a3896f0951bad3b29f7" target="id-964a2a280fe55d4ebfed70e7fe8023ed" xsi:type="Access" accessType="Read" />
     <relationship identifier="id-175d832e633059c3ac653960bada5e0e" source="id-59d259092e255e13b17fb72999bf1df9" target="id-47ae39ba32f8545daeb7bea733deae3e" xsi:type="Realization" />
     <relationship identifier="id-4bdb5bc8a2ae58bf9eeda78105ca7eb7" source="id-0b91fa3cda04530abf2ee9f73949cb63" target="id-59d259092e255e13b17fb72999bf1df9" xsi:type="Assignment" />
-    <relationship identifier="id-f308eb9e963754928519b5429b807ee6" source="id-59d259092e255e13b17fb72999bf1df9" target="id-4ef5d4ce5611560b8da85b00f8f6950e" xsi:type="Access" accessType="Read" />
+    <relationship identifier="id-f308eb9e963754928519b5429b807ee6" source="id-59d259092e255e13b17fb72999bf1df9" target="id-4ef5d4ce5611560b8da85b00f8f6950e" xsi:type="Access" accessType="ReadWrite" />
     <relationship identifier="id-b83387e8fc775384b209af792ab9485a" source="id-59d259092e255e13b17fb72999bf1df9" target="id-a39afc8726635c22a3ab5376ee00612f" xsi:type="Access" accessType="Read" />
     <relationship identifier="id-b80ae7f4e45f54178db3b4c908fe72c5" source="id-b8bd2b649ec856259e9e6126a9fc89fb" target="id-5597c006877b544487c7aaea22a48caa" xsi:type="Realization" />
     <relationship identifier="id-e9f8852925b95a34a8815a5b21b86a57" source="id-a43477dbea285b3eb7cc68b945580ffe" target="id-b8bd2b649ec856259e9e6126a9fc89fb" xsi:type="Assignment" />
     <relationship identifier="id-68dd9c17512759d899d77e4d5533eee2" source="id-b8bd2b649ec856259e9e6126a9fc89fb" target="id-9d810ac023d455d2977ca71ab26146d7" xsi:type="Access" accessType="Read" />
-    <relationship identifier="id-8f84d2aee8d958c7bf6de5088263015c" source="id-b8bd2b649ec856259e9e6126a9fc89fb" target="id-b3e79b7dc2ae567aa20434cfbd32f100" xsi:type="Access" accessType="Read" />
+    <relationship identifier="id-8f84d2aee8d958c7bf6de5088263015c" source="id-b8bd2b649ec856259e9e6126a9fc89fb" target="id-b3e79b7dc2ae567aa20434cfbd32f100" xsi:type="Access" accessType="ReadWrite" />
     <relationship identifier="id-6fce0511b566505d8ae015da987c306b" source="id-fee91c22edc559e9a5f125039a24eb7d" target="id-65f3c4bd428d55e98a60014dd7c47e8d" xsi:type="Realization" />
     <relationship identifier="id-a622982806b958279a70127fae92026b" source="id-a8bb6ca31c9d5e9790769bd2079adbb4" target="id-fee91c22edc559e9a5f125039a24eb7d" xsi:type="Assignment" />
     <relationship identifier="id-1344f90d5400524989f8f7d1a53da0f8" source="id-fee91c22edc559e9a5f125039a24eb7d" target="id-816e443fb5f55b5e9c3b0dc3c2389872" xsi:type="Access" accessType="Read" />
     <relationship identifier="id-47d7b516bd935d758c7e77518134b7ec" source="id-fee91c22edc559e9a5f125039a24eb7d" target="id-709de51e7f9455d5a06b6b3f2793e15b" xsi:type="Access" accessType="Read" />
     <relationship identifier="id-aec2468f70c75f1995b7f880b96350eb" source="id-c765b2c2d7095164b3209d01045825ec" target="id-5a078a2c03cc59b9947d45cc85ac13fa" xsi:type="Realization" />
     <relationship identifier="id-a80fd4f156ae52d8b122cb4a892f10a2" source="id-403a35b1b67758998fd66c929cc13c2f" target="id-c765b2c2d7095164b3209d01045825ec" xsi:type="Assignment" />
-    <relationship identifier="id-54acdfbd579d5f1896d687388405944a" source="id-c765b2c2d7095164b3209d01045825ec" target="id-4a0113190b46564aadca09b8f655701d" xsi:type="Access" accessType="Read" />
-    <relationship identifier="id-4147b90428205e70ad1ccb6b63037647" source="id-c765b2c2d7095164b3209d01045825ec" target="id-7f51c12d030250d99ecd773b13a344c7" xsi:type="Access" accessType="Read" />
+    <relationship identifier="id-54acdfbd579d5f1896d687388405944a" source="id-c765b2c2d7095164b3209d01045825ec" target="id-4a0113190b46564aadca09b8f655701d" xsi:type="Access" accessType="Write" />
+    <relationship identifier="id-4147b90428205e70ad1ccb6b63037647" source="id-c765b2c2d7095164b3209d01045825ec" target="id-7f51c12d030250d99ecd773b13a344c7" xsi:type="Access" accessType="Write" />
     <relationship identifier="id-0f7db8439e745d8eb56e8e82fdc5a7d9" source="id-0ea49e296b3654e49631cc640e953f76" target="id-7d497a591b0e510e8ab24875a814f286" xsi:type="Realization" />
     <relationship identifier="id-81b014c6722d5916ae048e2c75bdcdaf" source="id-403a35b1b67758998fd66c929cc13c2f" target="id-0ea49e296b3654e49631cc640e953f76" xsi:type="Assignment" />
     <relationship identifier="id-2197697dea82585eae5f5d83c1aecd29" source="id-39f5219ff8c05e9aab8c34fb3499d4bd" target="id-0ea49e296b3654e49631cc640e953f76" xsi:type="Assignment" />
@@ -3292,12 +3383,12 @@
     <relationship identifier="id-8ae1b7dfb942585fa4da18afac96f13e" source="id-e22e791fcd18535187e27a19e8e74c9c" target="id-dd6f15b857145edc80bcbe9188884808" xsi:type="Realization" />
     <relationship identifier="id-d2498d6c92e05da591b2e76b4ff1d43e" source="id-7f3047f189ba5da691771fb8130b37c4" target="id-e22e791fcd18535187e27a19e8e74c9c" xsi:type="Assignment" />
     <relationship identifier="id-a3e62219a51c5c5fa2e221f323252811" source="id-39f5219ff8c05e9aab8c34fb3499d4bd" target="id-e22e791fcd18535187e27a19e8e74c9c" xsi:type="Assignment" />
-    <relationship identifier="id-8bf5092455875465909f38f10c62e276" source="id-e22e791fcd18535187e27a19e8e74c9c" target="id-233226a4640d579fbf6f0e80bf4875fa" xsi:type="Access" accessType="Read" />
+    <relationship identifier="id-8bf5092455875465909f38f10c62e276" source="id-e22e791fcd18535187e27a19e8e74c9c" target="id-233226a4640d579fbf6f0e80bf4875fa" xsi:type="Access" accessType="Write" />
     <relationship identifier="id-b0ed4c26ec805be984880139309758a8" source="id-e22e791fcd18535187e27a19e8e74c9c" target="id-fdfc28b8a2a25b5ca68dd40c1908f2ac" xsi:type="Access" accessType="Read" />
     <relationship identifier="id-e8d248b31ec4515893554569588d554a" source="id-e22e791fcd18535187e27a19e8e74c9c" target="id-8e4db9a5c45b55beabb480107ca42dbe" xsi:type="Access" accessType="Read" />
     <relationship identifier="id-153c87066d84543da981e7c77bc642d5" source="id-51cba1b417675664be1ce89f54782e66" target="id-3f36e237720b5cac8c91c299a43ad79e" xsi:type="Realization" />
     <relationship identifier="id-332e321b06505a71a5c2cc261d5a150a" source="id-ae7172f1f4d050b4a8d4f5582a316dde" target="id-51cba1b417675664be1ce89f54782e66" xsi:type="Assignment" />
-    <relationship identifier="id-69063cf1e376542d9e20112a8d508add" source="id-51cba1b417675664be1ce89f54782e66" target="id-c15ea7828146500fb522dde36e721cd9" xsi:type="Access" accessType="Read" />
+    <relationship identifier="id-69063cf1e376542d9e20112a8d508add" source="id-51cba1b417675664be1ce89f54782e66" target="id-c15ea7828146500fb522dde36e721cd9" xsi:type="Access" accessType="Write" />
     <relationship identifier="id-71b04ca5f403521fb832aa688ebbc6a5" source="id-51cba1b417675664be1ce89f54782e66" target="id-471272ef5da052fbb052ac344ac3cdf6" xsi:type="Access" accessType="Read" />
     <relationship identifier="id-af784f2173955a2ca04f3e67cf3c968f" source="id-53bcd5be32ae5c60803dc0c84edf2aa9" target="id-e1c4bd64acd95aa787510a3543052e67" xsi:type="Realization" />
     <relationship identifier="id-2fc3aacad11f522981749853d4af455d" source="id-0f9d2e6c5f495bd8984688fd9fde4887" target="id-53bcd5be32ae5c60803dc0c84edf2aa9" xsi:type="Assignment" />
@@ -3314,14 +3405,14 @@
     <relationship identifier="id-9e5474f5ea185b56867dc38a0ab71331" source="id-cda03711753b5f4b98274f8889639642" target="id-19677429d9d25b6f84583003e76bd4c8" xsi:type="Realization" />
     <relationship identifier="id-ce1d381b7a475aacb0f1035bfd3d745a" source="id-a8bb6ca31c9d5e9790769bd2079adbb4" target="id-cda03711753b5f4b98274f8889639642" xsi:type="Assignment" />
     <relationship identifier="id-6e995f35add45083a3ca7c2da10edb43" source="id-cda03711753b5f4b98274f8889639642" target="id-816e443fb5f55b5e9c3b0dc3c2389872" xsi:type="Access" accessType="Read" />
-    <relationship identifier="id-3556e79684595fcfb3f4fd786f18239c" source="id-cda03711753b5f4b98274f8889639642" target="id-adf7da54b17353c3984ff96437fc4116" xsi:type="Access" accessType="Read" />
+    <relationship identifier="id-3556e79684595fcfb3f4fd786f18239c" source="id-cda03711753b5f4b98274f8889639642" target="id-adf7da54b17353c3984ff96437fc4116" xsi:type="Access" accessType="Write" />
     <relationship identifier="id-a5a652bc13375ad9ae82c1f970c7b7e6" source="id-a7ada6c9af055f0b9c23e3f1a7d08270" target="id-d3f7a832e15a5e5585f33890065df19e" xsi:type="Realization" />
     <relationship identifier="id-03e2e8032d6d5b28981a8844f525a2d8" source="id-a43477dbea285b3eb7cc68b945580ffe" target="id-a7ada6c9af055f0b9c23e3f1a7d08270" xsi:type="Assignment" />
     <relationship identifier="id-147b212acdb4520e9b77426b173f9dec" source="id-a7ada6c9af055f0b9c23e3f1a7d08270" target="id-e33d7b55b6b9523788da8b956e1a5249" xsi:type="Access" accessType="Read" />
-    <relationship identifier="id-4fa95829cdad590c853f2ea2a34122e2" source="id-a7ada6c9af055f0b9c23e3f1a7d08270" target="id-42fde71dc3775639a21cf626d63c355b" xsi:type="Access" accessType="Read" />
+    <relationship identifier="id-4fa95829cdad590c853f2ea2a34122e2" source="id-a7ada6c9af055f0b9c23e3f1a7d08270" target="id-42fde71dc3775639a21cf626d63c355b" xsi:type="Access" accessType="Write" />
     <relationship identifier="id-78456ac9469b5836a855a524aec01e1d" source="id-50602e71d3265bf28bb2c100cc9d2bcd" target="id-b40460f7b28c57fbb4eed5b0f630efe3" xsi:type="Realization" />
     <relationship identifier="id-ae5bafe55e7c5efdae38afeba91586c0" source="id-3ba9f58e98455dc38ac6d0051ab8a2cd" target="id-50602e71d3265bf28bb2c100cc9d2bcd" xsi:type="Assignment" />
-    <relationship identifier="id-341198f17b5b5e58954b69a741fadc14" source="id-50602e71d3265bf28bb2c100cc9d2bcd" target="id-e33d7b55b6b9523788da8b956e1a5249" xsi:type="Access" accessType="Read" />
+    <relationship identifier="id-341198f17b5b5e58954b69a741fadc14" source="id-50602e71d3265bf28bb2c100cc9d2bcd" target="id-e33d7b55b6b9523788da8b956e1a5249" xsi:type="Access" accessType="Write" />
     <relationship identifier="id-d8b4b3f93f5058358bf6edd6dd5ceb9f" source="id-50602e71d3265bf28bb2c100cc9d2bcd" target="id-6f0b6f64b2f459c7afa127834033bf0c" xsi:type="Access" accessType="Read" />
     <relationship identifier="id-250eb40d247e55bb9948b35717b4fabf" source="id-b01b1d73c4e750b58b806afb2c706ff8" target="id-337743720c595038bdb4a8473b4a690a" xsi:type="Realization" />
     <relationship identifier="id-52b70ffc81825271a21da006b63c3697" source="id-f89c3c9b67ec54e8b1cacfdcce703d45" target="id-b01b1d73c4e750b58b806afb2c706ff8" xsi:type="Assignment" />
@@ -3330,7 +3421,7 @@
     <relationship identifier="id-1a7ea4f36ecc50f4a37b22d018c3c706" source="id-39ea53eb4a1e5c08a9061c4f9d749096" target="id-e920d89804c15f079c73c7c6749cb57c" xsi:type="Realization" />
     <relationship identifier="id-29af507ba7ab5c128a815309dc3508ee" source="id-f89c3c9b67ec54e8b1cacfdcce703d45" target="id-39ea53eb4a1e5c08a9061c4f9d749096" xsi:type="Assignment" />
     <relationship identifier="id-05b5611748c35e16aa516b949d31a236" source="id-39ea53eb4a1e5c08a9061c4f9d749096" target="id-33bc75b5fdef54b0ac0b04c913da377c" xsi:type="Access" accessType="Read" />
-    <relationship identifier="id-56328da1eb3a541988ee01a01bcaa8d1" source="id-39ea53eb4a1e5c08a9061c4f9d749096" target="id-dc391ce46b0b51ce892da9112af2983b" xsi:type="Access" accessType="Read" />
+    <relationship identifier="id-56328da1eb3a541988ee01a01bcaa8d1" source="id-39ea53eb4a1e5c08a9061c4f9d749096" target="id-dc391ce46b0b51ce892da9112af2983b" xsi:type="Access" accessType="Write" />
     <relationship identifier="id-362eb916030c553c9d628376917b3894" source="id-a097555c4fd85c289ceff75d54e8e871" target="id-2c2517ee421a50d7b4bc4df4ec0802b1" xsi:type="Realization" />
     <relationship identifier="id-f315a41edf6f51b3989532f2936862f8" source="id-39f5219ff8c05e9aab8c34fb3499d4bd" target="id-a097555c4fd85c289ceff75d54e8e871" xsi:type="Assignment" />
     <relationship identifier="id-a247006db4b05cee82e8a13a3875edf0" source="id-a097555c4fd85c289ceff75d54e8e871" target="id-8e4db9a5c45b55beabb480107ca42dbe" xsi:type="Access" accessType="Read" />
@@ -5185,6 +5276,48 @@
     <relationship identifier="id-hyd-rel-poste-12" source="id-hyd-pc-finance" target="id-bb67328581d75a34b04840953308a3d1" xsi:type="Serving" />
     <relationship identifier="id-hyd-rel-poste-13" source="id-hyd-pc-exploitation" target="id-477097e44fed5cccb5a4a8f655e2338b" xsi:type="Serving" />
     <relationship identifier="id-hyd-rel-poste-14" source="id-hyd-pc-exploitation" target="id-b4d23d415c2f51dea9ba085361f2c2c7" xsi:type="Serving" />
+    <relationship identifier="id-hyd-r-facture-compose-souscrire" source="id-03ca0fd304e95baf87480dc3855d4d13" target="id-hyd-etape-facture-souscrire" xsi:type="Composition" />
+    <relationship identifier="id-hyd-r-facture-compose-relever" source="id-03ca0fd304e95baf87480dc3855d4d13" target="id-hyd-etape-facture-relever" xsi:type="Composition" />
+    <relationship identifier="id-hyd-r-facture-compose-facturer" source="id-03ca0fd304e95baf87480dc3855d4d13" target="id-hyd-etape-facture-facturer" xsi:type="Composition" />
+    <relationship identifier="id-hyd-r-facture-compose-encaisser" source="id-03ca0fd304e95baf87480dc3855d4d13" target="id-hyd-etape-facture-encaisser" xsi:type="Composition" />
+    <relationship identifier="id-hyd-r-facture-flux-ouscrire--relever" source="id-hyd-etape-facture-souscrire" target="id-hyd-etape-facture-relever" xsi:type="Flow" />
+    <relationship identifier="id-hyd-r-facture-flux--relever-facturer" source="id-hyd-etape-facture-relever" target="id-hyd-etape-facture-facturer" xsi:type="Flow" />
+    <relationship identifier="id-hyd-r-facture-flux-facturer-ncaisser" source="id-hyd-etape-facture-facturer" target="id-hyd-etape-facture-encaisser" xsi:type="Flow" />
+    <relationship identifier="id-hyd-r-incident-compose-detecter" source="id-ea3c82f4e9d15b778a8e0f416bdd25cd" target="id-hyd-etape-incident-detecter" xsi:type="Composition" />
+    <relationship identifier="id-hyd-r-incident-compose-mobiliser" source="id-ea3c82f4e9d15b778a8e0f416bdd25cd" target="id-hyd-etape-incident-mobiliser" xsi:type="Composition" />
+    <relationship identifier="id-hyd-r-incident-compose-intervenir" source="id-ea3c82f4e9d15b778a8e0f416bdd25cd" target="id-hyd-etape-incident-intervenir" xsi:type="Composition" />
+    <relationship identifier="id-hyd-r-incident-sert-intervenir-dd6f15b8" source="id-dd6f15b857145edc80bcbe9188884808" target="id-hyd-etape-incident-intervenir" xsi:type="Serving" />
+    <relationship identifier="id-hyd-r-incident-compose-retablir" source="id-ea3c82f4e9d15b778a8e0f416bdd25cd" target="id-hyd-etape-incident-retablir" xsi:type="Composition" />
+    <relationship identifier="id-hyd-r-incident-sert-retablir-1970072f" source="id-1970072f08115550a7b8ca175c0c8aaf" target="id-hyd-etape-incident-retablir" xsi:type="Serving" />
+    <relationship identifier="id-hyd-r-incident-flux-detecter-obiliser" source="id-hyd-etape-incident-detecter" target="id-hyd-etape-incident-mobiliser" xsi:type="Flow" />
+    <relationship identifier="id-hyd-r-incident-flux-obiliser-tervenir" source="id-hyd-etape-incident-mobiliser" target="id-hyd-etape-incident-intervenir" xsi:type="Flow" />
+    <relationship identifier="id-hyd-r-incident-flux-tervenir-retablir" source="id-hyd-etape-incident-intervenir" target="id-hyd-etape-incident-retablir" xsi:type="Flow" />
+    <relationship identifier="id-hyd-r-declenche-95fcc88d-95650070" source="id-95fcc88dfd785a3896f0951bad3b29f7" target="id-95650070418c5c3b96d9c190481363fa" xsi:type="Triggering" />
+    <relationship identifier="id-hyd-r-declenche-95650070-db77c8fc" source="id-95650070418c5c3b96d9c190481363fa" target="id-db77c8fcbd4952c4832fcec288c0a88b" xsi:type="Triggering" />
+    <relationship identifier="id-hyd-r-declenche-db77c8fc-b8bd2b64" source="id-db77c8fcbd4952c4832fcec288c0a88b" target="id-b8bd2b649ec856259e9e6126a9fc89fb" xsi:type="Triggering" />
+    <relationship identifier="id-hyd-r-dict-compose-recevoir" source="id-53bcd5be32ae5c60803dc0c84edf2aa9" target="id-hyd-dict-recevoir" xsi:type="Composition" />
+    <relationship identifier="id-hyd-r-dict-qui-recevoir" source="id-0f9d2e6c5f495bd8984688fd9fde4887" target="id-hyd-dict-recevoir" xsi:type="Assignment" />
+    <relationship identifier="id-hyd-r-dict-acces-recevoir-f13438" source="id-hyd-dict-recevoir" target="id-b64821afae5b580f843fd8ee84f13438" xsi:type="Access" accessType="Write" />
+    <relationship identifier="id-hyd-r-dict-sert-recevoir-2fa86a" source="id-1d3bbe6f614153069e52b2337c2fa86a" target="id-hyd-dict-recevoir" xsi:type="Serving" />
+    <relationship identifier="id-hyd-r-dict-compose-localiser" source="id-53bcd5be32ae5c60803dc0c84edf2aa9" target="id-hyd-dict-localiser" xsi:type="Composition" />
+    <relationship identifier="id-hyd-r-dict-qui-localiser" source="id-0f9d2e6c5f495bd8984688fd9fde4887" target="id-hyd-dict-localiser" xsi:type="Assignment" />
+    <relationship identifier="id-hyd-r-dict-acces-localiser-f13438" source="id-hyd-dict-localiser" target="id-b64821afae5b580f843fd8ee84f13438" xsi:type="Access" accessType="Read" />
+    <relationship identifier="id-hyd-r-dict-acces-localiser-08f2ac" source="id-hyd-dict-localiser" target="id-fdfc28b8a2a25b5ca68dd40c1908f2ac" xsi:type="Access" accessType="Read" />
+    <relationship identifier="id-hyd-r-dict-sert-localiser-a2c81e" source="id-82c9de28976159be80d005bb3ca2c81e" target="id-hyd-dict-localiser" xsi:type="Serving" />
+    <relationship identifier="id-hyd-r-dict-sert-localiser-8459bd" source="id-b8383f23cae95f348ab53904498459bd" target="id-hyd-dict-localiser" xsi:type="Serving" />
+    <relationship identifier="id-hyd-r-dict-compose-rediger" source="id-53bcd5be32ae5c60803dc0c84edf2aa9" target="id-hyd-dict-rediger" xsi:type="Composition" />
+    <relationship identifier="id-hyd-r-dict-qui-rediger" source="id-0f9d2e6c5f495bd8984688fd9fde4887" target="id-hyd-dict-rediger" xsi:type="Assignment" />
+    <relationship identifier="id-hyd-r-dict-acces-rediger-08f2ac" source="id-hyd-dict-rediger" target="id-fdfc28b8a2a25b5ca68dd40c1908f2ac" xsi:type="Access" accessType="Read" />
+    <relationship identifier="id-hyd-r-dict-acces-rediger-e-dict" source="id-hyd-dict-rediger" target="id-hyd-reponse-dict" xsi:type="Access" accessType="Write" />
+    <relationship identifier="id-hyd-r-dict-sert-rediger-2fa86a" source="id-1d3bbe6f614153069e52b2337c2fa86a" target="id-hyd-dict-rediger" xsi:type="Serving" />
+    <relationship identifier="id-hyd-r-dict-compose-envoyer" source="id-53bcd5be32ae5c60803dc0c84edf2aa9" target="id-hyd-dict-envoyer" xsi:type="Composition" />
+    <relationship identifier="id-hyd-r-dict-qui-envoyer" source="id-0f9d2e6c5f495bd8984688fd9fde4887" target="id-hyd-dict-envoyer" xsi:type="Assignment" />
+    <relationship identifier="id-hyd-r-dict-acces-envoyer-e-dict" source="id-hyd-dict-envoyer" target="id-hyd-reponse-dict" xsi:type="Access" accessType="Read" />
+    <relationship identifier="id-hyd-r-dict-sert-envoyer-2fa86a" source="id-1d3bbe6f614153069e52b2337c2fa86a" target="id-hyd-dict-envoyer" xsi:type="Serving" />
+    <relationship identifier="id-hyd-r-dict-declenche-recevoir-localiser" source="id-hyd-dict-recevoir" target="id-hyd-dict-localiser" xsi:type="Triggering" />
+    <relationship identifier="id-hyd-r-dict-declenche-localiser-rediger" source="id-hyd-dict-localiser" target="id-hyd-dict-rediger" xsi:type="Triggering" />
+    <relationship identifier="id-hyd-r-dict-declenche-rediger-envoyer" source="id-hyd-dict-rediger" target="id-hyd-dict-envoyer" xsi:type="Triggering" />
+    <relationship identifier="id-hyd-r-dict-declenche-evt" source="id-hyd-evt-reception-dict" target="id-hyd-dict-recevoir" xsi:type="Triggering" />
   </relationships>
   <organizations>
     <item>

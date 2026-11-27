@@ -8,7 +8,7 @@ rien anonymiser.
 
 | Fichier | Contenu |
 |---|---|
-| `hydreane-referentiel.xml` | modèle Archi au format d'échange Open Group (ArchiMate 3.1) : 426 éléments, 917 relations, 58 vues ; partages de fichiers et profils de poste sous-typés par la propriété `asset.subtype` |
+| `hydreane-referentiel.xml` | modèle Archi au format d'échange Open Group (ArchiMate 3.1) : 440 éléments, 959 relations, 58 vues ; partages de fichiers, profils de poste, VM et grappes sous-typés par la propriété `asset.subtype` ; étapes des chaînes « Du raccordement à la facture » et « De l'incident à la remise en service », processus « Répondre à une déclaration de travaux » en quatre étapes (EV-06) |
 | `hydreane-catalogue-donnees-flux.xlsx` | catalogue des données et des flux : 23 applications, 18 objets de données, 87 attributs, 30 flux applicatifs, 11 flux techniques, 57 liens de traçabilité, listes de référence |
 | `hydreane-cmdb-postes.csv` | export de la CMDB : 94 postes de travail (et deux autres équipements), avec site, entité, modèle et le code de leur profil de poste |
 | `hydreane-referentiel-urbanisation.xlsx` | classeur d'urbanisation : 38 applications, 1 080 preuves de notation, formules recalculées |

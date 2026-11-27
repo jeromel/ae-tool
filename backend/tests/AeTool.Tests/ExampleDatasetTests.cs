@@ -20,8 +20,8 @@ public static class ExampleDatasetTests
             archi = ArchimateExchange.Import(s, repo);
             // Seul signalement attendu : « Partage Exploitation », nœud nommé « Partage… » sans sous-type, laissé exprès.
             Equal("partage-sans-sous-type", string.Join(",", archi.Anomalies.Select(a => a.Code)), "anomalies");
-            Equal(426, repo.ActiveObjects.Count(), "objets");
-            Equal(917, repo.ActiveRelationships.Count(), "relations");
+            Equal(440, repo.ActiveObjects.Count(), "objets");
+            Equal(959, repo.ActiveRelationships.Count(), "relations");
             Equal(58, repo.ActiveDiagrams.Count(), "vues");
             Equal(0, repo.Objects.Values.Count(o => o.TypeKey == "autre"), "objets non classés");
         });
