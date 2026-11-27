@@ -57,6 +57,8 @@ public static class ArchimateExchange
         else report.Notes.Add("Premier import de ce modèle : aucun objet existant n'a été archivé.");
         if (report.Returned.Count > 0)
             report.Notes.Add($"{report.Returned.Count} objet(s) créé(s) dans l'outil revenu(s) d'Archi : leur nom et leur description se modifient désormais dans Archi ({string.Join(", ", report.Returned.Take(10))}{(report.Returned.Count > 10 ? "…" : "")}).");
+        if (report.ReturnedRelations > 0)
+            report.Notes.Add($"{report.ReturnedRelations} relation(s) créée(s) dans l'outil revenue(s) d'Archi : elles se modifient désormais dans Archi, et sont archivées si elles en disparaissent.");
         if (report.Overwrites.Count > 0)
             report.Notes.Add($"{report.Overwrites.Count} valeur(s) saisie(s) dans l'outil remplacée(s) ou effacée(s) par Archi : voir le détail.");
 
@@ -134,6 +136,7 @@ public static class ArchimateExchange
             // Un objet qui ne venait pas d'Archi et que le fichier porte en revient : il devient un objet d'Archi (décision 014, point 2).
             var returning = existing.Source != SourceTag;
             ReportOverwrites(repo.Metamodel, report, existing, incoming.Properties, returning);
+            if (returning) ReportFields(report, existing, incoming);
             if (returning) report.Returned.Add(existing.Name);
             // Un objet créé dans l'outil n'a pas encore de concept : celui que l'export lui a donné ne compte pas comme une modification.
             var sameConcept = existing.ArchimateType == incoming.ArchimateType
@@ -155,6 +158,26 @@ public static class ArchimateExchange
         }
         return seen;
     }
+
+    /// <summary>
+    /// Décision 015, point 4 : au premier retour d'un objet, son nom et sa description ont été saisis ici ; une ligne pour
+    /// chacun quand le fichier les change. Aux retours suivants, ils sont verrouillés ici et ne sont pas listés.
+    /// </summary>
+    private static void ReportFields(ImportReport report, ArchObject existing, ArchObject incoming)
+    {
+        void Field(string key, string label, string? before, string? after)
+        {
+            var b = (before ?? "").Trim();
+            var a = (after ?? "").Trim();
+            if (b.Length == 0 || a == b) return;
+            report.Overwrites.Add(new Overwrite(existing.Id, existing.Name, key, label, b, a.Length == 0 ? null : a));
+        }
+        Field(FieldName, "Nom", existing.Name, incoming.Name);
+        Field(FieldDocumentation, "Description", existing.Documentation, incoming.Documentation);
+    }
+
+    /// <summary>Clés des champs d'un objet dans le compte rendu, à côté des clés de propriétés.</summary>
+    public const string FieldName = "nom", FieldDocumentation = "description";
 
     /// <summary>
     /// Décision 014, point 3 : une ligne par valeur que l'import remplace ou efface alors qu'elle a pu être saisie ici, soit
@@ -214,8 +237,7 @@ public static class ArchimateExchange
                 Name = Text(el.Element(A + "name")), Documentation = Text(el.Element(A + "documentation")),
                 Properties = transcoder.Values(raw),
                 AccessType = (string?)el.Attribute("accessType"), Modifier = (string?)el.Attribute("modifier"),
-                // Comme pour un objet, une relation déjà connue garde sa source : un flux du catalogue reste tenu par le catalogue
-                // après un aller-retour par Archi, et n'est donc pas archivé s'il manque au fichier suivant.
+                // Comparée avec sa source d'avant ; la bascule vers Archi (décision 015) est appliquée après la comparaison.
                 IsDirected = (bool?)el.Attribute("isDirected"), Source = existing?.Source ?? SourceTag,
             };
             foreach (var (end, label) in new[] { (incoming.SourceId, "source"), (incoming.TargetId, "cible") })
@@ -229,12 +251,18 @@ public static class ArchimateExchange
             if (existing is not null)
                 incoming.Properties.AddRange(existing.Properties.Where(p => CatalogueModel.IsOwned(p.Key) && incoming.Properties.All(i => i.Key != p.Key)));
             if (existing is null) { repo.Relationships[id] = incoming; tally.Added++; continue; }
+            // Décision 015 : une relation revenue d'Archi devient une relation d'Archi, catalogue compris. Elle est archivée si
+            // elle manque au fichier suivant. Les propriétés du catalogue restent gardées par IsOwned, ci-dessus.
+            var returning = existing.Source != SourceTag;
+            if (returning) report.ReturnedRelations++;
             // Comme pour un objet : une relation créée dans l'outil (catalogue, saisie) n'a pas encore de concept ;
             // celui que l'export lui a donné ne compte pas comme une modification. Il est gardé si la relation a vraiment changé.
             var received = incoming.ArchimateType;
             if (existing.ArchimateType is null && transcoder.ExportRelation(existing).Concept == received) incoming.ArchimateType = null;
-            if (Json(existing) == Json(incoming)) { tally.Unchanged++; continue; }
+            // Comme pour un objet, la bascule seule n'est pas une modification du contenu.
+            if (Json(existing) == Json(incoming)) { if (returning) existing.Source = SourceTag; tally.Unchanged++; continue; }
             incoming.ArchimateType = received;
+            incoming.Source = SourceTag;
             repo.Relationships[id] = incoming;
             tally.Updated++;
         }

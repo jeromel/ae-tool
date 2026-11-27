@@ -24,7 +24,10 @@ console et dans `donnees\code-installation.txt`.
 2. puis le classeur d'urbanisation, rapproché par nom avec les applications.
 
 Les imports sont rejouables : réimporter le même fichier ne crée aucun doublon, met à jour ce qui a changé et archive ce
-qui a disparu. Ce qui a été saisi dans l'outil est conservé. Une sauvegarde est prise avant chaque import.
+qui a disparu. Ce qui a été saisi dans l'outil est conservé, sauf quand Archi porte la même donnée : c'est alors Archi
+qui l'emporte, et le compte rendu d'import donne, pour chaque valeur remplacée, l'ancienne et la nouvelle. Un objet ou
+une relation créé dans l'outil et retrouvé dans le fichier devient un élément d'Archi : son nom et sa description se
+modifient ensuite dans Archi, et il est archivé s'il disparaît du modèle. Une sauvegarde est prise avant chaque import.
 
 ### Les dessins draw.io
 
@@ -89,9 +92,9 @@ serait écrasée par une valeur plus ancienne.
 Archi reconnaît chaque objet à son identifiant, qui ne change pas sur ce trajet : la fusion met à jour les objets
 existants sans les dupliquer, et les nouveaux s'y ajoutent. Les propriétés posées par l'outil passent la fusion, et un
 réimport du modèle maître dans l'outil ne crée pas de doublon. Un aller-retour sans modification ne signale aucun
-changement. Les flux venus du catalogue des données et des flux restent tenus par le catalogue après le trajet : un
-réimport du modèle maître ne les archive pas, même s'il ne les contient pas. Ne les modifiez pas dans Archi, c'est le
-catalogue qui fait foi.
+changement. Après le trajet, les flux venus du catalogue des données et des flux sont des relations d'Archi, comme le
+reste : supprimés dans Archi, ils sont archivés ici au réimport suivant, et le réimport du catalogue les recrée. Leur
+code et leurs caractéristiques restent tenus par le catalogue : modifiez-les dans le catalogue, pas dans Archi.
 
 Pour essayer l'outil sans données réelles, le dossier [`exemples/hydreane`](../exemples/hydreane/README.md) contient un
 jeu complet d'une entreprise fictive : modèle Archi, classeur d'urbanisation, dessin draw.io et présentation de la méthode.

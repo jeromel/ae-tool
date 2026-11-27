@@ -47,17 +47,18 @@ public static class ExportTests
             Equal("Renommé dans Archi", repo.Objects["id-saisi"].Name);
             Equal("ApplicationComponent", repo.Objects["id-saisi"].ArchimateType);
         });
-        Test("aller-retour : une relation du catalogue garde le catalogue pour source, sans être signalée modifiée (note trajet Colbert §5)", () =>
+        // Décision 015 (remplace la règle de la 0.15.9, note de trajet de Colbert §5) : la relation revenue passe à Archi.
+        Test("aller-retour : une relation du catalogue passe à Archi, sans être signalée modifiée (décision 015)", () =>
         {
             var repo = Imported(out _);
             repo.Relationships["id-flux-cat"] = new Relationship { Id = "id-flux-cat", TypeKey = repo.Relationships["id-r3"].TypeKey,
                 SourceId = "id-report", TargetId = "id-itsm", Name = "Flux du catalogue", Source = CatalogueImporter.SourceTag };
             var report = ArchimateExchange.Import(Fixtures.Stream(ArchimateExchange.Export(repo).ToString()), repo);
-            Equal(CatalogueImporter.SourceTag, repo.Relationships["id-flux-cat"].Source, "source après l'aller-retour");
+            Equal("archi", repo.Relationships["id-flux-cat"].Source, "source après l'aller-retour");
             Equal(0, report.Counts["Relations"].Updated, "relations signalées modifiées");
             Equal(null, repo.Relationships["id-flux-cat"].ArchimateType, "concept reçu à l'export, sans modification");
         });
-        Test("aller-retour puis réimport sans lui : un flux du catalogue n'est pas archivé", () =>
+        Test("aller-retour puis réimport sans lui : le flux du catalogue, devenu relation d'Archi, est archivé (décision 015, risque accepté)", () =>
         {
             var repo = Imported(out _);
             var without = ArchimateExchange.Export(repo).ToString();
@@ -65,8 +66,8 @@ public static class ExportTests
                 SourceId = "id-report", TargetId = "id-itsm", Name = "Flux du catalogue", Source = CatalogueImporter.SourceTag };
             ArchimateExchange.Import(Fixtures.Stream(ArchimateExchange.Export(repo).ToString()), repo);
             var report = ArchimateExchange.Import(Fixtures.Stream(without), repo);
-            Equal(false, repo.Relationships["id-flux-cat"].Archived, "flux du catalogue archivé");
-            Equal(0, report.Counts["Relations"].Archived, "relations archivées");
+            Equal(true, repo.Relationships["id-flux-cat"].Archived, "flux archivé, comme toute relation supprimée dans Archi");
+            Equal(1, report.Counts["Relations"].Archived, "relations archivées");
         });
         Test("export d'une seule vue : uniquement ses objets et relations", () =>
         {

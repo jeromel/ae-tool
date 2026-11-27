@@ -29,6 +29,8 @@ public sealed class ImportReport
     public List<Overwrite> Overwrites { get; set; } = new();
     /// <summary>Objets créés ici que cet import a fait passer sous la maîtrise d'Archi (décision 014, point 2).</summary>
     [System.Text.Json.Serialization.JsonIgnore] public List<string> Returned { get; } = new();
+    /// <summary>Relations créées ici que cet import a fait passer sous la maîtrise d'Archi (décision 015).</summary>
+    [System.Text.Json.Serialization.JsonIgnore] public int ReturnedRelations { get; set; }
     /// <summary>Vues créées ou mises à jour par l'import, pour y mener directement (import draw.io).</summary>
     public List<string>? Views { get; set; }
 

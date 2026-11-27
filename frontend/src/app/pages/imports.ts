@@ -1,6 +1,7 @@
 import { Component, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
+import { groupOverwrites, overwritesTitle } from '../import-report';
 import { Api } from '../api';
 
 @Component({
@@ -50,16 +51,21 @@ import { Api } from '../api';
         </table>
         @for (n of r.notes.slice(0, 6); track $index) { <div class="small muted" style="margin-top: 6px">{{ n }}</div> }
         @if (r.notes.length > 6) { <div class="small muted">… et {{ r.notes.length - 6 }} autre(s) note(s).</div> }
-        <!-- Décision 014 : Archi gagne, et on prévient. Sans maquette : tableau minimal, écart signalé à Camille. -->
+        <!-- Décisions 014 et 015 : Archi gagne, et on prévient. Libellés et forme : revue de Camille (§6, 27/11). -->
         @if (r.overwrites?.length) {
-          <h2 style="margin-top: 14px">{{ r.overwrites.length }} valeur(s) saisie(s) dans l'outil remplacée(s) par Archi</h2>
-          <p class="small muted" style="margin-top: 0">Archi est le maître de ces objets : sa valeur l'emporte. Si la saisie de l'outil était la bonne, reportez-la dans Archi.</p>
+          <h2 style="margin-top: 14px">{{ overwritesTitle(r.overwrites.length) }}</h2>
+          <p class="small" style="margin-top: 0">Votre valeur n'est pas perdue : la voici. Pour la garder, saisissez-la dans Archi puis réimportez.</p>
           <div class="scroll" style="max-height: 260px">
             <table>
-              <tr><th>Objet</th><th>Propriété</th><th>Valeur saisie ici</th><th>Valeur d'Archi</th></tr>
-              @for (o of r.overwrites; track $index) {
-                <tr><td><a [routerLink]="['/objets', o.objectId]">{{ o.objectName }}</a></td><td>{{ o.label }}</td><td>{{ o.before }}</td>
-                  <td [class.muted]="o.after === null">{{ o.after ?? 'effacée' }}</td></tr>
+              <tr><th>Objet</th><th>Champ</th><th>Valeur saisie ici</th><th>Valeur d'Archi</th></tr>
+              @for (g of groupOverwrites(r.overwrites); track g.objectId) {
+                @for (o of g.lines; track $index; let first = $first) {
+                  <tr>
+                    @if (first) { <td [attr.rowspan]="g.lines.length"><a [routerLink]="['/objets', g.objectId]">{{ g.objectName }}</a></td> }
+                    <td>{{ o.label }}</td><td>{{ o.before }}</td>
+                    <td>@if (o.after === null) { <i class="muted">effacée</i> } @else { {{ o.after }} }</td>
+                  </tr>
+                }
               }
             </table>
           </div>
@@ -94,6 +100,8 @@ import { Api } from '../api';
 export class ImportsPage {
   api = inject(Api);
   reports = signal<any[]>([]);
+  readonly overwritesTitle = overwritesTitle;
+  readonly groupOverwrites = groupOverwrites;
   journal = signal<any[]>([]);
   busy = signal(false);
   error = signal('');

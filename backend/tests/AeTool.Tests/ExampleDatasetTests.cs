@@ -158,21 +158,30 @@ public static class ExampleDatasetTests
             True(!carried.Any(x => x!.Contains("Bus") || x.Contains("Export RH")), "ni bus ni flux technique : " + string.Join(", ", carried));
         });
 
-        Test("jeu Hydréane : après un aller-retour par Archi, rien n'est signalé, les flux du catalogue restent au catalogue et le modèle maître ne les archive pas", () =>
+        // Décision 015 : une relation revenue d'Archi devient une relation d'Archi, flux du catalogue compris.
+        Test("jeu Hydréane : après un aller-retour par Archi, rien n'est signalé, les flux du catalogue passent à Archi en gardant code et caractéristiques", () =>
         {
             var dir = Locate()!;
             var local = new Repository();
             using (var s = File.OpenRead(Path.Combine(dir, "hydreane-referentiel.xml"))) ArchimateExchange.Import(s, local);
-            using (var s = File.OpenRead(Path.Combine(dir, "hydreane-catalogue-donnees-flux.xlsx"))) CatalogueImporter.Apply(s, "catalogue.xlsx", local, "test", null);
-            int Catalogue() => local.ActiveRelationships.Count(r => r.Source == CatalogueImporter.SourceTag);
-            var before = Catalogue();
-            True(before > 0, "relations du catalogue avant l'aller-retour");
+            var catalogue = Path.Combine(dir, "hydreane-catalogue-donnees-flux.xlsx");
+            using (var s = File.OpenRead(catalogue)) CatalogueImporter.Apply(s, "catalogue.xlsx", local, "test", null);
+            var ids = local.ActiveRelationships.Where(r => r.Source == CatalogueImporter.SourceTag).Select(r => r.Id).ToList();
+            True(ids.Count > 0, "relations du catalogue avant l'aller-retour");
+            string? Code(string i) => local.Relationships[i].Properties.FirstOrDefault(p => p.Key == CatalogueModel.Code)?.Value;
+            var codes = ids.ToDictionary(i => i, Code);
             var trip = ArchimateExchange.Import(Fixtures.Stream(ArchimateExchange.Export(local).ToString()), local);
             Equal(0, trip.Counts.Values.Sum(c => c.Added + c.Updated + c.Archived), "écarts signalés au premier aller-retour");
-            Equal(before, Catalogue(), "relations du catalogue après l'aller-retour");
-            // Le modèle maître d'origine ne porte pas ces flux : son réimport ne doit pas les archiver.
+            True(ids.All(i => local.Relationships[i].Source == "archi" && !local.Relationships[i].Archived), "flux du catalogue passés à Archi");
+            True(ids.All(i => Code(i) == codes[i]) && codes.Values.Any(c => c is not null), "codes du catalogue gardés");
+            True(trip.Notes.Any(n => n.Contains("relation(s) créée(s) dans l'outil revenue(s) d'Archi")), "la bascule est annoncée");
+            // Réimport du catalogue : il retrouve ses flux par extrémités et par type, sans doublon.
+            var flows = local.ActiveRelationships.Count();
+            using (var s = File.OpenRead(catalogue)) CatalogueImporter.Apply(s, "catalogue.xlsx", local, "test", null);
+            Equal(flows, local.ActiveRelationships.Count(), "aucun doublon au réimport du catalogue");
+            // Risque résiduel accepté (015) : un modèle maître qui ne les porte plus les archive, comme toute relation d'Archi supprimée.
             using (var s = File.OpenRead(Path.Combine(dir, "hydreane-referentiel.xml"))) ArchimateExchange.Import(s, local);
-            Equal(before, Catalogue(), "relations du catalogue après le réimport du modèle maître");
+            True(ids.All(i => local.Relationships[i].Archived), "absents du modèle maître : archivés");
         });
     }
 

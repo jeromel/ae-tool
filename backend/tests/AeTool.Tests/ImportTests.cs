@@ -108,6 +108,29 @@ public static class ImportTests
             True(report.Overwrites[0] is { Property: "org.owner", Before: "DSI", After: "Métier" }, "objet, propriété, avant, après");
             Equal(0, ArchimateExchange.Import(Fixtures.Stream(xml), repo).Overwrites.Count, "réimport identique : rien à signaler");
         });
+        Test("décision 015 : une relation créée ici qui revient d'Archi bascule sans être comptée modifiée, puis est archivée si elle disparaît", () =>
+        {
+            var repo = Imported(out _);
+            repo.Relationships["r-saisie"] = new Relationship { Id = "r-saisie", TypeKey = repo.Relationships["id-r3"].TypeKey, SourceId = "id-report", TargetId = "id-itsm", Source = "saisie" };
+            var report = ArchimateExchange.Import(Fixtures.Stream(ArchimateExchange.Export(repo).ToString()), repo);
+            Equal("archi", repo.Relationships["r-saisie"].Source, "source après le retour");
+            Equal(0, report.Counts["Relations"].Updated, "la bascule seule n'est pas une modification");
+            ArchimateExchange.Import(Fixtures.Stream(Fixtures.Model()), repo);
+            True(repo.Relationships["r-saisie"].Archived, "absente du fichier suivant : archivée");
+        });
+        Test("décision 015 : objet renommé ici avant son premier retour, une ligne « Nom » ; aux retours suivants, plus de ligne", () =>
+        {
+            var repo = Imported(out _);
+            repo.Objects["id-new"] = new ArchObject { Id = "id-new", Name = "Nom saisi ici", Documentation = "Saisie", TypeKey = "application", Source = "saisie" };
+            string File(string name, string doc) => Fixtures.Model().Replace("</elements>",
+                $"<element identifier=\"id-new\" xsi:type=\"ApplicationComponent\"><name xml:lang=\"fr\">{name}</name><documentation xml:lang=\"fr\">{doc}</documentation></element></elements>");
+            var first = ArchimateExchange.Import(Fixtures.Stream(File("Nom d'Archi", "Saisie")), repo);
+            var line = first.Overwrites.SingleOrDefault(o => o.ObjectId == "id-new" && o.Property == ArchimateExchange.FieldName);
+            True(line is { Label: "Nom", Before: "Nom saisi ici", After: "Nom d'Archi" }, "ligne « Nom » au premier retour");
+            True(first.Overwrites.All(o => o.Property != ArchimateExchange.FieldDocumentation), "description inchangée : pas de ligne");
+            var next = ArchimateExchange.Import(Fixtures.Stream(File("Renommé dans Archi", "Autre")), repo);
+            Equal(0, next.Overwrites.Count(o => o.ObjectId == "id-new"), "objet d'Archi : Archi change sa propre donnée");
+        });
         Test("références cassées, types inconnus et doublons sont signalés, jamais corrigés en silence", () =>
         {
             var extra = """
