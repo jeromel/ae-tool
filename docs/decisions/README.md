@@ -19,3 +19,4 @@ et ce qui a été écarté. Une décision ne se modifie pas : on en écrit une n
 | [012](012-acces-reserve-a-des-personnes-nommees.md) | Données sensibles : des personnes nommées, un périmètre de lecture selon le besoin d'en connaître | Acceptée |
 | [013](013-description-openapi-generee-sans-paquet.md) | La description OpenAPI est produite par l'outil à partir de ses routes, sans paquet ; cible : API publique de lecture | Acceptée |
 | [014](014-maitre-juge-objet-par-objet.md) | Le maître se juge objet par objet ; un objet revenu d'Archi devient un objet d'Archi | Acceptée |
+| [015](015-relation-revenue-d-archi.md) | Une relation revenue d'Archi devient une relation d'Archi ; nom et description au compte rendu du premier retour | Acceptée |
