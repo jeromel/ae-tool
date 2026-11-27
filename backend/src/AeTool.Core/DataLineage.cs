@@ -282,17 +282,25 @@ public sealed class LineageReader
             P(o, CatalogueModel.InfoStatus), o.Documentation, derived, RolesOn(id), _repo.DataAttributes.GetValueOrDefault(id, new List<DataAttribute>()));
     }
 
-    /// <summary>Ce que le parcours ne sait pas dire : signalé tel quel, jamais comblé.</summary>
+    /// <summary>
+    /// Ce que le parcours ne sait pas dire : signalé tel quel, jamais comblé. Au périmètre « métier » (décision 012), serveurs,
+    /// partages, profils de poste et étapes techniques sont retirés avant la lecture : leur absence ne tient qu'à l'accès, et
+    /// l'annoncer comme un manque du référentiel serait faux. Seules restent les lacunes applicatives.
+    /// </summary>
     private void Gaps(Lineage l, HashSet<string> storing, LineageFocus focus)
     {
+        var scoped = _repo.Scope is not null;
         var tech = l.Technical.ToDictionary(t => t.Id);
         var unverified = new Dictionary<string, List<string>>();
-        foreach (var a in l.Applications.Where(a => a.HostIds.Count == 0 && !a.External))
-            l.Gaps.Add($"Hébergement de {a.Name} non renseigné.");
-        var noProfile = l.Applications.Where(a => storing.Contains(a.Id) && a.ProfileIds.Count == 0).Select(a => a.Name).ToList();
-        if (noProfile.Count > 0 && focus.Kind is "donnee" or "application")
-            l.Gaps.Add($"Accès utilisateurs non renseigné (aucun profil de poste relié) : {string.Join(", ", noProfile)}.");
-        foreach (var f in l.Flows)
+        if (!scoped)
+        {
+            foreach (var a in l.Applications.Where(a => a.HostIds.Count == 0 && !a.External))
+                l.Gaps.Add($"Hébergement de {a.Name} non renseigné.");
+            var noProfile = l.Applications.Where(a => storing.Contains(a.Id) && a.ProfileIds.Count == 0).Select(a => a.Name).ToList();
+            if (noProfile.Count > 0 && focus.Kind is "donnee" or "application")
+                l.Gaps.Add($"Accès utilisateurs non renseigné (aucun profil de poste relié) : {string.Join(", ", noProfile)}.");
+        }
+        foreach (var f in l.Flows.Where(_ => !scoped))
         {
             var label = f.Code ?? f.Name;
             // Un flux hors catalogue (sans code) n'a pas à décrire sa chaîne : seul le catalogue en porte.

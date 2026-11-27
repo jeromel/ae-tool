@@ -101,6 +101,21 @@ public static class ScopeTests
             True(scoped.Scope.Objects.Contains(Id(repo, "ONDINE")), "ONDINE a perdu son hébergement");
             True(scoped.Workstations is null && scoped.Scenarios.Count == 0 && scoped.Journal.Count == 0, "ni postes, ni scénarios, ni journal");
         });
+
+        // Recette 0.15.9-0.15.14, R8 : le parcours ne dit jamais à un lecteur « métier » qu'il manque ce qu'il ne voit pas.
+        Test("périmètre métier : le parcours n'annonce aucune lacune qui ne tient qu'à l'accès (hébergement, postes, chaîne technique)", () =>
+        {
+            foreach (var name in new[] { "Factures émises", "ONDINE" })
+            {
+                var id = Id(repo, name);
+                var full = new LineageReader(repo).Read(id, false).Gaps;
+                var gaps = new LineageReader(scoped).Read(id, false).Gaps;
+                var masked = new[] { "Hébergement de", "Accès utilisateurs", "chaîne technique", "Passage non vérifié" };
+                Equal(0, gaps.Count(g => masked.Any(g.Contains)), $"{name} : lacunes d'infrastructure annoncées ({string.Join(" | ", gaps)})");
+                True(full.Any(g => masked.Any(g.Contains)), $"{name} : le contrôle porte (lacunes techniques au périmètre « tout »)");
+                Equal(0, gaps.Count(g => !full.Contains(g)), $"{name} : lacune inventée par le périmètre");
+            }
+        });
     }
 
     // ---- Les routes, par HTTP ----------------------------------------------------------------------------------------

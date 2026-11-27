@@ -303,8 +303,12 @@ const verified = (s: string | null | undefined) => !s || s.trim().toLowerCase() 
                 le reste s'estompe. La chaîne technique est celle du flux choisi.</p>
               <dl class="props">
                 <dt>Données</dt><dd>{{ l.data.length }}</dd><dt>Applications</dt><dd>{{ l.applications.length }}</dd>
-                <dt>Flux applicatifs</dt><dd>{{ l.flows.length }}</dd><dt>Étapes techniques</dt><dd>{{ l.technical.length }}</dd>
-                <dt>Serveurs et partages</dt><dd>{{ l.hosts.length }}</dd><dt>Profils de poste</dt><dd>{{ l.profiles.length }}</dd>
+                <dt>Flux applicatifs</dt><dd>{{ l.flows.length }}</dd>
+                <!-- Périmètre « métier » : pas de compteur d'infrastructure, un zéro y tiendrait à l'accès (recette R8). -->
+                @if (!session.business()) {
+                  <dt>Étapes techniques</dt><dd>{{ l.technical.length }}</dd>
+                  <dt>Serveurs et partages</dt><dd>{{ l.hosts.length }}</dd><dt>Profils de poste</dt><dd>{{ l.profiles.length }}</dd>
+                }
               </dl>
             }
           </aside>
@@ -336,8 +340,8 @@ export class LineagePage {
   /** Largeur du cadre, suivie pour que le dessin s'y adapte sans défilement horizontal (P1). */
   private frame = signal(1180);
   shown = signal<Record<string, boolean>>({ donnees: true, applications: true, chaine: true, hebergement: true, postes: true });
-  /** Sans l'infrastructure, les bandes Chaîne technique et Hébergement seraient vides : elles disparaissent (maquette périmètre, §2). */
-  bandList = computed(() => this.session.business() ? this.bandChoices.filter((b) => b.key !== 'chaine' && b.key !== 'hebergement') : this.bandChoices);
+  /** Sans l'infrastructure, les bandes Chaîne technique, Hébergement et Postes seraient vides : elles disparaissent (maquette périmètre, §2). */
+  bandList = computed(() => this.session.business() ? this.bandChoices.filter((b) => b.key === 'donnees') : this.bandChoices);
   trail = signal<{ id: string; name: string }[]>(readTrail());
   readonly bandChoices = [
     { key: 'donnees', label: 'Données' }, { key: 'chaine', label: 'Chaîne technique' }, { key: 'hebergement', label: 'Hébergement' }, { key: 'postes', label: 'Postes' },
