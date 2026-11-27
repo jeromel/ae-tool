@@ -65,7 +65,7 @@ public static class Roles
         void Objects(string role, params string[] concepts)
         {
             if (m.ObjectTypes.Any(t => t.Roles.Contains(role))) return;
-            var keys = m.Transcoding.Elements.Where(r => concepts.Contains(r.ArchimateType) && !r.Conditional).Select(r => r.TypeKey).ToHashSet();
+            var keys = m.ObjectTypes.Where(t => m.ConceptOf(t.Key) is { } c && concepts.Contains(c)).Select(t => t.Key).ToHashSet();
             foreach (var t in m.ObjectTypes.Where(t => keys.Contains(t.Key))) { t.Roles.Add(role); added++; }
         }
         Objects(ValueStream, "ValueStream");

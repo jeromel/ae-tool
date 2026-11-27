@@ -193,11 +193,8 @@ export class ImpactPage {
 
   constructor() {
     this.api.get('/metamodel').then((m) => {
-      // Concept transcodé : la règle principale sans condition du type (celle qu'emploie l'export vers Archi).
-      const rules: any[] = m.transcoding?.elements ?? [];
-      const concept = (key: string) => (rules.find((r) => r.typeKey === key && r.principal && !r.whenProperty)
-        ?? rules.find((r) => r.typeKey === key && !r.whenProperty) ?? rules.find((r) => r.typeKey === key))?.archimateType ?? null;
-      this.types.set(Object.fromEntries(m.objectTypes.map((t: any) => [t.key, { label: t.label, layer: t.layerKey, roles: t.roles ?? [], concept: concept(t.key) }])));
+      // Concept : servi par le serveur (Metamodel.ConceptOf), jamais recalculé ici.
+      this.types.set(Object.fromEntries(m.objectTypes.map((t: any) => [t.key, { label: t.label, layer: t.layerKey, roles: t.roles ?? [], concept: t.concept ?? null }])));
       this.layers.set(m.layers);
     });
     effect(() => {

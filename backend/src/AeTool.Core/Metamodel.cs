@@ -119,6 +119,19 @@ public sealed class Metamodel
     public Transcoding Transcoding { get; set; } = new();
 
     public ObjectType? Type(string key) => ObjectTypes.FirstOrDefault(t => t.Key == key);
+
+    /// <summary>
+    /// Concept ArchiMate d'un type : la règle principale sans condition, sinon la première règle du type. Un type au rôle
+    /// « application » sans aucune règle vaut un composant applicatif. C'est la seule lecture du concept d'un type : le cœur
+    /// (règle « flux de données ») et l'interface (servi par /api/metamodel) la lisent tous deux. Null si rien ne le dit.
+    /// </summary>
+    public string? ConceptOf(string typeKey)
+    {
+        var rules = Transcoding.Elements.Where(r => r.TypeKey == typeKey && !string.IsNullOrEmpty(r.ArchimateType)).ToList();
+        var rule = rules.FirstOrDefault(r => r.Principal && !r.Conditional) ?? rules.FirstOrDefault();
+        if (rule is not null) return rule.ArchimateType;
+        return IsA(typeKey, Core.Roles.Application) ? "ApplicationComponent" : null;
+    }
     public RelationshipType? RelType(string key) => RelationshipTypes.FirstOrDefault(t => t.Key == key);
     public PropertyDefinition? Property(string key) => PropertyDefinitions.FirstOrDefault(p => p.Key == key);
     public string LayerOf(string typeKey) => Type(typeKey)?.LayerKey ?? "autre";

@@ -31,7 +31,8 @@ public sealed class DataFlowRule
         _repo = repo;
         var m = repo.Metamodel;
         _flowTypes = m.RelTypeKeysWith(Roles.Flow);
-        // Un type au rôle « application » compte toujours comme composant, même si sa règle de transcodage a été retirée.
+        // Concept : la lecture unique du métamodèle (ConceptOf). Le rôle « application » l'emporte sur le concept, comme dans
+        // la lecture de l'interface (natureOf) : un type au rôle application est toujours une extrémité applicative.
         var applications = m.TypeKeysWith(Roles.Application);
         _applicative = TranscodedTo(m, ApplicationConcepts);
         _applicative.UnionWith(applications);
@@ -40,7 +41,7 @@ public sealed class DataFlowRule
     }
 
     private static HashSet<string> TranscodedTo(Metamodel m, IReadOnlySet<string> concepts) =>
-        m.Transcoding.Elements.Where(r => concepts.Contains(r.ArchimateType)).Select(r => r.TypeKey).ToHashSet();
+        m.ObjectTypes.Where(t => m.ConceptOf(t.Key) is { } c && concepts.Contains(c)).Select(t => t.Key).ToHashSet();
 
     private bool Is(string id, HashSet<string> types) => _repo.Objects.TryGetValue(id, out var o) && !o.Archived && types.Contains(o.TypeKey);
     private bool Active(string id) => _repo.Objects.TryGetValue(id, out var o) && !o.Archived;

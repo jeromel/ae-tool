@@ -8,12 +8,26 @@ namespace AeTool.Api.Endpoints;
 /// <summary>Lecture et paramétrage du métamodèle : types, rôles, propriétés, matrice de transcodification.</summary>
 public static class MetamodelEndpoints
 {
+    private static readonly JsonSerializerOptions Web = new(JsonSerializerDefaults.Web);
+
+    /// <summary>
+    /// Le métamodèle, avec pour chaque type le concept ArchiMate lu par <see cref="Metamodel.ConceptOf"/>. Le champ n'est
+    /// ajouté qu'à la réponse : l'interface ne recopie pas la règle, et le fichier stocké ne change pas.
+    /// </summary>
+    private static JsonNode WithConcepts(Metamodel m)
+    {
+        var node = JsonSerializer.SerializeToNode(m, Web)!;
+        foreach (var t in node["objectTypes"]!.AsArray())
+            t!["concept"] = m.ConceptOf((string)t["key"]!);
+        return node;
+    }
+
     private static IResult Bad(string message) => Results.BadRequest(new { error = message });
     private static IResult Refused(string message) => Results.Json(new { error = message }, statusCode: StatusCodes.Status409Conflict);
 
     public static void Map(RouteGroupBuilder api)
     {
-        api.MapGet("/metamodel", (Workspace ws) => ws.Read((repo, _) => repo.Metamodel));
+        api.MapGet("/metamodel", (Workspace ws) => ws.Read((repo, _) => WithConcepts(repo.Metamodel)));
         api.MapGet("/metamodel/catalog", () => Catalog());
         api.MapGet("/metamodel/usage", (Workspace ws) => ws.Read((repo, _) => Usage(repo)));
         MapLayers(api);

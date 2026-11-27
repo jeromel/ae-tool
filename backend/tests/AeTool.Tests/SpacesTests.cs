@@ -67,6 +67,9 @@ public static class SpacesTests
             var lineage = new LineageReader(repo).Read("id-itsm", false);
             True(lineage.Flows.Any(f => f.Id == "f-service") && lineage.Flows.Any(f => f.Id == "f-partage"), "parcours : flux vers le service et le partage");
             True(new LineageReader(repo).Read("vs-1", false).Flows.All(f => f.Id != "f-etapes"), "parcours : aucun flux entre étapes");
+            // Un nœud doté d'une règle conditionnelle vers un composant reste un nœud : ConceptOf, la même lecture que l'interface.
+            repo.Metamodel.Transcoding.Elements.Add(new ElementRule { TypeKey = "noeud", ArchimateType = "ApplicationComponent", WhenProperty = "x", WhenValue = "y" });
+            True(!new DataFlowRule(repo).IsApplicative("id-srv"), "nœud : pas une extrémité applicative");
             var svc = lineage.Applications.Single(a => a.Id == "svc");
             True(!svc.External, "un service applicatif n'est pas un destinataire externe");
             True(!lineage.Gaps.Any(g => g.Contains("Hébergement de svc")), "un service n'a pas d'hébergement à renseigner");

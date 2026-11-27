@@ -30,6 +30,20 @@ public static class MetamodelApiTests
     {
         Console.WriteLine("API du métamodèle");
 
+        Test("le métamodèle servi donne le concept de chaque type, lu par le cœur (l'interface ne le recalcule pas)", () =>
+        {
+            using var server = Loaded();
+            var types = server.GetJson("/api/metamodel").GetProperty("objectTypes").EnumerateArray().ToList();
+            var m = AeTool.Core.Metamodel.Default();
+            foreach (var t in types)
+            {
+                var key = t.GetProperty("key").GetString()!;
+                var served = t.GetProperty("concept").ValueKind == System.Text.Json.JsonValueKind.Null ? null : t.GetProperty("concept").GetString();
+                Equal(m.ConceptOf(key), served, "concept de " + key);
+            }
+            True(types.Count > 50, "tous les types");
+        });
+
         Test("création d'un type : clé dérivée du libellé, unicité par suffixe, rôle et couche validés", () =>
         {
             using var server = new ApiTests.Server();

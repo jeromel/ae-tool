@@ -28,6 +28,19 @@ public static class MetamodelTests
     {
         Console.WriteLine("Métamodèle propre et rôles");
 
+        // Réponses de Colbert (0.15.15-0.15.20) §4 : une seule lecture du concept d'un type.
+        Test("concept d'un type : règle principale sans condition, sinon la première ; rôle application sans règle = composant", () =>
+        {
+            var m = Metamodel.Default();
+            Equal("ApplicationComponent", m.ConceptOf("application"), "règle principale");
+            Equal("Node", m.ConceptOf(CatalogueModel.FileShareType), "partage : seule une règle conditionnelle existe");
+            m.Transcoding.Elements.RemoveAll(r => r.TypeKey == "application");
+            Equal("ApplicationComponent", m.ConceptOf("application"), "rôle application sans règle");
+            Equal(null, m.ConceptOf("autre"), "type non classé, sans règle");
+            m.Transcoding.Elements.Add(new ElementRule { TypeKey = "noeud", ArchimateType = "ApplicationComponent", WhenProperty = "x", WhenValue = "y" });
+            Equal("Node", m.ConceptOf("noeud"), "une règle conditionnelle ne l'emporte pas sur la principale");
+        });
+
         Test("métamodèle par défaut : chaque concept d'élément ArchiMate a exactement une règle sans condition", () =>
         {
             var t = Metamodel.Default().Transcoding;
