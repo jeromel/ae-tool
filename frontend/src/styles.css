@@ -193,3 +193,29 @@ label.btn:focus-visible { outline: 2px solid var(--signal); outline-offset: 2px;
 label.btn { font-weight: 600; padding: 6px 12px; border: 1px solid #b9c5ca; border-radius: 6px; background: #fff; color: var(--accent); cursor: pointer; display: inline-block; white-space: nowrap; }
 label.btn:hover { background: var(--accent-soft); }
 @media (max-width: 1100px) { .mm-split { flex-direction: column; } .mm-aside { width: 100%; position: static; max-height: none; } }
+
+/* Impression (charte §8) : une seule feuille, rien dans chaque écran sauf exception nommée. La page imprimée montre ce que
+   l'écran affiche avec ses réglages, sans ce qui sert à agir. */
+.print-head { display: none; }
+@page { margin: 12mm; }
+@page paysage { size: A4 landscape; }
+@media print {
+  body { background: #fff; }
+  nav.side, .regarde, .projected, .open-banner, .tools, .tabs, .actions, .dock, button, input, select, textarea,
+  a.btn, .renseigner, .no-print { display: none !important; }
+  main { padding: 0; }
+  .print-head { display: block; font-size: 10pt; color: #333; border-bottom: 1px solid #999; padding-bottom: 4px; margin-bottom: 10px; }
+  .print-landscape { page: paysage; display: block; }
+  .card { border: 0; padding: 0; margin-bottom: 10px; }
+  .scroll, .scroll.tall { max-height: none !important; overflow: visible !important; }
+  table { width: 100%; }
+  thead { display: table-header-group; }
+  tr { break-inside: avoid; }
+  a { color: inherit; text-decoration: none; }
+  .chip, [class*="chip"] { print-color-adjust: economy; background: none !important; border: 1px solid #999; }
+  .app { position: static !important; }
+}
+@media print {
+  /* Exception : un en-tête de colonne qui trie est un bouton, son texte doit s'imprimer. */
+  th button.sort { display: inline !important; }
+}

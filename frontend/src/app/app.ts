@@ -130,6 +130,8 @@ import { ProjectionState } from './projection';
           </optgroup>
         }
       </ng-template>
+      <!-- En-tête imprimé (charte §8) : référentiel, date et heure, SI regardé quand ce n'est pas l'existant. -->
+      <div class="print-head" aria-hidden="true">Référentiel d'architecture · imprimé le {{ printedAt() }}@if (projection.etat; as e) { · SI regardé : {{ e.label }} }</div>
       <router-outlet />
     </main>
   `,
@@ -151,7 +153,16 @@ export class App {
   private nav = inject(NavState);
   closed = this.nav.closed;
 
+  /** Date de l'impression, posée au moment où le navigateur imprime. */
+  printedAt = signal('');
+
   constructor() {
+    const stamp = () => {
+      const now = new Date();
+      this.printedAt.set(`${now.toLocaleDateString('fr-FR')} à ${now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`);
+    };
+    stamp();
+    window.addEventListener('beforeprint', stamp);
     // Au démarrage la session arrive après la première navigation : on relit le compteur dès qu'un utilisateur est connu.
     effect(() => {
       this.session.user();
