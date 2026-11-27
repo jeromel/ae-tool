@@ -11,15 +11,46 @@ export interface ReachedItem {
   from: string[];
 }
 
-/** Nature de l'objet analysé, d'après sa couche et ses rôles. */
+/**
+ * Nature d'un type pour lire l'analyse : d'après ses rôles, puis d'après le concept ArchiMate dans lequel il est transcodé.
+ * Jamais d'après la clé de sa couche (décision 002) : une couche se renomme et un type peut en changer, et la lecture
+ * d'impact casserait alors sans aucune erreur (revue de coût d'EV-06 de Colbert, §5).
+ */
+export type Nature = 'capacite' | 'metier' | 'fonction' | 'application' | 'technique' | 'donnee' | 'autre';
+
+const TECHNICAL_ROLES = ['infrastructure', 'flux-technique', 'partage', 'poste', 'support-donnee'];
+const STRATEGY_CONCEPTS = ['Capability', 'ValueStream', 'Resource', 'CourseOfAction'];
+const BUSINESS_CONCEPTS = ['Contract', 'Representation', 'Product'];
+const TECHNICAL_CONCEPTS = ['Node', 'Device', 'SystemSoftware', 'Path', 'CommunicationNetwork', 'Artifact', 'Equipment', 'Facility',
+  'DistributionNetwork', 'Material'];
+
+export function natureOf(roles: string[], concept: string | null | undefined): Nature {
+  if (roles.includes('application')) return 'application';
+  if (TECHNICAL_ROLES.some((r) => roles.includes(r))) return 'technique';
+  if (roles.includes('donnee')) return 'donnee';
+  if (roles.includes('capacite') || roles.includes('chaine-valeur')) return 'capacite';
+  if (roles.includes('processus') || roles.includes('qui')) return 'metier';
+  const c = concept ?? '';
+  if (c === 'DataObject' || c === 'BusinessObject') return 'donnee';
+  if (STRATEGY_CONCEPTS.includes(c)) return 'capacite';
+  if (c.startsWith('Business') || BUSINESS_CONCEPTS.includes(c)) return 'metier';
+  if (c === 'ApplicationFunction') return 'fonction';
+  if (c.startsWith('Application')) return 'application';
+  if (c.startsWith('Technology') || TECHNICAL_CONCEPTS.includes(c)) return 'technique';
+  return 'autre';
+}
+
+/** Lecture de l'objet analysé selon sa nature. */
 export type Subject = 'porte' | 'application' | 'technique' | 'donnee' | 'autre';
 
-export function subjectOf(layer: string, roles: string[]): Subject {
-  if (roles.includes('application') || layer === 'applicative') return 'application';
-  if (layer === 'strategie' || layer === 'metier' || layer === 'fonctionnelle') return 'porte';
-  if (layer === 'technique') return 'technique';
-  if (layer === 'donnees') return 'donnee';
-  return 'autre';
+export function subjectOf(nature: Nature): Subject {
+  switch (nature) {
+    case 'application': return 'application';
+    case 'capacite': case 'metier': case 'fonction': return 'porte';
+    case 'technique': return 'technique';
+    case 'donnee': return 'donnee';
+    default: return 'autre';
+  }
 }
 
 export interface Reading {
@@ -71,18 +102,18 @@ export function readingOf(subject: Subject): Reading {
   }
 }
 
-/** Ce qu'il faut savoir des types pour lire l'analyse : application ? capacité ? */
-export interface TypeRoles { isApplication(typeKey: string): boolean; isCapability(typeKey: string): boolean; }
+/** Ce qu'il faut savoir des types pour lire l'analyse : application ? capacité ? quelle nature ? */
+export interface TypeRoles { isApplication(typeKey: string): boolean; isCapability(typeKey: string): boolean; natureOf(typeKey: string): Nature; }
 
 /** « infra » : compteur d'infrastructure, masqué pour un accès sans elle (il afficherait un 0 trompeur). */
 export interface Counter { value: number; label: string; alert?: boolean; infra?: boolean; }
 
 /**
- * Couches par lesquelles une application porte l'objet analysé sans être une simple voisine : pour une capacité, le
+ * Natures par lesquelles une application porte l'objet analysé sans être une simple voisine : pour une capacité, le
  * processus ou le bloc fonctionnel qu'elle sert ; pour un serveur, le logiciel ou la machine qui l'héberge.
  */
-export function bridgesOf(subject: Subject): string[] {
-  return subject === 'porte' ? ['metier', 'fonctionnelle'] : subject === 'technique' ? ['technique'] : [];
+export function bridgesOf(subject: Subject): Nature[] {
+  return subject === 'porte' ? ['metier', 'fonction'] : subject === 'technique' ? ['technique'] : [];
 }
 
 /**
@@ -91,9 +122,9 @@ export function bridgesOf(subject: Subject): string[] {
  * parente, ne porte pas l'objet : elle reste dans « aussi dans ce sens ».
  */
 export function carriers(subjectId: string, subject: Subject, reached: ReachedItem[], t: TypeRoles): Set<string> {
-  const layer = new Map(reached.map((r) => [r.id, r.layer]));
+  const nature = new Map(reached.map((r) => [r.id, t.natureOf(r.typeKey)]));
   const bridges = bridgesOf(subject);
-  return new Set(reached.filter((r) => t.isApplication(r.typeKey) && r.from.some((f) => f === subjectId || bridges.includes(layer.get(f) ?? '')))
+  return new Set(reached.filter((r) => t.isApplication(r.typeKey) && r.from.some((f) => f === subjectId || bridges.includes(nature.get(f) ?? 'autre')))
     .map((r) => r.id));
 }
 
@@ -103,7 +134,7 @@ export function countersOf(subject: Subject, reached: ReachedItem[], t: TypeRole
   const apps = (d: 'aval' | 'amont') => side(d).filter((r) => t.isApplication(r.typeKey) && (!rows || rows.has(r.id))).length;
   // Avec un tableau, le second compteur compte ce que montrent ses cellules, pas tout un côté de l'analyse.
   const caps = (d: 'aval' | 'amont') => side(d).filter((r) => t.isCapability(r.typeKey) && (!cells || cells.has(r.id))).length;
-  const tech = (d: 'aval' | 'amont') => side(d).filter((r) => r.layer === 'technique' && (!cells || cells.has(r.id))).length;
+  const tech = (d: 'aval' | 'amont') => side(d).filter((r) => t.natureOf(r.typeKey) === 'technique' && (!cells || cells.has(r.id))).length;
   switch (subject) {
     case 'porte': return [{ value: apps('amont'), label: 'applications qui la portent' }, { value: tech('amont'), label: 'serveurs et réseaux en dessous', infra: true }];
     case 'application': return [{ value: caps('aval'), label: 'capacités touchées', alert: caps('aval') > 0 }, { value: tech('amont'), label: 'serveurs dont elle dépend', infra: true }];

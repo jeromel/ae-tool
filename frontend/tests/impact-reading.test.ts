@@ -1,7 +1,7 @@
 // Tests de impact-reading.ts (maquette « analyse d'impact selon l'objet, et qui sert qui »), hors navigateur.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { type ReachedItem, carriers, countersOf, readingOf, servesTable, subjectOf } from '../src/app/impact-reading.ts';
+import { type Nature, type ReachedItem, carriers, countersOf, natureOf, readingOf, servesTable, subjectOf } from '../src/app/impact-reading.ts';
 
 /**
  * « Gestion des contrats », capacité, en amont : Contrats Web et GED Juridique la portent ; srv-bdd-03 sert les deux ;
@@ -22,19 +22,41 @@ const reached: ReachedItem[] = [
   R('VLAN 140', 3, ['srv-app-12'], 'reseau', 'technique'),
   { ...R('Processus aval', 1, [CAP], 'processus', 'metier'), direction: 'aval' },
 ];
-const types = { isApplication: (t: string) => t === 'application', isCapability: (t: string) => t === 'capacite' };
+const NATURES: Record<string, Nature> = { application: 'application', noeud: 'technique', reseau: 'technique', logiciel: 'technique',
+  processus: 'metier', capacite: 'capacite', projet: 'autre' };
+const types = { isApplication: (t: string) => t === 'application', isCapability: (t: string) => t === 'capacite',
+  natureOf: (t: string) => NATURES[t] ?? 'autre' };
 
-test('la couche décide du sens lu en premier et des titres (I1, I2)', () => {
-  assert.equal(subjectOf('strategie', ['capacite']), 'porte');
-  assert.equal(subjectOf('metier', []), 'porte');
-  assert.equal(subjectOf('applicative', ['application']), 'application');
-  assert.equal(subjectOf('technique', ['infrastructure']), 'technique');
-  assert.equal(subjectOf('donnees', ['donnee']), 'donnee');
+test('la nature décide du sens lu en premier et des titres (I1, I2)', () => {
+  assert.equal(subjectOf(natureOf(['capacite'], 'Capability')), 'porte');
+  assert.equal(subjectOf(natureOf([], 'BusinessProcess')), 'porte');
+  assert.equal(subjectOf(natureOf(['application'], 'ApplicationComponent')), 'application');
+  assert.equal(subjectOf(natureOf(['infrastructure'], 'Node')), 'technique');
+  assert.equal(subjectOf(natureOf(['donnee'], 'DataObject')), 'donnee');
   assert.equal(readingOf('porte').first, 'amont');
   assert.equal(readingOf('porte').titles.amont, 'Ce qui la porte');
   assert.equal(readingOf('technique').first, 'aval');
   assert.equal(readingOf('donnee').titles.amont, 'Qui l\'utilise');
   assert.equal(readingOf('application').table, null);
+});
+
+// Revue de coût d'EV-06 de Colbert, §5 : la lecture ne dépend jamais de la clé d'une couche (décision 002).
+test('nature : rôles d\'abord, puis concept transcodé ; aucune clé de couche', () => {
+  assert.equal(natureOf([], 'ApplicationService'), 'application', 'service applicatif sans rôle');
+  assert.equal(natureOf([], 'ApplicationFunction'), 'fonction', 'bloc fonctionnel : porte, et pont vers les applications');
+  assert.equal(natureOf([], 'BusinessObject'), 'donnee', 'objet métier : une donnée, pas du métier');
+  assert.equal(natureOf(['partage'], 'Node'), 'technique');
+  assert.equal(natureOf(['processus'], null), 'metier', 'rôle sans concept');
+  assert.equal(natureOf(['application'], 'Grouping'), 'application', 'le rôle l\'emporte sur le concept');
+  assert.equal(natureOf([], 'Grouping'), 'autre', 'zone du plan d\'occupation des sols : ni porteuse ni pont');
+  assert.equal(natureOf([], 'WorkPackage'), 'autre');
+});
+
+test('lignes : un métamodèle aux couches renommées garde la même lecture', () => {
+  // Même données, mais la « couche » portée par chaque objet est un nom quelconque : seule la nature compte.
+  const renamed = reached.map((r) => ({ ...r, layer: 'couche-' + r.layer.length }));
+  assert.deepEqual([...carriers(CAP, 'porte', renamed, types)].sort(), [...carriers(CAP, 'porte', reached, types)].sort());
+  assert.deepEqual(countersOf('porte', renamed, types).map((x) => x.value), countersOf('porte', reached, types).map((x) => x.value));
 });
 
 test('compteurs : pour une capacité, les applications qui la portent, pas « 0 application en aval » (I3)', () => {

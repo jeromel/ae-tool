@@ -4,9 +4,9 @@ import { Session } from '../session';
 import { Router, RouterLink } from '@angular/router';
 import { Api, Brief } from '../api';
 import { ObjectSearch } from '../object-search';
-import { type ReachedItem, type ServesRow, carriers, countersOf, readingOf, servesTable, subjectOf } from '../impact-reading';
+import { type ReachedItem, type ServesRow, carriers, countersOf, natureOf, readingOf, servesTable, subjectOf } from '../impact-reading';
 
-interface TypeInfo { label: string; layer: string; roles: string[]; }
+interface TypeInfo { label: string; layer: string; roles: string[]; concept: string | null; }
 type Side = 'aval' | 'amont';
 
 /**
@@ -146,12 +146,13 @@ export class ImpactPage {
     return {
       isApplication: (k: string) => t[k]?.roles.includes('application') ?? false,
       isCapability: (k: string) => t[k]?.roles.includes('capacite') ?? false,
+      natureOf: (k: string) => t[k] ? natureOf(t[k].roles, t[k].concept) : 'autre' as const,
     };
   });
   kind = computed(() => {
     const s = this.subject();
     const info = s ? this.types()[s.typeKey] : undefined;
-    return info ? subjectOf(info.layer, info.roles) : 'autre';
+    return info ? subjectOf(natureOf(info.roles, info.concept)) : 'autre';
   });
   reading = computed(() => readingOf(this.kind()));
   /** Applications qui portent l'objet (lignes du tableau), et pas leurs simples voisines. */
@@ -172,7 +173,7 @@ export class ImpactPage {
       if (!spec) return { key, title: reading.titles[key], hint: reading.hints[key], table: null, groups: this.group(list) };
       const carrying = this.rows();
       const isRow = (r: ReachedItem) => carrying.has(r.id);
-      const isCell = (r: ReachedItem) => spec.cells === 'technique' ? r.layer === 'technique' : roles.isCapability(r.typeKey);
+      const isCell = (r: ReachedItem) => spec.cells === 'technique' ? roles.natureOf(r.typeKey) === 'technique' : roles.isCapability(r.typeKey);
       const rows: ServesRow[] = servesTable(this.reached(), key, isRow, isCell);
       const inTable = new Set(rows.flatMap((r) => [r.id, ...r.direct.map((i) => i.id), ...r.below.map((i) => i.id)]));
       return {
@@ -192,7 +193,11 @@ export class ImpactPage {
 
   constructor() {
     this.api.get('/metamodel').then((m) => {
-      this.types.set(Object.fromEntries(m.objectTypes.map((t: any) => [t.key, { label: t.label, layer: t.layerKey, roles: t.roles ?? [] }])));
+      // Concept transcodé : la règle principale sans condition du type (celle qu'emploie l'export vers Archi).
+      const rules: any[] = m.transcoding?.elements ?? [];
+      const concept = (key: string) => (rules.find((r) => r.typeKey === key && r.principal && !r.whenProperty)
+        ?? rules.find((r) => r.typeKey === key && !r.whenProperty) ?? rules.find((r) => r.typeKey === key))?.archimateType ?? null;
+      this.types.set(Object.fromEntries(m.objectTypes.map((t: any) => [t.key, { label: t.label, layer: t.layerKey, roles: t.roles ?? [], concept: concept(t.key) }])));
       this.layers.set(m.layers);
     });
     effect(() => {
