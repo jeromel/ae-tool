@@ -3,6 +3,7 @@ import { Api, Brief } from '../api';
 import { ObjectSearch } from '../object-search';
 import { ProjectionState } from '../projection';
 import { Session } from '../session';
+import { changeSpoken, changeSymbol, stepSummary } from '../trajectory-reading';
 
 interface Envisioned { id: string; name: string; typeKey: string; typeLabel: string; }
 interface Change { id: string; op: string; target: string; label: string; issue: string | null; note: string | null; }
@@ -19,6 +20,8 @@ interface Pick { id: string; name: string; }
 /**
  * Trajectoires d'un projet : scénarios, étapes et changements (EV-03, incrément 1). Chaque étape décrit ce qui change par
  * rapport à la précédente ; « Voir le SI à cette étape » ouvre tous les espaces sur l'état projeté.
+ * Maquette Trajectoires (27/11) : lecture par défaut pour tous ; « Modifier » met un seul scénario en édition, avec les
+ * commandes d'édition, et « Terminer » le rend à la lecture. Le mode n'est pas dans l'adresse.
  */
 @Component({
   selector: 'app-project-trajectories',
@@ -33,6 +36,16 @@ interface Pick { id: string; name: string; }
     .step ul { margin: 8px 0 0; padding-left: 18px; }
     .step li { margin: 3px 0; }
     .issue { color: #8c2a1c; font-size: 12.5px; }
+    .step header { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+    .summary { margin-left: auto; display: flex; gap: 12px; font-size: 12.5px; color: var(--muted); }
+    .summary .review { color: #8c2a1c; font-weight: 600; }
+    .step ul { list-style: none; padding-left: 4px; }
+    .sym { display: inline-block; width: 16px; font-weight: 700; text-align: center; }
+    .step footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; }
+    .edit-actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+    .scenario.editing { border-color: var(--accent); }
+    .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+    @media print { .step { break-inside: avoid; } .step footer { display: none; } }
     .form { display: grid; gap: 8px; margin-top: 10px; padding: 10px; background: #fff; border: 1px dashed #b9cdd2; border-radius: 8px; }
     .form .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
     .form .row > * { flex: 1; min-width: 180px; }
@@ -65,19 +78,27 @@ interface Pick { id: string; name: string; }
       }
 
       @for (s of scenarios(); track s.id) {
-        <div class="scenario">
+        <div class="scenario" [class.editing]="editing(s)">
           <header>
             <h3>{{ s.name }}</h3>
-            <span class="chip" [class.warn]="s.status === 'Brouillon'">{{ s.status }}</span>
-            @if (s.start) { <span class="muted small">variante de {{ s.start.label }}</span> } @else { <span class="muted small">part de l'existant</span> }
-            @if (canEdit() && editable(s)) {
+            @if (editing(s)) {
               <select (change)="setStatus(s, $any($event.target).value)" aria-label="Statut du scénario">
                 <option value="Brouillon" [selected]="s.status === 'Brouillon'">Brouillon</option>
                 <option value="Proposé" [selected]="s.status === 'Proposé'">Proposé</option>
               </select>
-              <button type="button" class="ghost" (click)="rename(s)">Renommer</button>
-              <button type="button" class="ghost" (click)="copy(s)">Copier</button>
-              <button type="button" class="ghost" (click)="remove(s)">Supprimer</button>
+            } @else {
+              <span class="chip" [class.warn]="s.status === 'Brouillon'">{{ s.status }}</span>
+            }
+            @if (s.start) { <span class="muted small">variante de {{ s.start.label }}</span> } @else { <span class="muted small">part de l'existant</span> }
+            @if (editing(s)) {
+              <span class="edit-actions right">
+                <button type="button" class="ghost" (click)="rename(s)">Renommer</button>
+                <button type="button" class="ghost" (click)="copy(s)">Copier</button>
+                <button type="button" class="ghost" (click)="remove(s)">Supprimer</button>
+                <button type="button" (click)="finish()">Terminer</button>
+              </span>
+            } @else if (canEdit() && editable(s)) {
+              <button type="button" class="ghost right" (click)="startEdit(s)">Modifier</button>
             }
           </header>
           @if (s.envisioned.length) {
@@ -88,23 +109,33 @@ interface Pick { id: string; name: string; }
           <div class="steps">
             @for (st of s.steps; track st.id) {
               <div class="step">
-                <header class="tools" style="margin: 0">
+                <header>
                   <h4>{{ st.order }}. {{ st.name }}@if (st.date) { <span class="muted small"> · {{ st.date }}</span> }</h4>
-                  <button type="button" (click)="view(s, st)">Voir le SI à cette étape</button>
-                  @if (canEdit() && editable(s)) {
-                    <button type="button" class="ghost" (click)="openForm(s, st)">Ajouter un changement</button>
-                    <button type="button" class="ghost" (click)="renameStep(s, st)">Renommer</button>
-                    @if (s.steps.length > 1) { <button type="button" class="ghost" (click)="removeStep(s, st)">Supprimer l'étape</button> }
+                  @if (editing(s)) {
+                    <span class="edit-actions right">
+                      <button type="button" class="ghost" (click)="renameStep(s, st)">Renommer l'étape</button>
+                      @if (s.steps.length > 1) { <button type="button" class="ghost" (click)="removeStep(s, st)">Supprimer</button> }
+                    </span>
+                  } @else {
+                    <span class="summary">
+                      @for (part of summary(st); track part) { <span [class.review]="part.startsWith('⚠')">{{ part }}</span> }
+                    </span>
                   }
                 </header>
                 <ul>
                   @for (c of st.changes; track c.id) {
-                    <li>{{ c.label }}@if (c.note) { <span class="muted small"> — {{ c.note }}</span> }
-                      @if (canEdit() && editable(s)) { <button type="button" class="x" title="Retirer ce changement" (click)="removeChange(s, st, c)">×</button> }
-                      @if (c.issue) { <div class="issue">{{ c.issue }}</div> }
+                    <li><span class="sym" aria-hidden="true">{{ symbol(c.op) }}</span><span class="sr">{{ spoken(c.op) }}</span> {{ c.label }}@if (c.note) { <span class="muted small"> — {{ c.note }}</span> }
+                      @if (editing(s)) { <button type="button" class="x" title="Retirer ce changement" (click)="removeChange(s, st, c)">×</button> }
+                      @if (c.issue) { <div class="issue">⚠ {{ c.issue }}</div> }
                     </li>
                   } @empty { <li class="muted small">Aucun changement : l'étape montre le même SI que la précédente.</li> }
                 </ul>
+                @if (editing(s) && form()?.stepId !== st.id) {
+                  <button type="button" class="ghost" style="margin-top: 6px" (click)="openForm(s, st)">+ Ajouter un changement</button>
+                }
+                @if (!editing(s)) {
+                  <footer><a href="" (click)="view(s, st); $event.preventDefault()">Voir le SI à cette étape →</a></footer>
+                }
 
                 @if (form()?.stepId === st.id) {
                   <div class="form">
@@ -205,9 +236,11 @@ interface Pick { id: string; name: string; }
               </div>
             }
           </div>
-          @if (canEdit() && editable(s)) { <button type="button" class="ghost" style="margin-top: 10px" (click)="addStep(s)">Ajouter une étape</button> }
+          @if (editing(s)) { <button type="button" class="ghost" style="margin-top: 10px" (click)="addStep(s)">+ Ajouter une étape</button> }
         </div>
-      } @empty { <p class="muted">Aucun scénario pour ce projet.</p> }
+      } @empty {
+        <p class="muted">Aucune trajectoire pour ce projet. Un scénario décrit, étape par étape, ce qui change dans le SI.</p>
+      }
     </div>
   `,
 })
@@ -265,6 +298,27 @@ export class ProjectTrajectories {
     } catch (e) {
       this.error.set((e as Error).message);
     }
+  }
+
+  /** Scénario en édition (un seul à la fois) ; null : tout est en lecture. */
+  editingId = signal<string | null>(null);
+  summary = (st: Step) => stepSummary(st.changes);
+  symbol = changeSymbol;
+  spoken = changeSpoken;
+
+  editing(s: Scenario): boolean {
+    return this.editingId() === s.id && this.canEdit() && this.editable(s);
+  }
+
+  /** « Modifier » sur un autre scénario termine l'édition du premier. */
+  startEdit(s: Scenario): void {
+    this.form.set(null);
+    this.editingId.set(s.id);
+  }
+
+  finish(): void {
+    this.form.set(null);
+    this.editingId.set(null);
   }
 
   editable(s: Scenario): boolean {
