@@ -39,6 +39,10 @@ public static class ValidationEndpoints
             return Results.Ok(new { validated, refused });
         }));
 
+        // « Mes saisies » (maquette du 27/11) : les objets que l'auteur de la requête a créés, modifiés ou proposés, lus dans le
+        // journal, groupés par ce qui demande une action : refusés, à proposer, en attente, puis les 5 derniers validés.
+        api.MapGet("/mes-saisies", (Workspace ws, HttpRequest req) => ws.Read((repo, _) => MyEntries(repo, User(req))));
+
         api.MapGet("/validation/pending", (Workspace ws) => ws.Read((repo, _) =>
         {
             var pending = repo.ActiveObjects.Where(o => o.ValidationStatus == Validation.Proposed)
@@ -55,6 +59,32 @@ public static class ValidationEndpoints
                 }),
             };
         }));
+    }
+
+    /// <summary>Actions du journal qui font d'un objet une saisie de son auteur. Valider ou refuser l'objet d'un autre n'en fait pas une.</summary>
+    private static readonly HashSet<string> AuthorActions = new() { "Objet créé", "Objet modifié", "Objet proposé" };
+
+    public static object MyEntries(Repository repo, string user)
+    {
+        var touched = repo.Journal.Where(e => e.User == user && e.TargetId is not null && AuthorActions.Contains(e.Action))
+            .GroupBy(e => e.TargetId!).ToDictionary(g => g.Key, g => g.Max(e => e.At));
+        var mine = repo.ActiveObjects.Where(o => touched.ContainsKey(o.Id) || o.ProposedBy == user).ToList();
+        object Line(ArchObject o, JournalEntry? refusal = null) => new
+        {
+            Brief = Dto.Brief(repo, o), TouchedAt = touched.GetValueOrDefault(o.Id), o.ProposedAt, o.ValidatedAt, o.ValidatedBy,
+            o.ValidationComment, RefusedBy = refusal?.User, RefusedAt = refusal?.At,
+        };
+        JournalEntry? LastRefusal(string id) => repo.Journal.LastOrDefault(e => e.TargetId == id && e.Action == "Objet refusé");
+        return new
+        {
+            Refused = mine.Where(o => o.ValidationStatus == Validation.Draft && !string.IsNullOrEmpty(o.ValidationComment))
+                .OrderByDescending(o => touched.GetValueOrDefault(o.Id)).Select(o => Line(o, LastRefusal(o.Id))),
+            ToPropose = mine.Where(o => o.ValidationStatus == Validation.Draft && string.IsNullOrEmpty(o.ValidationComment))
+                .OrderByDescending(o => touched.GetValueOrDefault(o.Id)).Select(o => Line(o)),
+            Pending = mine.Where(o => o.ValidationStatus == Validation.Proposed).OrderByDescending(o => o.ProposedAt).Select(o => Line(o)),
+            RecentlyValidated = mine.Where(o => o.ValidationStatus == Validation.Validated)
+                .OrderByDescending(o => o.ValidatedAt ?? DateTime.MinValue).Take(5).Select(o => Line(o)),
+        };
     }
 
     /// <summary>Applique une transition à un objet, journalise l'avant/après, et traduit un refus en réponse 409.</summary>

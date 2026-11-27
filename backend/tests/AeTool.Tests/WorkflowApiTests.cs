@@ -125,6 +125,28 @@ public static class WorkflowApiTests
             Equal(HttpStatusCode.NotFound, Code(rig.Validator.Post("/api/validation/objects/id-inconnu/validate")), "objet inconnu");
         });
 
+        Test("mes saisies : refusées avec le commentaire et le valideur, à proposer, en attente, validées ; rien pour un autre compte", () =>
+        {
+            using var rig = new Rig();
+            var refused = rig.NewObject("Refusé");
+            var draft = rig.NewObject("Brouillon");
+            var pending = rig.NewObject("En attente");
+            var validated = rig.NewObject("Validé");
+            foreach (var id in new[] { refused, pending, validated }) rig.Contributor.Post($"/api/objects/{id}/propose");
+            rig.Validator.Post($"/api/validation/objects/{refused}/reject", new { comment = "Reprendre le nom du marché." });
+            rig.Validator.Post($"/api/validation/objects/{validated}/validate");
+            var mine = rig.Contributor.GetJson("/api/mes-saisies");
+            string Names(string group) => string.Join(",", mine.GetProperty(group).EnumerateArray().Select(e => e.GetProperty("brief").GetProperty("name").GetString()));
+            Equal("Refusé", Names("refused"), "refusées");
+            Equal("Brouillon", Names("toPropose"), "à proposer");
+            Equal("En attente", Names("pending"), "en attente");
+            Equal("Validé", Names("recentlyValidated"), "validées");
+            var line = mine.GetProperty("refused")[0];
+            Equal(("Reprendre le nom du marché.", "vera"), (line.GetProperty("validationComment").GetString()!, line.GetProperty("refusedBy").GetString()!), "commentaire et valideur");
+            var theirs = rig.Validator.GetJson("/api/mes-saisies");
+            Equal(0, new[] { "refused", "toPropose", "pending", "recentlyValidated" }.Sum(g => theirs.GetProperty(g).GetArrayLength()), "valider ou refuser n'en fait pas une saisie du valideur");
+        });
+
         Test("un valideur peut valider directement un brouillon ; validation par lot : les objets déjà validés sont signalés sans bloquer les autres", () =>
         {
             using var rig = new Rig();

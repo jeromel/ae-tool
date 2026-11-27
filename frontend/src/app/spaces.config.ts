@@ -6,7 +6,8 @@ import { isIsolated, isOrphan } from './space-filters';
 export interface Column { key: string; label: string; kind?: 'objet' | 'nombre' | 'liste' | 'chip'; idKey?: string; infra?: boolean; }
 
 /** Question d'un espace en liste : un filtre, un tri décroissant, ou les deux. */
-export interface SpaceQuestion extends Question { filter?: (row: any) => boolean; sort?: string; infra?: boolean; }
+/** `to` : la question mène à un autre écran plutôt que de filtrer la liste (ex. données personnelles, maquette « Mes saisies » §3). */
+export interface SpaceQuestion extends Question { filter?: (row: any) => boolean; sort?: string; infra?: boolean; to?: string; }
 
 /**
  * Un espace est une donnée : son titre, la projection qu'il lit, ses colonnes et ses questions.
@@ -111,6 +112,7 @@ export const DATA: SpaceConfig = {
     { key: 'toutes', label: 'Toutes les données' },
     { key: 'partagees', label: 'Lesquelles sont les plus partagées ?', sort: 'applications', filter: (r) => r.applications > 0 },
     { key: 'orphelines', label: 'Lesquelles ne sont utilisées par aucune application ?', filter: isOrphan },
+    { key: 'personnelles', label: 'Lesquelles sont des données personnelles ?', to: '/donnees-personnelles' },
     {
       key: 'maitre', label: 'Quelle application fait référence pour chaque donnée ?',
       missing: 'Le référentiel maître d\'une donnée n\'est pas modélisé. Les accès existent, mais rien ne distingue l\'application qui fait foi de celles qui lisent.',

@@ -1,5 +1,6 @@
 import { Component, computed, inject, input, OnInit, output, signal } from '@angular/core';
 import { Api, ApiError, SOURCE_LABELS } from '../api';
+import { Session } from '../session';
 
 /** Sources de définitions de propriétés qui se saisissent dans l'outil ; toute autre source maîtrise la valeur. */
 const EDITABLE_SOURCES = ['saisie', 'urba'];
@@ -114,14 +115,34 @@ interface Row {
         </div>
       }
 
-      <div class="actions">
-        <button type="submit" [disabled]="busy()">{{ busy() ? 'Enregistrement…' : (object() ? 'Enregistrer' : 'Créer l\\'objet') }}</button>
-        <button type="button" class="ghost" (click)="cancelled.emit()">Annuler</button>
-      </div>
+      @if (unproposed()) {
+        <div class="note" role="alert">
+          Enregistré, mais pas proposé : {{ unproposed() }}
+          <div class="actions">
+            <button type="button" [disabled]="busy()" (click)="retryPropose()">Réessayer de proposer</button>
+            <button type="button" class="ghost" (click)="saved.emit(savedId()!)">Continuer sans proposer</button>
+          </div>
+        </div>
+      } @else if (proposeOnSave()) {
+        <!-- Maquette « Mes saisies » §2 (PO, 27/11) : pour un contributeur, enregistrer c'est proposer ; le brouillon passe en second. -->
+        <div class="actions">
+          <button type="submit" [disabled]="busy()" (click)="intent.set('proposer')">{{ busy() ? 'Enregistrement…' : 'Enregistrer et proposer à la validation' }}</button>
+          <button type="submit" class="draft" [disabled]="busy()" (click)="intent.set('brouillon')">Garder en brouillon</button>
+          <button type="button" class="ghost" (click)="cancelled.emit()">Annuler</button>
+        </div>
+      } @else {
+        <div class="actions">
+          <button type="submit" [disabled]="busy()" (click)="intent.set('enregistrer')">{{ busy() ? 'Enregistrement…' : (object() ? 'Enregistrer' : 'Créer l\\'objet') }}</button>
+          <button type="button" class="ghost" (click)="cancelled.emit()">Annuler</button>
+        </div>
+      }
     </form>
   `,
   styles: `
     .oform { display: flex; flex-direction: column; gap: 12px; max-width: 880px; }
+    /* « Garder en brouillon » : un lien, en second (maquette « Mes saisies » §2). */
+    button.draft { background: none; border: 0; padding: 0 4px; color: var(--accent); font-weight: 500; text-decoration: underline; }
+    button.draft:hover { background: none; }
     .oform > .field:not(.wide), .oform > .field { max-width: 640px; width: 100%; }
     /* Un type porte souvent des dizaines de propriétés : deux ou trois colonnes plutôt qu'une page interminable. */
     .props { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px 16px; }
@@ -142,6 +163,7 @@ interface Row {
 })
 export class ObjectForm implements OnInit {
   private api = inject(Api);
+  private session = inject(Session);
   /** Métamodèle (GET /metamodel). */
   meta = input.required<any>();
   /** Objet à modifier (champ « object » de GET /objects/{id}) ; absent pour une création. */
@@ -156,6 +178,17 @@ export class ObjectForm implements OnInit {
   documentation = signal('');
   owner = signal('');
   busy = signal(false);
+  /** Bouton choisi : « proposer » enregistre puis propose ; « brouillon » et « enregistrer » enregistrent seulement. */
+  intent = signal<'proposer' | 'brouillon' | 'enregistrer'>('enregistrer');
+  /** Objet enregistré dont la proposition a échoué : on ne réenregistre pas, on repropose seulement. */
+  savedId = signal<string | null>(null);
+  unproposed = signal('');
+  /**
+   * Un contributeur qui n'est pas valideur, sur un objet neuf ou un brouillon. Un objet déjà proposé reste proposé ; un
+   * objet validé repasse seul à « proposé » quand un contributeur le modifie (serveur, Validation.AfterChange).
+   */
+  proposeOnSave = computed(() =>
+    this.session.can('contributeur') && !this.session.can('valideur') && (!this.object() || this.object().validationStatus === 'Brouillon'));
   error = signal('');
   errors = signal<Record<string, string[]>>({});
 
@@ -237,6 +270,29 @@ export class ObjectForm implements OnInit {
     if (key) this.added.update((a) => [...a, key]);
   }
 
+  /** Propose l'objet enregistré ; en cas d'échec, la fiche le dit et permet de réessayer sans réenregistrer. */
+  private async propose(id: string): Promise<boolean> {
+    try {
+      await this.api.post(`/objects/${id}/propose`, {});
+      this.unproposed.set('');
+      return true;
+    } catch (e) {
+      this.unproposed.set(e instanceof Error ? e.message : 'la proposition a échoué.');
+      return false;
+    }
+  }
+
+  async retryPropose(): Promise<void> {
+    const id = this.savedId();
+    if (!id) return;
+    this.busy.set(true);
+    try {
+      if (await this.propose(id)) this.saved.emit(id);
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
   async submit(event: Event): Promise<void> {
     event.preventDefault();
     this.error.set('');
@@ -252,6 +308,10 @@ export class ObjectForm implements OnInit {
     try {
       const o = this.object();
       const saved = o ? await this.api.put(`/objects/${o.id}`, this.payload()) : await this.api.post('/objects', this.payload());
+      if (this.proposeOnSave() && this.intent() === 'proposer') {
+        this.savedId.set(saved.id);
+        if (!(await this.propose(saved.id))) return;
+      }
       this.saved.emit(saved.id);
     } catch (e) {
       this.report(e);

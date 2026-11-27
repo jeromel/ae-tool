@@ -1,6 +1,6 @@
 import { Component, computed, effect, inject, input, signal } from '@angular/core';
 import { ScopeNote } from '../scope-note';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Mark } from '../projection';
 import { Api, SOURCE_LABELS } from '../api';
 import { Session } from '../session';
@@ -156,6 +156,7 @@ export class ObjectPage {
 
   private api = inject(Api);
   private router = inject(Router);
+  private route = inject(ActivatedRoute);
   session = inject(Session);
   /** Objet introuvable pour un accès sans l'infrastructure : on l'explique au lieu de renvoyer à la liste. */
   missing = signal(false);
@@ -176,7 +177,8 @@ export class ObjectPage {
     this.api.get('/metamodel').then((m) => this.meta.set(m));
     effect(() => {
       this.id();
-      this.editing.set(false);
+      // « Corriger → » depuis Mes saisies ouvre la fiche en modification (`?modifier=1`).
+      this.editing.set(this.route.snapshot.queryParamMap.get('modifier') === '1');
       this.confirmArchive.set(false);
       this.load();
     });

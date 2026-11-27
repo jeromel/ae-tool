@@ -194,7 +194,7 @@ seule. On peut toujours, dans l'outil, changer le type d'un tel objet, lui ajout
 
 | État | Qui | Comment |
 |---|---|---|
-| Brouillon → Proposé | contributeur | « Proposer à la validation » sur la fiche |
+| Brouillon → Proposé | contributeur | « Enregistrer et proposer à la validation » à l'enregistrement (geste par défaut), « Proposer » dans Mes saisies, ou « Proposer à la validation » sur la fiche |
 | Proposé → Validé | valideur | « Valider » sur la fiche, ou en nombre dans **Contribuer › À valider** |
 | Proposé → Brouillon | valideur | « Refuser », avec un commentaire obligatoire |
 | Validé → Proposé | automatique | dès qu'un contributeur modifie le fond d'un objet validé |

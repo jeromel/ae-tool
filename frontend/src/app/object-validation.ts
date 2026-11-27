@@ -1,5 +1,6 @@
 import { Component, effect, inject, input, output, signal, untracked } from '@angular/core';
 import { DatePipe } from '@angular/common';
+import { RouterLink } from '@angular/router';
 import { Api } from './api';
 import { Session } from './session';
 import { HistoryRefresh } from './object-history';
@@ -17,7 +18,7 @@ interface ValidationState {
 /** Bandeau d'état de validation d'un objet, avec les actions que le rôle de l'utilisateur permet. Le serveur reste le garant. */
 @Component({
   selector: 'app-object-validation',
-  imports: [DatePipe],
+  imports: [DatePipe, RouterLink],
   template: `
     @if (state(); as s) {
       <div class="band" [class.ok]="s.status === 'Validé'" [class.wait]="s.status === 'Proposé'">
@@ -29,11 +30,16 @@ interface ValidationState {
             }
             @case ('Proposé') {
               <span class="chip warn">Proposé</span>
-              <span>Proposé par <b>{{ s.proposedBy }}</b>{{ s.proposedAt ? ' le ' + (s.proposedAt | date: 'dd/MM/yyyy à HH:mm') : '' }} : en attente d'un valideur.</span>
+              @if (s.proposedBy && s.proposedBy === session.user()?.login) {
+                <!-- Maquette « Mes saisies » §2 : l'auteur sait qu'un valideur va relire, et où retrouver sa saisie. -->
+                <span>Proposé par vous{{ s.proposedAt ? ' le ' + (s.proposedAt | date: 'dd/MM/yyyy à HH:mm') : '' }} : un valideur va le relire. Vous le retrouverez dans <a routerLink="/mes-saisies">Mes saisies</a>.</span>
+              } @else {
+                <span>Proposé par <b>{{ s.proposedBy }}</b>{{ s.proposedAt ? ' le ' + (s.proposedAt | date: 'dd/MM/yyyy à HH:mm') : '' }} : en attente d'un valideur.</span>
+              }
             }
             @default {
               <span class="chip">Brouillon</span>
-              <span>Cet objet n'a pas encore été proposé à la validation.</span>
+              <span>Cet objet n'a pas encore été proposé à la validation : aucun valideur ne le voit.</span>
             }
           }
         </div>

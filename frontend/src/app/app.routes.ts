@@ -78,6 +78,7 @@ const protectedRoutes: Routes = [
   { path: 'impact', component: ImpactPage },
   // Contribuer.
   { path: 'qualite', component: QualityPage },
+  { path: 'mes-saisies', loadComponent: () => import('./pages/my-entries').then((m) => m.MyEntriesPage), canActivate: [requires('contributeur')] },
   { path: 'validations', loadComponent: () => import('./pages/validation').then((m) => m.ValidationPage), canActivate: [requires('valideur')] },
   // Les vues portent le tracé des liens (routing.ts) : chargées à leur première ouverture.
   { path: 'vues', loadComponent: () => import('./pages/views').then((m) => m.ViewsPage) },

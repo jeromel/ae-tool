@@ -47,7 +47,6 @@ import { ProjectionState } from './projection';
         <a routerLink="/capacites" routerLinkActive="on">Capacités</a>
         <a routerLink="/applications" routerLinkActive="on">Applications</a>
         <a routerLink="/donnees" routerLinkActive="on">Données</a>
-        <a routerLink="/donnees-personnelles" routerLinkActive="on">Données personnelles</a>
         <a routerLink="/flux" routerLinkActive="on">Flux</a>
         @if (!session.business()) { <a routerLink="/infrastructure" routerLinkActive="on">Infrastructure</a> }
         <a routerLink="/vues" routerLinkActive="on">Vues</a>
@@ -57,6 +56,8 @@ import { ProjectionState } from './projection';
         <a routerLink="/projets" routerLinkActive="on">Projets</a>
 
         <div class="group">Contribuer</div>
+        <!-- Mes saisies (maquette du 27/11) : compteur des seules saisies refusées, comme « À valider » pour le valideur. -->
+        @if (session.can('contributeur')) { <a routerLink="/mes-saisies" routerLinkActive="on">Mes saisies@if (refused() > 0) { <span class="count" aria-label="saisies refusées">{{ refused() }}</span> }</a> }
         <!-- Droit serveur : AccessRules.cs, écriture sous /api/validation → valideur. -->
         @if (session.can('valideur')) { <a routerLink="/validations" routerLinkActive="on">À valider@if (toValidate() > 0) { <span class="count" aria-label="objets à valider">{{ toValidate() }}</span> }</a> }
         <a routerLink="/qualite" routerLinkActive="on">Qualité</a>
@@ -147,6 +148,7 @@ export class App {
   inAdmin = signal(false);
   /** Objets proposés et en attente de validation, affichés à côté de « Validations ». Relu à chaque navigation. */
   toValidate = signal(0);
+  refused = signal(0);
   /** Version livrée, lue auprès du serveur : utile au support (« quelle version avez-vous ? »). */
   version = signal('');
   /** Menu replié en rail : la place gagnée va aux vues et aux tableaux. */
@@ -181,8 +183,14 @@ export class App {
 
   private async refreshCount(): Promise<void> {
     // Tant que le mot de passe temporaire n'est pas changé, le serveur refuse tout sauf la page du compte.
-    // Le compteur ne sert qu'à l'entrée « À valider » : même seuil (AccessRules.cs, /api/validation → valideur).
-    if (!this.session.can('valideur') || this.session.user()?.mustChangePassword) return;
+    if (!this.session.can('contributeur') || this.session.user()?.mustChangePassword) return;
+    try {
+      this.refused.set((await this.api.get('/mes-saisies')).refused?.length ?? 0);
+    } catch {
+      /* le compteur est un confort : une erreur ne doit rien bloquer */
+    }
+    // Le compteur « À valider » : même seuil que le serveur (AccessRules.cs, /api/validation → valideur).
+    if (!this.session.can('valideur')) return;
     try {
       this.toValidate.set((await this.api.get('/summary')).toValidate ?? 0);
     } catch {

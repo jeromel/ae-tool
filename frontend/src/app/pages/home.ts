@@ -1,22 +1,31 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { Session } from '../session';
+import { Role, Session } from '../session';
 import { Api } from '../api';
 import { readText, writeText } from '../prefs';
 
-interface Entry { label: string; where: string; to: string; question?: string; profiles: string[]; }
+interface Entry {
+  label: string; where: string; to: string; question?: string; profiles: string[];
+  /** Rôle minimal pour voir la question ; `mine` : elle porte le compteur des saisies refusées. */
+  role?: Role; params?: Record<string, string>; mine?: boolean;
+}
 
-const PROFILES = [
+const PROFILES: { key: string; label: string; role?: string }[] = [
   { key: 'direction', label: 'Direction et DSI' },
   { key: 'projet', label: 'Chef de projet' },
   { key: 'architecte', label: 'Architecte' },
   { key: 'exploitation', label: 'Exploitation et cybersécurité' },
   { key: 'metier', label: 'Métier' },
+  // Maquette « Mes saisies » §4 : visible seulement pour qui a le rôle de contributeur.
+  { key: 'contributeur', label: 'Contributeur', role: 'contributeur' },
 ];
 
 /** Les questions auxquelles l'outil répond. Chacune mène à un espace, réglé sur la bonne question. */
 const ENTRIES: Entry[] = [
+  { label: 'Déclarer une nouvelle application', where: 'Nouvel objet', to: '/objets/nouveau', profiles: ['contributeur'], role: 'contributeur', params: { role: 'application' } },
+  { label: 'Où en sont mes saisies ?', where: 'Mes saisies', to: '/mes-saisies', profiles: ['contributeur'], role: 'contributeur', mine: true },
+  { label: 'Corriger une fiche', where: 'Tous les objets', to: '/referentiel', profiles: ['contributeur'], role: 'contributeur' },
   { label: 'Que maintenir, moderniser, tolérer ou éliminer ?', where: 'Portefeuille', to: '/portefeuille', profiles: ['direction', 'architecte'] },
   { label: 'Quelles capacités n\'ont aucune application ?', where: 'Capacités', to: '/capacites', question: 'non-couvertes', profiles: ['direction', 'metier', 'architecte'] },
   { label: 'Où y a-t-il des doublons applicatifs possibles ?', where: 'Capacités', to: '/capacites', question: 'doublons', profiles: ['direction', 'architecte'] },
@@ -41,7 +50,7 @@ const ENTRIES: Entry[] = [
       <div class="tools">
         <label>Je suis
           <select (change)="setProfile($any($event.target).value)">
-            @for (p of profiles; track p.key) { <option [value]="p.key" [selected]="profile() === p.key">{{ p.label }}</option> }
+            @for (p of profilesFor(); track p.key) { <option [value]="p.key" [selected]="profile() === p.key">{{ p.label }}</option> }
           </select>
         </label>
         <span class="muted small">Le profil ne change que l'ordre des questions. Tout reste accessible.</span>
@@ -49,14 +58,14 @@ const ENTRIES: Entry[] = [
 
       <div class="entries">
         @for (e of mine(); track e.label) {
-          <a class="entry main" [routerLink]="e.to" [queryParams]="e.question ? { question: e.question } : {}"><b>{{ e.label }}</b><span>{{ e.where }}</span></a>
+          <a class="entry main" [routerLink]="e.to" [queryParams]="paramsOf(e)"><b>{{ e.label }}</b><span>{{ e.where }}</span>@if (e.mine && refused() > 0) { <span class="refused">⚠ {{ refused() }} refusée{{ refused() > 1 ? 's' : '' }}</span> }</a>
         }
       </div>
       @if (others().length) {
         <h2 style="margin-top: 20px">Autres questions</h2>
         <div class="entries">
           @for (e of others(); track e.label) {
-            <a class="entry" [routerLink]="e.to" [queryParams]="e.question ? { question: e.question } : {}"><b>{{ e.label }}</b><span>{{ e.where }}</span></a>
+            <a class="entry" [routerLink]="e.to" [queryParams]="paramsOf(e)"><b>{{ e.label }}</b><span>{{ e.where }}</span>@if (e.mine && refused() > 0) { <span class="refused">⚠ {{ refused() }} refusée{{ refused() > 1 ? 's' : '' }}</span> }</a>
           }
         </div>
       }
@@ -106,13 +115,18 @@ const ENTRIES: Entry[] = [
     .entry:hover { background: var(--accent-soft); }
     .entry b { font-family: var(--display); font-size: 16.5px; font-weight: 600; line-height: 1.25; }
     .entry span { font-size: 12.5px; color: var(--muted); }
+    .entry span.refused { color: #8c2a1c; font-weight: 600; }
   `,
 })
 export class HomePage {
   private api = inject(Api);
   private session = inject(Session);
   /** Sans l'infrastructure, une question qui y mène ouvrirait un espace vide : elle disparaît (maquette périmètre, §2). */
-  private entries = computed(() => ENTRIES.filter((e) => !(this.session.business() && e.to === '/infrastructure')));
+  private entries = computed(() => ENTRIES.filter((e) => !(this.session.business() && e.to === '/infrastructure') && (!e.role || this.session.can(e.role))));
+  /** Le profil Contributeur n'est proposé qu'à qui a ce rôle. */
+  profilesFor = computed(() => PROFILES.filter((p) => !p.role || this.session.can(p.role as Role)));
+  /** Saisies refusées : la question « Où en sont mes saisies ? » porte le compteur, quel que soit le profil (§4). */
+  refused = signal(0);
   data = signal<any>(null);
   profiles = PROFILES;
   profile = signal(readText('profil', 'architecte'));
@@ -121,6 +135,11 @@ export class HomePage {
 
   constructor() {
     this.api.get('/summary').then((d) => this.data.set(d));
+    if (this.session.can('contributeur')) this.api.get('/mes-saisies').then((m) => this.refused.set(m.refused?.length ?? 0)).catch(() => {});
+  }
+
+  paramsOf(e: Entry): Record<string, string> {
+    return e.params ?? (e.question ? { question: e.question } : {});
   }
 
   setProfile(key: string): void {

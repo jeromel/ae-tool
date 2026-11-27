@@ -6,7 +6,8 @@ import { QuestionBar } from '../questions';
 import { ScopeNote } from '../scope-note';
 import { Mark } from '../projection';
 import { Session } from '../session';
-import { SpaceConfig } from '../spaces.config';
+import { SpaceConfig, SpaceQuestion } from '../spaces.config';
+import { firstTypeWith } from '../metamodel-types';
 
 /**
  * Espace en liste : une projection du référentiel, interrogée par des questions prêtes à l'emploi.
@@ -140,6 +141,11 @@ export class ListSpacePage {
   }
 
   pick(key: string): void {
+    const to = (this.config().questions as SpaceQuestion[]).find((q) => q.key === key)?.to;
+    if (to) {
+      this.router.navigate([to]);
+      return;
+    }
     this.router.navigate([], { queryParams: { question: key }, replaceUrl: true }); // l'adresse porte la question : le lien se partage
   }
 
@@ -150,12 +156,6 @@ export class ListSpacePage {
       this.descending.set(true);
     }
   }
-}
-
-/** Premier type actif portant le rôle (à défaut, un type archivé), comme `Metamodel.FirstTypeWith` côté serveur. */
-function firstTypeWith(meta: any, role: string): string {
-  const types = (meta.objectTypes as any[]).filter((t) => t.roles.includes(role));
-  return (types.find((t) => !t.archived) ?? types[0])?.key ?? '';
 }
 
 function compare(a: unknown, b: unknown): number {
