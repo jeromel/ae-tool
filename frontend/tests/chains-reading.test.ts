@@ -1,7 +1,7 @@
 // Tests de chains-reading.ts (écran « Chaînes et processus », EV-06), hors navigateur.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { emptyText, groupByCapability, hueOf, moreText, touchedSummary, viaText } from '../src/app/chains-reading.ts';
+import { domainQuery, emptyText, groupByCapability, hueOf, layerQuery, moreText, objectQuery, touchedSummary, viaText } from '../src/app/chains-reading.ts';
 
 const I = (id: string, capability: string | null, via: string | null = null, viaKind: string | null = null) =>
   ({ id, name: id.toUpperCase(), typeLabel: 'Application', via, viaKind, viaId: null, capability });
@@ -36,4 +36,16 @@ test('résumé de l\'impact : il compte les étapes et les chaînes, accordés',
   assert.match(touchedSummary('VM-X', 'Serveur', 0, 0), /ne touche aucune étape/);
   assert.equal(moreText(7), '+ 2 autres');
   assert.equal(moreText(5), null);
+});
+
+test('C10 : chaque réglage ne touche que sa clé de l\'adresse ; changer de couche garde l\'objet désigné', () => {
+  const merge = (q: Record<string, string | null>, change: Record<string, string | null>) => ({ ...q, ...change });
+  let q: Record<string, string | null> = { couche: null, objet: null, domaine: null };
+  q = merge(q, objectQuery('vm-fact-01'));
+  q = merge(q, layerQuery('serveurs'));
+  assert.deepEqual(q, { couche: 'serveurs', objet: 'vm-fact-01', domaine: null });
+  q = merge(q, domainQuery(null, 'dom-1'));
+  q = merge(q, layerQuery('capacites'));
+  assert.deepEqual(q, { couche: null, objet: 'vm-fact-01', domaine: 'dom-1' });
+  assert.deepEqual(domainQuery('dom-1', 'dom-1'), { domaine: null }, 'second clic : annule le filtre');
 });

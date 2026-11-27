@@ -63,3 +63,17 @@ export function moreText(count: number): string | null {
   const n = count - SHOWN;
   return n > 0 ? `+ ${n} ${n > 1 ? 'autres' : 'autre'}` : null;
 }
+
+/**
+ * Changement de réglage, en paramètres d'adresse à fusionner : chacun ne touche que sa clé, si bien que changer de couche
+ * garde l'objet désigné et le domaine, et désigner un objet garde la couche (C10). « Capacités » est la couche par défaut.
+ */
+export function layerQuery(layer: string): Record<string, string | null> {
+  return { couche: layer === 'capacites' ? null : layer };
+}
+export function objectQuery(id: string | null): Record<string, string | null> {
+  return { objet: id };
+}
+export function domainQuery(current: string | null, clicked: string): Record<string, string | null> {
+  return { domaine: current === clicked ? null : clicked };
+}

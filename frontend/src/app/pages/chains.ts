@@ -5,7 +5,7 @@ import { Api, Brief } from '../api';
 import { Session } from '../session';
 import { ObjectSearch } from '../object-search';
 import { ScopeNote } from '../scope-note';
-import { LAYER_LABELS, type StepItem, SHOWN, emptyText, groupByCapability, hueOf, moreText, touchedSummary, viaText } from '../chains-reading';
+import { LAYER_LABELS, type StepItem, SHOWN, domainQuery, emptyText, groupByCapability, hueOf, layerQuery, moreText, objectQuery, touchedSummary, viaText } from '../chains-reading';
 
 interface Column { id: string; name: string; kind: string; capabilities: StepItem[]; layers: Record<string, StepItem[]>; }
 interface Chain { id: string; name: string; hasSteps: boolean; ordered: boolean; columns: Column[]; whole: Column | null; }
@@ -26,6 +26,7 @@ interface Impact { object: Brief; layer: string | null; steps: Touched[]; offCha
  */
 @Component({
   imports: [RouterLink, NgTemplateOutlet, ObjectSearch, ScopeNote],
+  host: { '(document:keydown.escape)': 'onEscape()' },
   template: `
     <h1>Chaînes et processus</h1>
     <p class="lead">Ce que l'entreprise produit, étape par étape, et ce qui porte chaque étape.</p>
@@ -126,7 +127,11 @@ interface Impact { object: Brief; layer: string | null; steps: Touched[]; offCha
         </details>
       }
     } @else if (!error()) {
-      <p class="muted">Chargement des chaînes…</p>
+      <div aria-busy="true" aria-label="Chargement des chaînes">
+        @for (k of [1, 2]; track k) {
+          <section class="chain card skeleton"><div class="bar title"></div><div class="row-bars">@for (b of [1, 2, 3, 4]; track b) { <div class="bar"></div> }</div><div class="row-bars">@for (b of [1, 2, 3, 4]; track b) { <div class="bar tall"></div> }</div></section>
+        }
+      </div>
     }
 
     <ng-template #chainTpl let-c>
@@ -143,12 +148,12 @@ interface Impact { object: Brief; layer: string | null; steps: Touched[]; offCha
                 <th scope="col" class="corner"></th>
                 @for (s of c.columns; track s.id; let last = $last) {
                   <th scope="col" [class.hit]="isTouched(c.id, s.id)">
-                    <button type="button" class="step" [class.chevron]="c.ordered" [class.card-step]="!c.ordered" (click)="openPanel(c.id, s.id)">
+                    <button type="button" class="step" [id]="'etape-' + s.id" [class.chevron]="c.ordered" [class.card-step]="!c.ordered" (click)="openPanel(c.id, s.id)">
                       {{ s.name }}@if (isTouched(c.id, s.id)) { <span class="touched">● touchée</span> }
                     </button>@if (c.ordered && !last) { <span class="sr"> puis</span> }
                   </th>
                 }
-                @if (c.whole) { <th scope="col" class="whole" [class.hit]="isTouched(c.id, c.whole.id)"><button type="button" class="step card-step dashed" (click)="openPanel(c.id, c.whole.id)">Toute la chaîne@if (isTouched(c.id, c.whole.id)) { <span class="touched">● touchée</span> }</button></th> }
+                @if (c.whole) { <th scope="col" class="whole" [class.hit]="isTouched(c.id, c.whole.id)"><button type="button" class="step card-step dashed" [id]="'etape-' + c.whole.id" (click)="openPanel(c.id, c.whole.id)">Toute la chaîne@if (isTouched(c.id, c.whole.id)) { <span class="touched">● touchée</span> }</button></th> }
               </tr>
             </thead>
             <tbody>
@@ -165,27 +170,28 @@ interface Impact { object: Brief; layer: string | null; steps: Touched[]; offCha
                 <th scope="row">{{ label(layer()) }}</th>
                 @for (s of columnsOf(c); track s.id) {
                   <td [class.hit]="isTouched(c.id, s.id)" [class.whole]="s.kind === 'toute'">
-                    @for (gr of groups(s); track gr.capability?.id ?? 'reste') {
-                      <div class="dom-card" [class.faded]="faded(gr.capability?.id)" [style.--fond]="fond(gr.capability?.id)" [style.--trait]="trait(gr.capability?.id)" [style.--texte]="texte(gr.capability?.id)">
-                        @if (layer() !== 'capacites' && gr.capability) { <div class="dom-title">{{ gr.capability.name }}</div> }
-                        @for (i of shown(s.id, gr.capability?.id, gr.items); track i.id + (i.via ?? '')) {
-                          <div class="item" [class.cap]="layer() === 'capacites'">
-                            <button type="button" class="name" [class.chosen-item]="impact()?.object?.id === i.id" (click)="designate(i.id)">{{ i.name }}</button>
-                            @if (via(i); as v) { <span class="via">{{ v }}</span> }
-                          </div>
-                        }
-                        @if (more(s.id, gr.capability?.id, gr.items.length); as m) {
-                          <button type="button" class="link small" (click)="expand(s.id, gr.capability?.id)">{{ m }}</button>
-                        }
-                      </div>
-                    } @empty {
-                      <span class="gap">{{ empty().text }}@if (empty().link) { · <a [routerLink]="['/objets', s.kind === 'capacite' ? s.id : s.capabilities[0]?.id ?? s.id]">Renseigner</a> }</span>
-                    }
+                    <ng-container *ngTemplateOutlet="cellTpl; context: { $implicit: s }" />
                   </td>
                 }
               </tr>
             </tbody>
           </table>
+        </div>
+        <!-- Sous 640 px : une carte par étape, l'une sous l'autre ; ▶ devient ▼ ; « Toute la chaîne » en dernière carte (§6). -->
+        <div class="narrow">
+          @for (s of columnsOf(c); track s.id; let last = $last) {
+            <div class="ncard" [class.hit]="isTouched(c.id, s.id)" [class.whole]="s.kind === 'toute'">
+              <button type="button" class="step card-step" [class.dashed]="s.kind === 'toute'" (click)="openPanel(c.id, s.id)">
+                {{ s.kind === 'toute' ? 'Toute la chaîne' : s.name }}@if (isTouched(c.id, s.id)) { <span class="touched">● touchée</span> }
+              </button>
+              @if (impact()?.layer) {
+                <p class="small">Touchée par : @if (touch(c.id, s.id); as t) { touchée {{ t.via.length ? 'via ' + names(t.via) : '' }} } @else { — }</p>
+              }
+              <div class="nlabel">{{ label(layer()) }}</div>
+              <ng-container *ngTemplateOutlet="cellTpl; context: { $implicit: s }" />
+            </div>
+            @if (c.ordered && !last && columnsOf(c)[$index + 1]?.kind !== 'toute') { <div class="down" aria-hidden="true">▼</div> }
+          }
         </div>
         @if (panelOf(c.id); as col) {
           <div class="panel" role="region" [attr.aria-label]="col.name + ', ce que l\\'étape mobilise'">
@@ -203,6 +209,26 @@ interface Impact { object: Brief; layer: string | null; steps: Touched[]; offCha
           </div>
         }
       </section>
+    </ng-template>
+
+    <!-- Contenu d'une cellule (couche choisie, groupée par capacité) : le tableau et les cartes du petit écran le partagent. -->
+    <ng-template #cellTpl let-s>
+    @for (gr of groups(s); track gr.capability?.id ?? 'reste') {
+      <div class="dom-card" [class.faded]="faded(gr.capability?.id)" [style.--fond]="fond(gr.capability?.id)" [style.--trait]="trait(gr.capability?.id)" [style.--texte]="texte(gr.capability?.id)">
+        @if (layer() !== 'capacites' && gr.capability) { <div class="dom-title">{{ gr.capability.name }}</div> }
+        @for (i of shown(s.id, gr.capability?.id, gr.items); track i.id + (i.via ?? '')) {
+          <div class="item" [class.cap]="layer() === 'capacites'">
+            <button type="button" class="name" [class.chosen-item]="impact()?.object?.id === i.id" (click)="designate(i.id)">{{ i.name }}</button>
+            @if (via(i); as v) { <span class="via">{{ v }}</span> }
+          </div>
+        }
+        @if (more(s.id, gr.capability?.id, gr.items.length); as m) {
+          <button type="button" class="link small" (click)="expand(s.id, gr.capability?.id)">{{ m }}</button>
+        }
+      </div>
+    } @empty {
+      <span class="gap">{{ empty().text }}@if (empty().link) { · <a [routerLink]="['/objets', s.kind === 'capacite' ? s.id : s.capabilities[0]?.id ?? s.id]">Renseigner</a> }</span>
+    }
     </ng-template>
   `,
   styles: `
@@ -260,7 +286,20 @@ interface Impact { object: Brief; layer: string | null; steps: Touched[]; offCha
     .others summary { cursor: pointer; color: var(--accent); font-weight: 600; }
     .others li.hit { font-weight: 600; }
     .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
-    @media print { .step { print-color-adjust: exact; } .panel { display: none; } }
+    .narrow { display: none; }
+    .ncard { border: 1px solid var(--line); border-radius: 8px; padding: 8px; }
+    .ncard.hit { border: 2px solid var(--accent); }
+    .ncard.hit .step { background: var(--accent); color: #fff; }
+    .ncard.whole { border-style: dashed; margin-top: 10px; }
+    .ncard .step { margin-bottom: 6px; }
+    .nlabel { font-size: 12px; color: var(--muted); font-weight: 600; margin: 4px 0; }
+    .down { text-align: center; color: var(--muted); line-height: 1.6; }
+    @media (max-width: 640px) { .scroll-x { display: none; } .narrow { display: block; } .settings .pick { min-width: 0; width: 100%; } }
+    .skeleton .bar { background: #e6eced; border-radius: 6px; height: 34px; flex: 1; }
+    .skeleton .bar.title { width: 260px; height: 20px; flex: none; margin-bottom: 10px; }
+    .skeleton .bar.tall { height: 70px; }
+    .skeleton .row-bars { display: flex; gap: 8px; margin-bottom: 8px; }
+    @media print { .step { print-color-adjust: exact; } .panel { display: none; } .narrow { display: none !important; } .scroll-x { display: block !important; } }
   `,
 })
 export class ChainsPage {
@@ -375,10 +414,21 @@ export class ChainsPage {
     this.panel.set(p?.chainId === chainId && p.columnId === columnId ? null : { chainId, columnId });
   }
 
+  /** Échap : ferme le panneau d'étape et rend le focus à son en-tête ; sans panneau, efface l'objet désigné. */
+  onEscape(): void {
+    const p = this.panel();
+    if (p) {
+      this.panel.set(null);
+      setTimeout(() => document.getElementById('etape-' + p.columnId)?.focus());
+    } else if (this.objet()) {
+      this.designate(null);
+    }
+  }
+
   private go(params: Record<string, string | null>): void {
     this.router.navigate([], { queryParams: params, queryParamsHandling: 'merge', replaceUrl: true });
   }
-  setLayer(l: string): void { this.go({ couche: l === 'capacites' ? null : l }); }
-  designate(id: string | null): void { this.go({ objet: id }); }
-  setDomain(id: string): void { this.go({ domaine: this.domain() === id ? null : id }); }
+  setLayer(l: string): void { this.go(layerQuery(l)); }
+  designate(id: string | null): void { this.go(objectQuery(id)); }
+  setDomain(id: string): void { this.go(domainQuery(this.domain(), id)); }
 }
