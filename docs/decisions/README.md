@@ -18,3 +18,4 @@ et ce qui a été écarté. Une décision ne se modifie pas : on en écrit une n
 | [011](011-stockage-fichier-generalisation.md) | Le stockage par fichier est conservé pour la généralisation ; remplace la 004 | Acceptée |
 | [012](012-acces-reserve-a-des-personnes-nommees.md) | Données sensibles : des personnes nommées, un périmètre de lecture selon le besoin d'en connaître | Acceptée |
 | [013](013-description-openapi-generee-sans-paquet.md) | La description OpenAPI est produite par l'outil à partir de ses routes, sans paquet ; cible : API publique de lecture | Acceptée |
+| [014](014-maitre-juge-objet-par-objet.md) | Le maître se juge objet par objet ; un objet revenu d'Archi devient un objet d'Archi | Acceptée |
