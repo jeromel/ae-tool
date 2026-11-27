@@ -94,6 +94,7 @@ public static class MetamodelDefault
             m.Transcoding.Relations.Add(new RelationRule { TypeKey = r[0], ArchimateType = r[3], Principal = true });
         }
         CatalogueModel.Ensure(m);
+        Roles.EnsureProcessRoles(m);
         return m;
     }
 

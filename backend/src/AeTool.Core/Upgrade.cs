@@ -21,11 +21,29 @@ public static class RepositoryUpgrader
         if (version < 2) MigrateToV2(root);
         if (version < 3) MigrateToV3(root);
         if (version < 4) MigrateToV4(root);
+        if (version < 5) MigrateToV5(root);
         return root.Deserialize<Repository>() ?? new Repository();
     }
 
     /// <summary>Indique si un métamodèle exporté est au format 1 (sans matrice de transcodification).</summary>
     public static bool IsV1Metamodel(JsonNode metamodel) => metamodel is JsonObject o && o["Transcoding"] is null;
+
+    // ------------------------------------------------------------ 4 -> 5
+
+    /// <summary>
+    /// Vue par chaîne de valeur et par processus (EV-06) : les rôles chaîne de valeur, processus, qui et enchaînement sont posés
+    /// sur les types transcodés en ValueStream, BusinessProcess, BusinessActor ou BusinessRole, Flow ou Triggering. Rien
+    /// d'existant n'est retiré, et un rôle déjà porté n'est pas redistribué.
+    /// </summary>
+    private static void MigrateToV5(JsonObject root)
+    {
+        if (root["Metamodel"] is JsonObject node && node.Deserialize<Metamodel>() is { } m)
+        {
+            Roles.EnsureProcessRoles(m);
+            root["Metamodel"] = JsonSerializer.SerializeToNode(m);
+        }
+        root["SchemaVersion"] = 5;
+    }
 
     // ------------------------------------------------------------ 3 -> 4
 

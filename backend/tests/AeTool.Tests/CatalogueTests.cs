@@ -35,7 +35,7 @@ public static class CatalogueTests
             json["SchemaVersion"] = 3;
             var repo = RepositoryUpgrader.Read(new MemoryStream(System.Text.Encoding.UTF8.GetBytes(json.ToJsonString())), out var upgraded);
             True(upgraded, "migré");
-            Equal(4, repo.SchemaVersion, "version");
+            Equal(Repository.CurrentSchemaVersion, repo.SchemaVersion, "version");
             True(repo.Metamodel.Type(CatalogueModel.FileShareType) is not null, "partage ajouté");
             True(repo.Metamodel.Transcoding.Elements.Any(r => r.TypeKey == CatalogueModel.TechnicalFlowType && r.WhenValue == "Flux technique"), "règle ajoutée");
             Equal("Poste type", repo.Metamodel.Type(CatalogueModel.WorkstationType)!.Label, "libellé retouché gardé");

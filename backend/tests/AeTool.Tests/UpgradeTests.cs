@@ -64,6 +64,31 @@ public static class UpgradeTests
             Equal("Actif", repo.Objects["o1"].Get("lifecycle.state"), "propriétés conservées");
             Equal(1, repo.Journal.Count, "journal inchangé");
         });
+        // EV-06 (revue de coût de Colbert §1) : rôles posés d'après le concept transcodé, pas d'après la clé.
+        Test("version 4 vers 5 : rôles chaîne de valeur, processus, qui et enchaînement posés par concept, réglage existant respecté", () =>
+        {
+            var m = Metamodel.Default();
+            foreach (var t in m.ObjectTypes) t.Roles.RemoveAll(r => r is Roles.ValueStream or Roles.Process or Roles.Who);
+            foreach (var t in m.RelationshipTypes) t.Roles.Remove(Roles.Sequence);
+            m.Type("processus")!.Key = "proc-metier";
+            m.Transcoding.Elements.Single(r => r.TypeKey == "processus").TypeKey = "proc-metier";
+            m.Type("evenement-metier")!.Roles.Add(Roles.Who); // « qui » déjà réglé à la main : rien n'est redistribué
+            var json = System.Text.Json.JsonSerializer.Serialize(new Repository { Metamodel = m, SchemaVersion = 4 });
+            var back = Read(json, out var upgraded).Metamodel;
+            True(upgraded, "migration signalée");
+            True(back.IsA("chaine-valeur", Roles.ValueStream), "chaîne de valeur");
+            True(back.IsA("proc-metier", Roles.Process), "processus, clé renommée");
+            True(!back.IsA("acteur", Roles.Who) && back.IsA("evenement-metier", Roles.Who), "rôle « qui » réglé à la main respecté");
+            True(back.RelTypeKeysWith(Roles.Sequence).SetEquals(new[] { "flux", "declenchement" }), "enchaînement sur flux et déclenchement");
+            True(back.IsA("proc-metier", Roles.Process) && back.RelTypeKeysWith(Roles.Flow).SetEquals(new[] { "flux" }), "rôle flux inchangé");
+        });
+        Test("métamodèle par défaut : acteur et rôle portent « qui », flux et déclenchement « enchaînement »", () =>
+        {
+            var m = Metamodel.Default();
+            True(m.TypeKeysWith(Roles.Who).SetEquals(new[] { "acteur", "role" }), "qui : " + string.Join(", ", m.TypeKeysWith(Roles.Who)));
+            True(m.TypeKeysWith(Roles.ValueStream).SetEquals(new[] { "chaine-valeur" }) && m.TypeKeysWith(Roles.Process).SetEquals(new[] { "processus" }), "chaîne et processus");
+            True(m.RelTypeKeysWith(Roles.Sequence).SetEquals(new[] { "flux", "declenchement" }), "enchaînement");
+        });
         Test("métamodèle reporté : libellés, visuels non vides, archivage, relations, couples, propriétés, réglages, notation", () =>
         {
             var m = Read(V1, out _).Metamodel;

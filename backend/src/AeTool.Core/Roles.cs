@@ -19,9 +19,13 @@ public static class Roles
     public const string TechnicalFlow = "flux-technique";
     public const string FileShare = "partage";
     public const string Workstation = "poste";
+    public const string ValueStream = "chaine-valeur";
+    public const string Process = "processus";
+    public const string Who = "qui";
 
     public const string Flow = "flux";
     public const string Decomposition = "decomposition";
+    public const string Sequence = "enchainement";
 
     /// <summary>Préfixe qui désigne un rôle plutôt qu'une clé de type (matrices).</summary>
     public const string Prefix = "role:";
@@ -38,13 +42,42 @@ public static class Roles
         new(TechnicalFlow, "Flux technique", "Étape technique (extraction, transport…) qui réalise un flux applicatif ; parcours d'une donnée"),
         new(FileShare, "Partage de fichiers", "Lieu de stockage de fichiers ; parcours d'une donnée, registre des données personnelles"),
         new(Workstation, "Profil de poste", "Poste type d'une population ; accès utilisateurs, comptage des postes de la CMDB"),
+        new(ValueStream, "Chaîne de valeur", "Vue par chaîne de valeur ; ses étapes sont les chaînes qu'elle compose"),
+        new(Process, "Processus", "Vue par processus ; ses étapes sont les processus qu'il compose"),
+        new(Who, "Qui", "Ligne « Qui » d'un processus : acteur ou rôle métier"),
     };
 
     public static readonly IReadOnlyList<RoleInfo> ForRelationships = new RoleInfo[]
     {
         new(Flow, "Flux", "Espace Flux, pastille sur les vues, matrice émetteurs × récepteurs"),
-        new(Decomposition, "Décomposition", "Arbre des capacités (le parent est la source)"),
+        new(Decomposition, "Décomposition", "Arbre des capacités, étapes d'une chaîne ou d'un processus (le parent est la source)"),
+        new(Sequence, "Enchaînement", "Ordre des étapes d'une chaîne ou d'un processus (entre deux objets de rôle chaîne de valeur ou processus)"),
     };
+
+    /// <summary>
+    /// Rôles de la vue par chaîne de valeur et par processus (EV-06, revue de coût de Colbert §1), posés d'après le concept
+    /// transcodé et non d'après la clé du type : un métamodèle aux clés renommées les reçoit aussi. Un rôle déjà porté par un
+    /// type n'est pas redistribué : un réglage fait à la main est respecté. Renvoie le nombre de rôles posés.
+    /// </summary>
+    public static int EnsureProcessRoles(Metamodel m)
+    {
+        var added = 0;
+        void Objects(string role, params string[] concepts)
+        {
+            if (m.ObjectTypes.Any(t => t.Roles.Contains(role))) return;
+            var keys = m.Transcoding.Elements.Where(r => concepts.Contains(r.ArchimateType) && !r.Conditional).Select(r => r.TypeKey).ToHashSet();
+            foreach (var t in m.ObjectTypes.Where(t => keys.Contains(t.Key))) { t.Roles.Add(role); added++; }
+        }
+        Objects(ValueStream, "ValueStream");
+        Objects(Process, "BusinessProcess");
+        Objects(Who, "BusinessActor", "BusinessRole");
+        if (!m.RelationshipTypes.Any(t => t.Roles.Contains(Sequence)))
+        {
+            var keys = m.Transcoding.Relations.Where(r => r.ArchimateType is "Flow" or "Triggering").Select(r => r.TypeKey).ToHashSet();
+            foreach (var t in m.RelationshipTypes.Where(t => keys.Contains(t.Key))) { t.Roles.Add(Sequence); added++; }
+        }
+        return added;
+    }
 
     public static bool IsObjectRole(string key) => ForObjects.Any(r => r.Key == key);
     public static bool IsRelationshipRole(string key) => ForRelationships.Any(r => r.Key == key);

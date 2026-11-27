@@ -139,7 +139,7 @@ public static class MetamodelApiTests
             Equal(HttpStatusCode.OK, Send(server, HttpMethod.Put, "/api/metamodel/layers", Enumerable.Reverse(layers)).Status, "réordonnancement");
             Equal("autre", server.GetJson("/api/metamodel").GetProperty("layers")[0].GetProperty("key").GetString(), "nouvel ordre");
             var catalog = server.GetJson("/api/metamodel/catalog");
-            Equal((10, 2), (catalog.GetProperty("objectRoles").GetArrayLength(), catalog.GetProperty("relationshipRoles").GetArrayLength()), "rôles");
+            Equal((13, 3), (catalog.GetProperty("objectRoles").GetArrayLength(), catalog.GetProperty("relationshipRoles").GetArrayLength()), "rôles");
             True(catalog.GetProperty("archimate").GetProperty("elements").GetArrayLength() > 50, "concepts d'éléments");
             Equal(5, catalog.GetProperty("dataTypes").GetArrayLength(), "types de données");
             var template = catalog.GetProperty("templateObjectTypeKeys").EnumerateArray().Select(k => k.GetString()).ToList();
