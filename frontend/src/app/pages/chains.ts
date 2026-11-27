@@ -5,15 +5,14 @@ import { Api, Brief } from '../api';
 import { Session } from '../session';
 import { ObjectSearch } from '../object-search';
 import { ScopeNote } from '../scope-note';
-import { LAYER_LABELS, NO_LAYER, OFF_CHAIN, type StepItem, type CellLine, cellLine, chainQuery, choosableLayers, domainQuery, emptyText, hueOf, layerQuery, moreDirectText, objectQuery, offMark, openChain, SHOWN_DIRECT, stepsByChain, tabMark, touchedSummary, viaText } from '../chains-reading';
+import { LAYER_LABELS, NO_LAYER, OFF_CHAIN, type StepItem, type CellLine, carriesImpact, cellLine, chainQuery, choosableLayers, domainQuery, emptyText, hueOf, layerQuery, moreDirectText, objectQuery, offMark, openChain, SHOWN_DIRECT, stepsByChain, tabMark, touchedSummary, viaText } from '../chains-reading';
 
 interface Column { id: string; name: string; kind: string; capabilities: StepItem[]; layers: Record<string, StepItem[]>; }
 interface Chain { id: string; name: string; hasSteps: boolean; ordered: boolean; columns: Column[]; whole: Column | null; }
-interface ProcessView { id: string; name: string; ordered: boolean; columns: Column[]; }
 interface OffChain { id: string; name: string; nature: string | null; topCapability: string | null; }
 interface Grid {
   serversAvailable: boolean; natureKnown: boolean; layers: string[]; domains: { id: string; name: string }[];
-  domainOf: Record<string, string>; chains: Chain[]; processes: ProcessView[]; offChain: OffChain[];
+  domainOf: Record<string, string>; chains: Chain[]; offChain: OffChain[];
 }
 interface Touched { chainId: string; columnId: string; via: StepItem[]; }
 interface Impact { object: Brief; layer: string | null; steps: Touched[]; offChain: string[]; }
@@ -96,18 +95,18 @@ interface Impact { object: Brief; layer: string | null; steps: Touched[]; offCha
                       @if (c.hasSteps) {
                         <div class="chevron-wrap" [class.chevron]="c.ordered">
                           <button type="button" class="step" [id]="'etape-' + s.id" [class.chevron]="c.ordered" [class.card-step]="!c.ordered" (click)="openPanel(c.id, s.id)">
-                            {{ s.name }}@if (isTouched(c.id, s.id)) { <span class="touched">● touchée</span> }
+                            {{ s.name }}@if (touch(c.id, s.id); as t) { <span class="touched">● touchée</span>@if (t.via.length) { <span class="touched-via">via {{ names(t.via) }}</span> } }
                           </button>
                         </div>
                       } @else {
                         <button type="button" class="step card-step cap-step" [id]="'etape-' + s.id" [class.faded]="faded(s.id)"
                           [style.--fond]="fond(s.id)" [style.--trait]="trait(s.id)" [style.--texte]="texte(s.id)" (click)="openPanel(c.id, s.id)">
-                          {{ s.name }}@if (isTouched(c.id, s.id)) { <span class="touched">● touchée</span> }
+                          {{ s.name }}@if (touch(c.id, s.id); as t) { <span class="touched">● touchée</span>@if (t.via.length) { <span class="touched-via">via {{ names(t.via) }}</span> } }
                         </button>
                       }
                     </th>
                   }
-                  @if (c.whole) { <th scope="col" class="whole" [class.hit]="isTouched(c.id, c.whole.id)"><button type="button" class="step card-step dashed" [id]="'etape-' + c.whole.id" (click)="openPanel(c.id, c.whole.id)">Toute la chaîne@if (isTouched(c.id, c.whole.id)) { <span class="touched">● touchée</span> }</button></th> }
+                  @if (c.whole) { <th scope="col" class="whole" [class.hit]="isTouched(c.id, c.whole.id)"><button type="button" class="step card-step dashed" [id]="'etape-' + c.whole.id" (click)="openPanel(c.id, c.whole.id)">Toute la chaîne@if (touch(c.id, c.whole.id); as t) { <span class="touched">● touchée</span>@if (t.via.length) { <span class="touched-via">via {{ names(t.via) }}</span> } }</button></th> }
                 </tr>
               </thead>
               <tbody>
@@ -116,15 +115,6 @@ interface Impact { object: Brief; layer: string | null; steps: Touched[]; offCha
                     <th scope="row">Capacités</th>
                     @for (s of columnsOf(c); track s.id) {
                       <td [class.whole]="s.kind === 'toute'"><ng-container *ngTemplateOutlet="capsTpl; context: { $implicit: s }" /></td>
-                    }
-                  </tr>
-                }
-                @if (impact()?.layer) {
-                  <tr class="touch-row"><th scope="row">Touchée par</th>
-                    @for (s of columnsOf(c); track s.id) {
-                      <td [class.hit]="isTouched(c.id, s.id)" [class.whole]="s.kind === 'toute'">
-                        @if (touch(c.id, s.id); as t) { touchée {{ t.via.length ? 'via ' + names(t.via) : '' }} } @else { — }
-                      </td>
                     }
                   </tr>
                 }
@@ -146,12 +136,9 @@ interface Impact { object: Brief; layer: string | null; steps: Touched[]; offCha
             @for (s of columnsOf(c); track s.id; let last = $last) {
               <div class="ncard" [class.hit]="isTouched(c.id, s.id)" [class.whole]="s.kind === 'toute'">
                 <button type="button" class="step card-step" [class.dashed]="s.kind === 'toute'" (click)="openPanel(c.id, s.id)">
-                  {{ s.kind === 'toute' ? 'Toute la chaîne' : s.name }}@if (isTouched(c.id, s.id)) { <span class="touched">● touchée</span> }
+                  {{ s.kind === 'toute' ? 'Toute la chaîne' : s.name }}@if (touch(c.id, s.id); as t) { <span class="touched">● touchée</span>@if (t.via.length) { <span class="touched-via">via {{ names(t.via) }}</span> } }
                 </button>
                 @if (c.hasSteps) { <ng-container *ngTemplateOutlet="capsTpl; context: { $implicit: s }" /> }
-                @if (impact()?.layer) {
-                  <p class="small">Touchée par : @if (touch(c.id, s.id); as t) { touchée {{ t.via.length ? 'via ' + names(t.via) : '' }} } @else { — }</p>
-                }
                 @if (layer() !== NONE) {
                   <div class="nlabel">{{ label(layer()) }}</div>
                   <ng-container *ngTemplateOutlet="lineTpl; context: { $implicit: s }" />
@@ -176,7 +163,7 @@ interface Impact { object: Brief; layer: string | null; steps: Touched[]; offCha
                   <dt>{{ label(l) }}</dt>
                   <dd>
                     @for (i of col.layers[l]; track i.id + (i.via ?? '')) {
-                      <span class="pitem"><a [routerLink]="['/objets', i.id]">{{ i.name }}</a>@if (via(i); as v) { <span class="via"> ({{ v }})</span> }@if (l === 'applications' || l === 'serveurs') { · <a routerLink="/impact" [queryParams]="{ objet: i.id }">Analyser l'impact</a> }</span>
+                      <span class="pitem"><a [routerLink]="[l === 'processus' ? '/processus' : '/objets', i.id]">{{ i.name }}</a>@if (via(i); as v) { <span class="via"> ({{ v }})</span> }@if (l === 'applications' || l === 'serveurs') { · <a routerLink="/impact" [queryParams]="{ objet: i.id }">Analyser l'impact</a> }</span>
                     } @empty { <span class="gap">{{ emptyOf(l) }}</span> }
                   </dd>
                 }
@@ -189,45 +176,15 @@ interface Impact { object: Brief; layer: string | null; steps: Touched[]; offCha
           <header><h2>{{ g.offChain.length }} processus hors de toute chaîne</h2></header>
           @if (g.natureKnown) {
             <h4>Pilotage et support : hors chaîne par nature</h4>
-            <ul>@for (p of offSupport(); track p.id) { <li [class.hit]="touchedOff().includes(p.id)"><a [routerLink]="['/objets', p.id]">{{ p.name }}</a> <span class="via">{{ p.topCapability }}</span></li> }</ul>
+            <ul>@for (p of offSupport(); track p.id) { <li [class.hit]="touchedOff().includes(p.id)"><a [routerLink]="['/processus', p.id]">{{ p.name }}</a> <span class="via">{{ p.topCapability }}</span></li> }</ul>
             <h4>Rattachés à aucune chaîne</h4>
-            <ul>@for (p of offOther(); track p.id) { <li [class.hit]="touchedOff().includes(p.id)"><a [routerLink]="['/objets', p.id]">{{ p.name }}</a> <span class="via">{{ p.topCapability }}</span> · <a [routerLink]="['/objets', p.id]">Rattacher</a></li> }</ul>
+            <ul>@for (p of offOther(); track p.id) { <li [class.hit]="touchedOff().includes(p.id)"><a [routerLink]="['/processus', p.id]">{{ p.name }}</a> <span class="via">{{ p.topCapability }}</span> · <a [routerLink]="['/objets', p.id]">Rattacher</a></li> }</ul>
           } @else {
-            <ul>@for (p of g.offChain; track p.id) { <li [class.hit]="touchedOff().includes(p.id)"><a [routerLink]="['/objets', p.id]">{{ p.name }}</a>@if (p.topCapability) { <span class="via">{{ p.topCapability }}</span> }@if (touchedOff().includes(p.id)) { <b> ● touché</b> }</li> }</ul>
+            <ul>@for (p of g.offChain; track p.id) { <li [class.hit]="touchedOff().includes(p.id)"><a [routerLink]="['/processus', p.id]">{{ p.name }}</a>@if (p.topCapability) { <span class="via">{{ p.topCapability }}</span> }@if (touchedOff().includes(p.id)) { <b> ● touché</b> }</li> }</ul>
           }
         </section>
       }
 
-      @if (g.processes.length) {
-        <h2>Processus par étapes</h2>
-        @for (p of g.processes; track p.id) {
-          <section class="chain card">
-            <header><h3>{{ p.name }}</h3>@if (!p.ordered) { <span class="muted small" title="L'ordre affiché n'est pas un enchaînement">Ordre incomplet ⓘ</span> }</header>
-            <div class="scroll-x">
-              <table>
-                <thead><tr><th scope="col" class="corner"></th>
-                  @for (s of p.columns; track s.id; let last = $last) {
-                    <th scope="col"><span class="step" [class.chevron]="p.ordered">{{ s.name }}</span>@if (p.ordered && !last) { <span class="sr"> puis</span> }</th>
-                  }
-                </tr></thead>
-                <tbody>
-                  @for (l of ['qui', 'donnees', 'applications']; track l) {
-                    <tr><th scope="row">{{ label(l) }}</th>
-                      @for (s of p.columns; track s.id) {
-                        <td>
-                          @for (i of s.layers[l]; track i.id + (i.via ?? '')) {
-                            <div class="item"><a [routerLink]="['/objets', i.id]">{{ i.name }}</a>@if (via(i); as v) { <span class="via">{{ l === 'donnees' ? (i.via === 'écrit' ? '✎ ' : '◉ ') + v : v }}</span> }</div>
-                          } @empty { <span class="gap">Rien de connu</span> }
-                        </td>
-                      }
-                    </tr>
-                  }
-                </tbody>
-              </table>
-            </div>
-          </section>
-        }
-      }
     } @else if (!error()) {
       <div aria-busy="true" aria-label="Chargement des chaînes">
         <section class="chain card skeleton"><div class="bar title"></div><div class="row-bars">@for (b of [1, 2, 3, 4]; track b) { <div class="bar"></div> }</div><div class="row-bars">@for (b of [1, 2, 3, 4]; track b) { <div class="bar tall"></div> }</div></section>
@@ -243,20 +200,30 @@ interface Impact { object: Brief; layer: string | null; steps: Touched[]; offCha
       </ul>
     </ng-template>
 
+    <!-- Un nom de la ligne : un processus ouvre son écran (§4.5) ; tout autre objet est désigné, par l'adresse (lien et non
+         bouton : le « · » reste collé au nom). Le porteur de l'impact est encadré (§4.3). -->
+    <ng-template #nameTpl let-i let-s="col">
+      @if (layer() === 'processus') {
+        <a class="name" [class.faded]="faded(i.capability)" [routerLink]="['/processus', i.id]">{{ i.name }}</a>
+      } @else {
+        <a class="name" [class.faded]="faded(i.capability)" [class.carrier]="carries(s.id, i.id)" [routerLink]="[]" [queryParams]="designation(i.id)" queryParamsHandling="merge" [replaceUrl]="true">{{ i.name }}</a>
+      }
+    </ng-template>
+
     <!-- Ligne d'une couche sous une étape : noms dédoublonnés séparés par « · », directs d'abord, indirects regroupés (§4.2). -->
     <ng-template #lineTpl let-s>
       @let line = lineOf(s);
       @if (line.direct.length || line.indirect.length) {
         <p class="line">
           @for (i of directShown(s.id, line.direct); track i.id; let last = $last) {
-            <a class="name" [class.faded]="faded(i.capability)" [class.chosen-item]="impact()?.object?.id === i.id" [routerLink]="[]" [queryParams]="designation(i.id)" queryParamsHandling="merge" [replaceUrl]="true">{{ i.name }}</a>@if (!last) { <span class="via">&nbsp;· </span> }
+            <ng-container *ngTemplateOutlet="nameTpl; context: { $implicit: i, col: s }" />@if (!last) { <span class="via">&nbsp;· </span> }
           }
           @if (moreDirect(s.id, line.direct.length); as m) { <button type="button" class="link small" (click)="expand(s.id, 'direct')">{{ m }}</button> }
           @for (gr of line.indirect; track gr.kind) {
             @if (isExpanded(s.id, gr.kind)) {
               <span class="ind"><span class="via">{{ gr.label }}&nbsp;: </span>
                 @for (i of gr.items; track i.id; let last = $last) {
-                  <a class="name" [class.faded]="faded(i.capability)" [class.chosen-item]="impact()?.object?.id === i.id" [routerLink]="[]" [queryParams]="designation(i.id)" queryParamsHandling="merge" [replaceUrl]="true">{{ i.name }}</a>@if (!last) { <span class="via">&nbsp;· </span> }
+                  <ng-container *ngTemplateOutlet="nameTpl; context: { $implicit: i, col: s }" />@if (!last) { <span class="via">&nbsp;· </span> }
                 }
               </span>
             } @else {
@@ -316,7 +283,7 @@ interface Impact { object: Brief; layer: string | null; steps: Touched[]; offCha
     .touched, .tabs .mark { display: block; font-size: 11.5px; font-weight: 600; }
     td.whole, th.whole { border-left: 1px solid var(--line); padding-left: 6px; }
     td.hit { box-shadow: inset 3px 0 0 var(--accent); background: #f2f8fa; padding-left: 9px; }
-    .touch-row td { font-size: 12.5px; color: var(--ink); padding: 2px 6px; }
+    .touched-via { display: block; font-size: 11.5px; font-weight: 400; }
     .caps { list-style: none; margin: 0; padding: 2px 0 0; font-size: 12.5px; font-weight: 600; }
     .caps li { display: flex; gap: 6px; align-items: baseline; margin-bottom: 3px; }
     .faded { opacity: 0.35; }
@@ -327,9 +294,8 @@ interface Impact { object: Brief; layer: string | null; steps: Touched[]; offCha
     .line .name { color: var(--ink); font-weight: 600; text-decoration: none; }
     .line .name:hover { text-decoration: underline; }
     .tabs .mark { color: var(--accent); }
-    .line .name.chosen-item { outline: 2px solid var(--signal, #f2b705); }
+    .line .name.carrier { font-weight: 700; border: 1.5px solid var(--accent); border-radius: 3px; padding: 0 3px; }
     .line .more, .line .ind { display: block; }
-    .item { background: #fff; border: 1px solid #0000001a; border-radius: 5px; padding: 3px 6px; margin-top: 3px; font-size: 12.5px; }
     .via { display: block; color: var(--muted); font-size: 11.5px; font-weight: 400; }
     .line .via { display: inline; }
     .gap { color: var(--muted); font-size: 12.5px; }
@@ -493,5 +459,10 @@ export class ChainsPage {
   designate(id: string | null): void { this.panel.set(null); this.go(objectQuery(id)); }
   /** Clic sur un nom de la ligne : il désigne l'objet, par l'adresse (lien et non bouton : le « · » reste collé au nom). */
   designation = objectQuery;
+  /** Le nom porte-t-il l'impact sous cette étape : l'objet désigné lui-même, ou un maillon de son chemin (§4.3). */
+  carries(columnId: string, itemId: string): boolean {
+    const im = this.impact();
+    return !!im && carriesImpact(itemId, im.object.id, this.touch(this.open() ?? '', columnId)?.via ?? []);
+  }
   setDomain(id: string): void { this.go(domainQuery(this.domain(), id)); }
 }

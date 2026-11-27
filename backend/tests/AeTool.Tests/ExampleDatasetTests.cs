@@ -75,6 +75,24 @@ public static class ExampleDatasetTests
             var localiser = dict.Columns.Single(c => c.Name == "Localiser les réseaux concernés").Layers[StepGrid.Applications];
             Equal("ATLAS SIG", string.Join(",", localiser.Select(a => a.Name)), "ATLAS SIG, directement (le service mène à la même application)");
         });
+        Test("jeu Hydréane, EV-06 : un processus sur son écran, ses étapes ou une colonne, et où il se place (revue §4.5)", () =>
+        {
+            var g = new StepGrid(repo);
+            string Id(string name) => repo.ActiveObjects.Single(o => o.Name == name).Id;
+            string Places(ProcessDetail p) => string.Join(" ; ", p.Places.Select(x => $"{x.ParentName} › {x.ColumnName}" + (x.Via is null ? "" : $" via {x.Via}")));
+            var dict = g.Process(Id("Répondre à une déclaration de travaux"))!;
+            True(dict.HasSteps && dict.Columns.Count == 4, "DICT : ses 4 étapes");
+            Equal("", Places(dict), "DICT ne fait partie d'aucune chaîne");
+            True(dict.OffChain is not null, "DICT : hors chaîne");
+            var step = g.Process(Id("Rédiger la réponse"))!;
+            Equal("Répondre à une déclaration de travaux › Rédiger la réponse", Places(step), "une étape de processus dit son processus");
+            var fuite = g.Process(Id("Intervenir sur une fuite"))!;
+            True(!fuite.HasSteps && fuite.Columns.Count == 1 && fuite.Columns[0].Id == fuite.Id, "sans étapes : une seule colonne, le processus");
+            // CH10 (revue de Camille, à Haussman) : la capacité « Détecter et réparer les fuites » sert deux étapes, le processus
+            // remonte donc sous les deux. Le test changera avec la décision de Haussman.
+            Equal("De l'incident à la remise en service › Détecter ; De l'incident à la remise en service › Intervenir", Places(fuite), "places, CH10 compris");
+            True(g.Process(Id("ONDINE")) is null, "une application n'est pas un processus");
+        });
         Test("jeu Hydréane, EV-06 : 7 processus hors chaîne, avec leur capacité de premier niveau (C8)", () =>
         {
             var g = new StepGrid(repo);

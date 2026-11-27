@@ -137,3 +137,18 @@ export function moreDirectText(count: number): string | null {
 export function chainQuery(id: string | null): Record<string, string | null> {
   return { chaine: id };
 }
+
+/**
+ * Le nom porte-t-il l'impact sous une étape touchée (revue §4.3) : c'est l'objet désigné lui-même, ou un maillon du chemin
+ * par lequel il touche l'étape (l'application qu'un serveur héberge, par exemple). Il est alors encadré dans la ligne.
+ */
+export function carriesImpact(itemId: string, objectId: string, via: { id: string }[]): boolean {
+  return itemId === objectId || via.some((v) => v.id === itemId);
+}
+
+/** Phrase « Fait partie de » d'un processus sans place (maquette processus §5) : support, ou à rattacher. */
+export function noPlaceText(nature: string | null | undefined): { text: string; attach: boolean } {
+  return nature === 'support' || nature === 'pilotage'
+    ? { text: `Processus de ${nature} : ne fait partie d'aucune chaîne`, attach: false }
+    : { text: 'Fait partie de : aucune chaîne de valeur', attach: true };
+}

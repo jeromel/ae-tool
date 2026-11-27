@@ -26,6 +26,10 @@ public static class ChainEndpoints
             };
         }));
 
+        // Un processus sur son propre écran (revue de Camille §4.5) : ses étapes, ou une colonne, et où il se place.
+        api.MapGet("/processus/{id}", (Workspace ws, string id) => ws.Read((repo, _) =>
+            new StepGrid(repo).Process(id) is { } p ? Results.Ok(p) : Results.NotFound()));
+
         api.MapGet("/chaines/impact/{id}", (Workspace ws, string id) => ws.Read((repo, _) =>
         {
             if (!repo.Objects.TryGetValue(id, out var o) || o.Archived) return Results.NotFound();

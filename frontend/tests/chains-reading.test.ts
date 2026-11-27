@@ -1,7 +1,7 @@
 // Tests de chains-reading.ts (écran « Chaînes et processus », EV-06), hors navigateur.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { OFF_CHAIN, cellLine, chainQuery, choosableLayers, domainQuery, emptyText, hueOf, layerQuery, moreDirectText, objectQuery, offMark, openChain, stepsByChain, tabMark, touchedSummary, viaText } from '../src/app/chains-reading.ts';
+import { OFF_CHAIN, carriesImpact, noPlaceText, cellLine, chainQuery, choosableLayers, domainQuery, emptyText, hueOf, layerQuery, moreDirectText, objectQuery, offMark, openChain, stepsByChain, tabMark, touchedSummary, viaText } from '../src/app/chains-reading.ts';
 
 const I = (id: string, capability: string | null, via: string | null = null, viaKind: string | null = null) =>
   ({ id, name: id.toUpperCase(), typeLabel: 'Application', via, viaKind, viaId: null, capability });
@@ -92,4 +92,16 @@ test('§6 de la revue : une application arrivée par deux capacités de la même
   const line = cellLine([I('ondine', 'c1'), I('ondine', 'c2', 'Souscrire', 'processus'), I('mee', 'c1')], 'applications');
   assert.deepEqual(line.direct.map((i) => i.id), ['ondine', 'mee']);
   assert.equal(line.indirect.length, 0, 'déjà directe : pas répétée dans les indirects');
+});
+
+test('§4.3 : le porteur de l\'impact est l\'objet désigné ou un maillon de son chemin', () => {
+  const via = [{ id: 'ondine' }];
+  assert.equal(carriesImpact('ondine', 'vm-fact-01', via), true, 'ONDINE, hébergée par VM-FACT-01');
+  assert.equal(carriesImpact('laboqual', 'laboqual', []), true, 'l\'application désignée elle-même');
+  assert.equal(carriesImpact('secto', 'laboqual', []), false);
+});
+
+test('§4.5 : processus sans place, support ou à rattacher', () => {
+  assert.deepEqual(noPlaceText(null), { text: 'Fait partie de : aucune chaîne de valeur', attach: true });
+  assert.deepEqual(noPlaceText('support'), { text: 'Processus de support : ne fait partie d\'aucune chaîne', attach: false });
 });

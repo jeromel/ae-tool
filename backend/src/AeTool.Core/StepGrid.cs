@@ -16,6 +16,18 @@ public sealed record ChainView(string Id, string Name, bool HasSteps, bool Order
 /// <summary>Un processus découpé en étapes (niveau 2) : ses étapes en colonnes, lignes Qui, Données (avec le sens) et Applications.</summary>
 public sealed record ProcessView(string Id, string Name, bool Ordered, List<StepColumn> Columns);
 
+/// <summary>
+/// Où se place un processus : une étape de chaîne (<c>Via</c> : la sous-capacité par laquelle il y descend, null s'il y est
+/// directement), ou l'étape d'un processus parent (<c>Kind</c> = « processus », <c>ColumnId</c> = le processus lui-même).
+/// </summary>
+public sealed record ProcessPlace(string Kind, string ParentId, string ParentName, string ColumnId, string ColumnName, string? Via);
+
+/// <summary>
+/// Un processus sur son propre écran (revue de Camille du 27/11, §4.5 ; maquette `maquette-processus-chaine-valeur` §4) :
+/// ses étapes en colonnes, ou une seule colonne s'il n'est pas découpé ; où il se place ; hors chaîne et sa nature sinon.
+/// </summary>
+public sealed record ProcessDetail(string Id, string Name, bool HasSteps, bool Ordered, List<StepColumn> Columns, List<ProcessPlace> Places, OffChainProcess? OffChain);
+
 /// <summary>Processus hors de toute chaîne ; <c>Nature</c> : celle de sa capacité de premier niveau (`capacite.nature`).</summary>
 public sealed record OffChainProcess(string Id, string Name, string? Nature, string? TopCapability);
 
@@ -267,6 +279,22 @@ public sealed class StepGrid
             [Applications] = Sorted(apps.Values).ToList(),
         };
         return new StepColumn(step, Obj(step).Name, "etape", new List<StepItem>(), layers);
+    }
+
+    /// <summary>Un processus seul (§4.5) ; null si l'identifiant n'est pas un processus actif.</summary>
+    public ProcessDetail? Process(string id)
+    {
+        if (!Is(id, _processes)) return null;
+        var view = ProcessViews.SingleOrDefault(p => p.Id == id);
+        var columns = view?.Columns ?? new List<StepColumn> { ProcessColumn(id) };
+        var places = new List<ProcessPlace>();
+        foreach (var chain in Chains)
+            foreach (var col in chain.Whole is null ? chain.Columns : chain.Columns.Append(chain.Whole))
+                if (col.Layers[Processes].FirstOrDefault(i => i.Id == id) is { } hit)
+                    places.Add(new ProcessPlace("chaine", chain.Id, chain.Name, col.Id, col.Name, hit.Via));
+        foreach (var parent in ProcessViews.Where(p => p.Columns.Any(c => c.Id == id)))
+            places.Add(new ProcessPlace(Processes, parent.Id, parent.Name, id, Obj(id).Name, null));
+        return new ProcessDetail(id, Obj(id).Name, view is not null, view?.Ordered ?? true, columns, places, OffChain.SingleOrDefault(p => p.Id == id));
     }
 
     private bool IsAccess(Relationship r) => _m.Transcoding.Relations.Any(t => t.TypeKey == r.TypeKey && t.ArchimateType == "Access");

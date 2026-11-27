@@ -44,6 +44,7 @@ import { decisionTone } from '../decision-tone';
         @if (canEdit() && !editing() && !confirmArchive()) { <button type="button" (click)="editing.set(true)">Modifier</button> }
         <a class="btn ghost" [routerLink]="['/parcours', d.brief.id]">Voir le parcours</a>
         <a class="btn ghost" routerLink="/impact" [queryParams]="{ objet: d.brief.id }">Analyser l'impact</a>
+        @if (isProcess(d.brief.typeKey)) { <a class="btn ghost" [routerLink]="['/processus', d.brief.id]">Voir les étapes</a> }
         @if (d.hasAssessment) { <a class="btn ghost" [routerLink]="['/portefeuille', d.brief.id]">Voir la notation</a> }
         @if (canEdit() && !editing() && !confirmArchive() && d.object.source !== 'archi') {
           <button type="button" class="ghost right" (click)="confirmArchive.set(true)">Archiver</button>
@@ -164,6 +165,10 @@ export class ObjectPage {
   id = input.required<string>();
   d = signal<any>(null);
   meta = signal<any>(null);
+  /** Un processus a son écran d'étapes (EV-06, revue de Camille §4.5). */
+  isProcess(typeKey: string): boolean {
+    return !!(this.meta()?.objectTypes as any[] | undefined)?.find((t) => t.key === typeKey)?.roles.includes('processus');
+  }
   editing = signal(false);
   confirmArchive = signal(false);
   notice = signal('');

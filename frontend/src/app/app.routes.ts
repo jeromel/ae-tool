@@ -65,6 +65,7 @@ const protectedRoutes: Routes = [
   // Explorer : un espace par couche du système d'information.
   { path: 'capacites', component: CapabilitiesPage },
   { path: 'chaines', loadComponent: () => import('./pages/chains').then((m) => m.ChainsPage) },
+  { path: 'processus/:id', loadComponent: () => import('./pages/process').then((m) => m.ProcessPage) },
   { path: 'applications', component: ListSpacePage, data: { config: APPLICATIONS } },
   { path: 'flux', component: ListSpacePage, data: { config: FLOWS } },
   { path: 'donnees', component: ListSpacePage, data: { config: DATA } },
