@@ -243,6 +243,17 @@ public static class ScopeTests
             True(!Text(lea.Get("/api/spaces/infrastructure")).Contains("VM-FACT-01"), "lea : espace Infrastructure vide");
         });
 
+        Test("périmètre, EV-06 : chaînes et processus sans couche serveurs ni impact de serveur pour le lecteur « métier » (C9)", () =>
+        {
+            var full = Text(tom.Get("/api/chaines"));
+            // Text() ne garde que les chaînes du JSON : la couche se lit à son nom, « serveurs ».
+            True(full.Contains("serveurs") && full.Contains("VM-FACT-01"), "tom : couche serveurs et ses noms");
+            var business = Text(lea.Get("/api/chaines"));
+            True(!business.Contains("serveurs") && !business.Contains("VM-FACT-01"), "lea : ni couche serveurs ni serveur");
+            Equal(HttpStatusCode.NotFound, lea.Get("/api/chaines/impact/" + vm).StatusCode, "lea : impact d'un serveur introuvable");
+            True(Text(tom.Get("/api/chaines/impact/" + vm)).Contains("serveurs"), "tom : impact du serveur");
+        });
+
         Test("périmètre : scénarios, trajectoires et exports complets fermés ; l'export d'une vue reste ouvert et filtré", () =>
         {
             foreach (var p in new[] { "/api/trajectoires/etats", "/api/export/archimate", "/api/export/objects.csv", "/api/projects/x/scenarios", "/api/import/reports" })

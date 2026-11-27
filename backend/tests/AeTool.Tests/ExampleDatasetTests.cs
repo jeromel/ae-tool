@@ -25,6 +25,71 @@ public static class ExampleDatasetTests
             Equal(58, repo.ActiveDiagrams.Count(), "vues");
             Equal(0, repo.Objects.Values.Count(o => o.TypeKey == "autre"), "objets non classés");
         });
+        Test("jeu Hydréane, EV-06 : chaînes par étapes, ordre, colonne « Toute la chaîne », chaîne sans étapes (C1, C2)", () =>
+        {
+            var g = new StepGrid(repo);
+            var facture = g.Chains.Single(c => c.Name == "Du raccordement à la facture");
+            True(facture.HasSteps && facture.Ordered, "étapes ordonnées");
+            Equal("Souscrire,Relever,Facturer,Encaisser", string.Join(",", facture.Columns.Select(c => c.Name)), "C1 : ordre du modèle");
+            Equal("Accueillir et informer les usagers", string.Join(",", facture.Whole!.Capabilities.Select(c => c.Name)), "C1 : sert toute la chaîne");
+            var eaux = g.Chains.Single(c => c.Name == "De l'eau usée au milieu naturel");
+            True(!eaux.HasSteps && !eaux.Ordered && eaux.Whole is null, "C2 : étapes non renseignées, aucun ordre");
+            True(eaux.Columns.All(c => c.Kind == "capacite"), "C2 : colonnes = capacités");
+            var incident = g.Chains.Single(c => c.Name == "De l'incident à la remise en service");
+            var fuites = incident.Columns.Where(c => c.Capabilities.Any(x => x.Name == "Détecter et réparer les fuites")).Select(c => c.Name);
+            Equal("Détecter,Intervenir", string.Join(",", fuites), "une capacité sur deux étapes apparaît sous chacune");
+        });
+        Test("jeu Hydréane, EV-06 : couches applications et processus, descente dans les sous-capacités (C3, C4)", () =>
+        {
+            var facture = new StepGrid(repo).Chains.Single(c => c.Name == "Du raccordement à la facture");
+            string Apps(string step) => string.Join(",", facture.Columns.Single(c => c.Name == step).Layers[StepGrid.Applications].Select(a => a.Name));
+            True(Apps("Souscrire").Split(',').Contains("ONDINE") && Apps("Facturer").Split(',').Contains("ONDINE"), "C3 : ONDINE sous Souscrire et Facturer");
+            True(Apps("Relever").Split(',').Contains("CAPTA"), "C3 : CAPTA sous Relever");
+            True(Apps("Encaisser").Split(',').Contains("RECOUVR"), "C3 : RECOUVR sous Encaisser");
+            var relever = facture.Columns.Single(c => c.Name == "Relever").Layers[StepGrid.Processes].Single(p => p.Name == "Relever les compteurs");
+            Equal(("Relever les compteurs", "capacite"), (relever.Via!, relever.ViaKind!), "C4 : par la sous-capacité homonyme");
+        });
+        Test("jeu Hydréane, EV-06 : étapes touchées par un serveur et par un projet, avec le chemin (C5, C6)", () =>
+        {
+            var g = new StepGrid(repo);
+            var facture = g.Chains.Single(c => c.Name == "Du raccordement à la facture");
+            string Read(List<TouchedStep> t) => string.Join(" ; ", t.Where(x => x.ChainId == facture.Id)
+                .Select(x => facture.Columns.Single(c => c.Id == x.ColumnId).Name + " via " + string.Join(",", x.Via.Select(v => v.Name))));
+            var vm = repo.ActiveObjects.Single(o => o.Name == "VM-FACT-01").Id;
+            Equal(StepGrid.Servers, g.ImpactLayer(vm), "un serveur se lit dans la couche serveurs");
+            Equal("Souscrire via ONDINE ; Facturer via Ancienne facturation (consultation),ONDINE ; Encaisser via RECOUVR", Read(g.Touched(vm)), "C5");
+            Equal(1, g.Touched(vm).Select(t => t.ChainId).Distinct().Count(), "une seule chaîne touchée");
+            var projet = repo.ActiveObjects.Single(o => o.Name == "2027-Facturation en SaaS").Id;
+            Equal("Souscrire via Gérer les contrats d'abonnement ; Facturer via Facturer les consommations ; Encaisser via Encaisser et recouvrer", Read(g.Touched(projet)), "C6");
+            Equal(0, g.Touched(repo.ActiveObjects.First(o => o.Name == "Facture").Id).Count, "une donnée n'a pas d'impact par étape dans cette livraison");
+        });
+        Test("jeu Hydréane, EV-06 : processus DICT en quatre étapes, qui, données avec le sens, applications (C7)", () =>
+        {
+            var dict = new StepGrid(repo).ProcessViews.Single(p => p.Name == "Répondre à une déclaration de travaux");
+            True(dict.Ordered, "ordre par déclenchement");
+            Equal("Recevoir la déclaration,Localiser les réseaux concernés,Rédiger la réponse,Envoyer la réponse", string.Join(",", dict.Columns.Select(c => c.Name)), "4 étapes");
+            var rediger = dict.Columns.Single(c => c.Name == "Rédiger la réponse");
+            Equal("Chef de projet travaux", string.Join(",", rediger.Layers[StepGrid.Who].Select(w => w.Name)), "qui");
+            Equal("Réponse à la déclaration de travaux (écrit),Tronçon de canalisation (lu)", string.Join(",", rediger.Layers[StepGrid.Data].Select(d => $"{d.Name} ({d.Via})")), "C7 : réponse écrite à l'étape Rédiger");
+            Equal("DICT Express", string.Join(",", rediger.Layers[StepGrid.Applications].Select(a => a.Name)), "application");
+            var localiser = dict.Columns.Single(c => c.Name == "Localiser les réseaux concernés").Layers[StepGrid.Applications];
+            Equal("ATLAS SIG", string.Join(",", localiser.Select(a => a.Name)), "ATLAS SIG, directement (le service mène à la même application)");
+        });
+        Test("jeu Hydréane, EV-06 : 7 processus hors chaîne, avec leur capacité de premier niveau (C8)", () =>
+        {
+            var g = new StepGrid(repo);
+            Equal(7, g.OffChain.Count, "hors chaîne, après descente");
+            Equal(4, g.OffChain.Count(p => p.TopCapability == "Gérer les ressources"), "support");
+            Equal(3, g.OffChain.Count(p => p.TopCapability == "Gérer le patrimoine et les travaux"), "patrimoine");
+            True(!g.NatureKnown && g.OffChain.All(p => p.Nature is null), "capacite.nature pas encore posée : une seule liste");
+            True(g.OffChain.All(p => !p.Name.StartsWith("Recevoir") && !p.Name.StartsWith("Rédiger")), "une étape de processus n'est pas hors chaîne");
+        });
+        Test("jeu Hydréane, EV-06 : lecteur « métier », pas de couche serveurs ni d'impact de serveur (C9)", () =>
+        {
+            var g = new StepGrid(ReadScope.Project(repo));
+            True(!g.ServersAvailable, "couche serveurs absente");
+            True(g.Chains.SelectMany(c => c.Columns).All(c => !c.Layers.ContainsKey(StepGrid.Servers)), "aucune cellule serveurs");
+        });
         Test("jeu Hydréane : rejeu du modèle sans écart", () =>
         {
             using var s = File.OpenRead(Path.Combine(dir, "hydreane-referentiel.xml"));

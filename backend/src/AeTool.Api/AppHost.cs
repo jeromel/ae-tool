@@ -53,6 +53,7 @@ public static class AppHost
         ObjectEndpoints.Map(api);
         EditingEndpoints.Map(api);
         ValidationEndpoints.Map(api);
+        ChainEndpoints.Map(api);
         ViewEndpoints.Map(api);
         AnalysisEndpoints.Map(api);
         SpaceEndpoints.Map(api);
