@@ -4,6 +4,8 @@ namespace AeTool.Core;
 /// « Une donnée a un seul maître. » Le nom, la description et les propriétés d'un objet venu d'Archi se modifient dans Archi ;
 /// une propriété alimentée par une source externe se modifie dans cette source. L'outil refuse d'y toucher : le prochain
 /// import écraserait la modification sans prévenir. L'écran grise ces champs ; cette règle est celle qui fait foi.
+/// Le maître se juge objet par objet (décision 014) : une propriété déclarée par Archi n'est maîtrisée par Archi que sur un
+/// objet venu d'Archi. Sur un objet créé ici, Archi n'a aucune valeur : l'outil fait foi.
 /// </summary>
 public static class Mastery
 {
@@ -19,6 +21,7 @@ public static class Mastery
         var source = metamodel.Property(key) is { } def
             ? (string.IsNullOrEmpty(def.Source) ? "saisie" : def.Source)
             : (o.Source == Archi ? Archi : null);
+        if (source == Archi && o.Source != Archi) return null;
         return source is null || Editable.Contains(source) ? null : source;
     }
 

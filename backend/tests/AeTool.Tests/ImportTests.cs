@@ -72,6 +72,42 @@ public static class ImportTests
             ArchimateExchange.Import(Fixtures.Stream(Fixtures.Model(appName: "ITSM bis")), repo);
             Equal("APP-001", repo.Objects["id-itsm"].Get("urba:ID")); Equal("#ff0000", repo.Objects["id-itsm"].VisualOverride!.Fill);
         });
+        // Décision 014 : un objet revenu d'Archi devient un objet d'Archi ; Archi gagne, et le compte rendu le montre.
+        Test("décision 014 : un objet créé ici qui revient d'Archi bascule ; nom verrouillé, valeur effacée signalée, archivé s'il disparaît", () =>
+        {
+            var repo = Imported(out _);
+            var created = new ArchObject { Id = "id-new", Name = "Nouvelle appli", TypeKey = "application", Source = "saisie" };
+            repo.Objects[created.Id] = created;
+            Equal("archi", repo.Metamodel.Property("pos.order")?.Source, "pos.order est déclarée par Archi");
+            True(Mastery.MasterOfProperty(repo.Metamodel, created, "pos.order") is null, "pos.order se saisit sur l'objet créé ici");
+            created.Set("pos.order", "3");
+            var back = Fixtures.Model().Replace("</elements>",
+                "<element identifier=\"id-new\" xsi:type=\"ApplicationComponent\"><name xml:lang=\"fr\">Nouvelle appli</name></element></elements>");
+            var report = ArchimateExchange.Import(Fixtures.Stream(back), repo);
+            Equal("archi", created.Source, "source après le retour");
+            Equal(1, Mastery.Violations(repo.Metamodel, created, "Autre nom", null, null).Count, "nom verrouillé ici");
+            var line = report.Overwrites.SingleOrDefault(o => o.ObjectId == "id-new" && o.Property == "pos.order");
+            True(line is { Before: "3", After: null }, "valeur saisie effacée au premier retour : une ligne");
+            True(report.Notes.Any(n => n.Contains("revenu") && n.Contains("Nouvelle appli")), "le retour est annoncé");
+            ArchimateExchange.Import(Fixtures.Stream(Fixtures.Model()), repo);
+            True(created.Archived, "absent du fichier suivant : archivé");
+        });
+        Test("décision 014 : une valeur saisie ici qu'Archi porte est écrasée avec une ligne au compte rendu ; Archi qui change sa donnée n'en a pas", () =>
+        {
+            var repo = Imported(out _);
+            repo.Metamodel.EnsureProperty("org.owner", source: "saisie");
+            repo.Objects["id-itsm"].Set("org.owner", "DSI");
+            var xml = Fixtures.Model()
+                .Replace("</propertyDefinitions>", "<propertyDefinition identifier=\"propid-9\" type=\"string\"><name>org.owner</name></propertyDefinition></propertyDefinitions>")
+                .Replace("<value xml:lang=\"fr\">Active</value></property>",
+                    "<value xml:lang=\"fr\">Retirée</value></property><property propertyDefinitionRef=\"propid-9\"><value xml:lang=\"fr\">Métier</value></property>");
+            var report = ArchimateExchange.Import(Fixtures.Stream(xml), repo);
+            Equal("Métier", repo.Objects["id-itsm"].Get("org.owner"), "Archi gagne");
+            Equal("Retirée", repo.Objects["id-itsm"].Get("lifecycle.state"), "propriété d'Archi mise à jour");
+            Equal(1, report.Overwrites.Count, "une seule ligne : " + string.Join(" | ", report.Overwrites.Select(o => $"{o.Property} {o.Before}→{o.After}")));
+            True(report.Overwrites[0] is { Property: "org.owner", Before: "DSI", After: "Métier" }, "objet, propriété, avant, après");
+            Equal(0, ArchimateExchange.Import(Fixtures.Stream(xml), repo).Overwrites.Count, "réimport identique : rien à signaler");
+        });
         Test("références cassées, types inconnus et doublons sont signalés, jamais corrigés en silence", () =>
         {
             var extra = """

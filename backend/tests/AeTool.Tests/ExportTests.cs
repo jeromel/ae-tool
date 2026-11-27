@@ -34,6 +34,8 @@ public static class ExportTests
             Equal(0, report.Counts["Objets"].Updated, "objets signalés modifiés");
             Equal(0, report.Counts["Objets"].Added, "objets ajoutés");
             Equal(before, Canonical(repo), "référentiel inchangé");
+            Equal("archi", repo.Objects["id-saisi"].Source, "objet revenu d'Archi : basculé (décision 014), sans être compté modifié");
+            Equal(0, report.Overwrites.Count, "aucune valeur écrasée");
         });
         Test("aller-retour : une vraie modification reste signalée, et le concept reçu est alors gardé", () =>
         {

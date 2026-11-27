@@ -55,6 +55,10 @@ public static class ArchimateExchange
                 d => d.Id, seenDiagrams, d => d.Archived = true);
         }
         else report.Notes.Add("Premier import de ce modèle : aucun objet existant n'a été archivé.");
+        if (report.Returned.Count > 0)
+            report.Notes.Add($"{report.Returned.Count} objet(s) créé(s) dans l'outil revenu(s) d'Archi : leur nom et leur description se modifient désormais dans Archi ({string.Join(", ", report.Returned.Take(10))}{(report.Returned.Count > 10 ? "…" : "")}).");
+        if (report.Overwrites.Count > 0)
+            report.Notes.Add($"{report.Overwrites.Count} valeur(s) saisie(s) dans l'outil remplacée(s) ou effacée(s) par Archi : voir le détail.");
 
         // Profils de poste sans code : l'outil leur en attribue un (PP-nnn), que la CMDB reprend dans son champ pivot.
         var coded = repo.ActiveObjects.Select(o => (o, code: CatalogueModel.AssignCode(repo, o))).Where(x => x.code is not null).ToList();
@@ -127,12 +131,18 @@ public static class ArchimateExchange
             var local = existing.Properties.Where(p => (repo.Metamodel.Property(p.Key)?.Source != SourceTag || CatalogueModel.IsOwned(p.Key))
                                                        && incoming.Properties.All(i => i.Key != p.Key)).ToList();
             incoming.Properties.AddRange(local);
+            // Un objet qui ne venait pas d'Archi et que le fichier porte en revient : il devient un objet d'Archi (décision 014, point 2).
+            var returning = existing.Source != SourceTag;
+            ReportOverwrites(repo.Metamodel, report, existing, incoming.Properties, returning);
+            if (returning) report.Returned.Add(existing.Name);
             // Un objet créé dans l'outil n'a pas encore de concept : celui que l'export lui a donné ne compte pas comme une modification.
             var sameConcept = existing.ArchimateType == incoming.ArchimateType
                               || existing.ArchimateType is null && transcoder.ExportElement(existing).Concept == incoming.ArchimateType;
             var changed = existing.Archived || existing.TypeKey != incoming.TypeKey || !sameConcept
                           || existing.Name != incoming.Name
                           || existing.Documentation != incoming.Documentation || !Same(existing.Properties, incoming.Properties);
+            // La bascule n'est pas une modification du contenu : elle est annoncée par une note, pas comptée « modifié ».
+            if (returning) existing.Source = SourceTag;
             if (!changed) { tally.Unchanged++; continue; }
             existing.TypeKey = incoming.TypeKey;
             existing.ArchimateType = incoming.ArchimateType;
@@ -144,6 +154,27 @@ public static class ArchimateExchange
             tally.Updated++;
         }
         return seen;
+    }
+
+    /// <summary>
+    /// Décision 014, point 3 : une ligne par valeur que l'import remplace ou efface alors qu'elle a pu être saisie ici, soit
+    /// toute propriété qui ne vient pas d'Archi, soit toute propriété d'un objet qui revient d'Archi pour la première fois.
+    /// Archi qui change sa propre donnée sur un objet d'Archi n'est pas listé : cette valeur n'a pas pu être saisie ici.
+    /// </summary>
+    private static void ReportOverwrites(Metamodel metamodel, ImportReport report, ArchObject existing, List<PropertyValue> after, bool returning)
+    {
+        static string Joined(IEnumerable<PropertyValue> values) =>
+            string.Join(" ; ", values.Select(p => (p.Value ?? "").Trim()).Where(v => v.Length > 0));
+        foreach (var group in existing.Properties.GroupBy(p => p.Key))
+        {
+            var def = metamodel.Property(group.Key);
+            if (!returning && def?.Source == SourceTag) continue;
+            var before = Joined(group);
+            if (before.Length == 0) continue; // rien n'était saisi : Archi ajoute, il n'écrase pas
+            var now = Joined(after.Where(p => p.Key == group.Key));
+            if (now == before) continue;
+            report.Overwrites.Add(new Overwrite(existing.Id, existing.Name, group.Key, def?.Label is { Length: > 0 } l ? l : group.Key, before, now.Length == 0 ? null : now));
+        }
     }
 
     /// <summary>

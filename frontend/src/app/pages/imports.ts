@@ -50,6 +50,20 @@ import { Api } from '../api';
         </table>
         @for (n of r.notes.slice(0, 6); track $index) { <div class="small muted" style="margin-top: 6px">{{ n }}</div> }
         @if (r.notes.length > 6) { <div class="small muted">… et {{ r.notes.length - 6 }} autre(s) note(s).</div> }
+        <!-- Décision 014 : Archi gagne, et on prévient. Sans maquette : tableau minimal, écart signalé à Camille. -->
+        @if (r.overwrites?.length) {
+          <h2 style="margin-top: 14px">{{ r.overwrites.length }} valeur(s) saisie(s) dans l'outil remplacée(s) par Archi</h2>
+          <p class="small muted" style="margin-top: 0">Archi est le maître de ces objets : sa valeur l'emporte. Si la saisie de l'outil était la bonne, reportez-la dans Archi.</p>
+          <div class="scroll" style="max-height: 260px">
+            <table>
+              <tr><th>Objet</th><th>Propriété</th><th>Valeur saisie ici</th><th>Valeur d'Archi</th></tr>
+              @for (o of r.overwrites; track $index) {
+                <tr><td><a [routerLink]="['/objets', o.objectId]">{{ o.objectName }}</a></td><td>{{ o.label }}</td><td>{{ o.before }}</td>
+                  <td [class.muted]="o.after === null">{{ o.after ?? 'effacée' }}</td></tr>
+              }
+            </table>
+          </div>
+        }
         <h2 style="margin-top: 14px">{{ r.anomalies.length }} anomalie(s)</h2>
         <div class="scroll" style="max-height: 260px">
           <table>

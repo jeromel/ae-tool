@@ -6,6 +6,6 @@
     <LangVersion>12.0</LangVersion>
     <InvariantGlobalization>true</InvariantGlobalization>
     <!-- Version livrée : affichée dans l'interface et renvoyée par /api/health. -->
-    <Version>0.15.16</Version>
+    <Version>0.15.17</Version>
   </PropertyGroup>
 </Project>

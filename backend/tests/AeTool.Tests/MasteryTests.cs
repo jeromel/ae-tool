@@ -55,7 +55,16 @@ public static class MasteryTests
             Equal("cmdb", Mastery.MasterOfProperty(m, typed, "cmdb.site"), "maître : la source");
             var problems = Mastery.Violations(m, typed, null, null, Props(("cmdb.site", "Site C")));
             True(problems.Count == 1 && problems[0].Contains("cmdb"), "refus qui nomme la source");
-            Equal(1, Mastery.Violations(m, typed, null, null, Props(("pos.niveau", "zone"))).Count, "ajouter une propriété maîtrisée ailleurs est refusé aussi");
+        });
+
+        // Décision 014 : le maître se juge objet par objet. Archi n'a aucune valeur sur un objet créé ici.
+        Test("propriété déclarée par Archi sur un objet créé ici : elle se saisit dans l'outil", () =>
+        {
+            var (m, archi, typed) = Rig();
+            Equal(null, Mastery.MasterOfProperty(m, typed, "pos.niveau"), "objet saisi : l'outil fait foi");
+            Equal(0, Mastery.Violations(m, typed, null, null, Props(("pos.niveau", "zone"))).Count, "ajout accepté");
+            True(Mastery.Keep(m, typed, Props(("pos.niveau", "zone")))!.Any(p => p.Key == "pos.niveau" && p.Value == "zone"), "valeur enregistrée");
+            Equal("archi", Mastery.MasterOfProperty(m, archi, "pos.niveau"), "objet venu d'Archi : toujours Archi");
         });
 
         Test("ce qui se saisit dans l'outil reste libre : propriété saisie d'un objet Archi, tout un objet saisi", () =>

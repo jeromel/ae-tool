@@ -3,6 +3,9 @@ namespace AeTool.Connectors;
 /// <summary>Anomalie d'import : signalée, jamais corrigée en silence.</summary>
 public sealed record Anomaly(string Severity, string Code, string Message, string? Ref = null);
 
+/// <summary>Une valeur remplacée (After renseigné) ou effacée (After null) par l'import.</summary>
+public sealed record Overwrite(string ObjectId, string ObjectName, string Property, string Label, string Before, string? After);
+
 public sealed class Tally
 {
     public int Added { get; set; }
@@ -19,6 +22,13 @@ public sealed class ImportReport
     public Dictionary<string, Tally> Counts { get; set; } = new();
     public List<Anomaly> Anomalies { get; set; } = new();
     public List<string> Notes { get; set; } = new();
+    /// <summary>
+    /// Valeurs que l'import Archi a remplacées ou effacées alors qu'elles avaient pu être saisies ici (décision 014, point 3) :
+    /// Archi gagne, et on prévient.
+    /// </summary>
+    public List<Overwrite> Overwrites { get; set; } = new();
+    /// <summary>Objets créés ici que cet import a fait passer sous la maîtrise d'Archi (décision 014, point 2).</summary>
+    [System.Text.Json.Serialization.JsonIgnore] public List<string> Returned { get; } = new();
     /// <summary>Vues créées ou mises à jour par l'import, pour y mener directement (import draw.io).</summary>
     public List<string>? Views { get; set; }
 
