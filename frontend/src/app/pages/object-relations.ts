@@ -16,6 +16,7 @@ interface Allowed { typeKey: string; label: string; reverseLabel: string | null;
   imports: [RouterLink, NgTemplateOutlet, ObjectSearch],
   template: `
     @if (notice()) { <div class="note" role="status">{{ notice() }}</div> }
+    @if (canEdit() && hasArchi()) { <p class="muted small archi-note">Les relations venues d'Archi se modifient dans Archi.</p> }
     <div class="row">
       <div class="card">
         <h2>Relations sortantes ({{ outgoing().length }})</h2>
@@ -54,7 +55,7 @@ interface Allowed { typeKey: string; label: string; reverseLabel: string | null;
     <ng-template #actions let-r="r">
       @if (canEdit()) {
         @if (sources()[r.id] === 'archi') {
-          <span class="chip" title="Maîtrisée dans Archi : à modifier dans Archi">Maîtrisée dans Archi</span>
+          <!-- Une relation d'Archi se lit seulement ; la mention est dite une fois, sous les relations (§6, O2). -->
         } @else if (confirming() === r.id) {
           <span class="small">Archiver cette relation ?</span>
           <button type="button" (click)="archive(r.id)">Archiver</button>
@@ -174,6 +175,7 @@ export class ObjectRelations {
 
   allowed = signal<{ outgoing: Allowed[]; incoming: Allowed[] }>({ outgoing: [], incoming: [] });
   sources = signal<Record<string, string>>({});
+  hasArchi = computed(() => Object.values(this.sources()).includes('archi'));
   notice = signal('');
   // Droit serveur : AccessRules.cs, écriture sous /api/relationships → contributeur.
   canEdit = computed(() => this.session.can('contributeur') && !this.archived());

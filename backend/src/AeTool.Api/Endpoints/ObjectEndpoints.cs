@@ -46,7 +46,8 @@ public static class ObjectEndpoints
                 Properties = o.Properties.Select(p =>
                 {
                     var def = repo.Metamodel.Property(p.Key);
-                    return new { p.Key, Label = def?.Label ?? p.Key, p.Value, Source = def?.Source,
+                    // Labeled : la fiche ne montre au lecteur que des libellés, jamais une clé (maquette carte objet §6, O1).
+                    return new { p.Key, Label = def?.Label ?? p.Key, Labeled = !string.IsNullOrWhiteSpace(def?.Label) && def!.Label != p.Key, p.Value, Source = def?.Source,
                         DataType = def?.DataType ?? PropertyTypes.Text, AllowedValues = def?.AllowedValues ?? new List<string>(), Required = def?.Required ?? false };
                 }),
                 MissingRequired = Conformity.MissingRequired(repo.Metamodel, o).Select(p => new { p.Key, Label = p.Label ?? p.Key, p.DataType, p.AllowedValues }),
@@ -57,6 +58,9 @@ public static class ObjectEndpoints
                 Projects = repo.Impacts.Where(i => i.ObjectId == id && repo.Objects.ContainsKey(i.ProjectId))
                     .Select(i => new { i.ProjectId, ProjectName = repo.Objects[i.ProjectId].Name, i.Nature, i.Origin }),
                 HasAssessment = repo.Assessments.ContainsKey(id),
+                // Décision d'urbanisation, retenue sinon calculée : la fiche la montre sous les propriétés de premier plan (§6).
+                Decision = repo.Assessments.TryGetValue(id, out var a)
+                    ? a.RetainedDecision ?? ScoringEngine.Evaluate(repo.Metamodel.Scoring, a, an.IsRetired(o)).ComputedDecision : null,
             });
         }));
 

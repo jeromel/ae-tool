@@ -4,6 +4,7 @@ import { Api } from '../api';
 import { NoteGauge } from '../note-gauge';
 
 /** Portefeuille applicatif : une ligne par application, notation recalculée par l'outil selon la grille du métamodèle. */
+import { decisionTone } from '../decision-tone';
 @Component({
   imports: [NoteGauge],
   styles: `
@@ -126,14 +127,8 @@ export class PortfolioPage {
     return this.active().filter((r) => r.result.quadrant === key);
   }
 
-  /** Teinte d'une décision : la même dans le tableau et dans le quadrant. */
-  tone(decision: string): string {
-    if (decision.startsWith('Maintenir')) return 'chip ok';
-    if (decision.startsWith('Moderniser')) return 'chip warn';
-    if (decision.startsWith('Éliminer') || decision.startsWith('À instruire')) return 'chip bad';
-    if (decision.startsWith('Tolérer')) return 'chip info';
-    return 'chip';
-  }
+  /** Teinte d'une décision : la même dans le tableau, le quadrant et la fiche. */
+  tone = decisionTone;
 
   open(id: string): void {
     this.router.navigate(['/portefeuille', id]);

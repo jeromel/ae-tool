@@ -8,8 +8,14 @@ import { ObjectForm } from './object-form';
 import { ObjectRelations } from './object-relations';
 import { ObjectValidation } from '../object-validation';
 import { HistoryRefresh, ObjectHistory } from '../object-history';
+import { cardProperties } from '../object-card';
+import { decisionTone } from '../decision-tone';
 
-/** Fiche d'un objet : propriétés, relations, vues, projets, analyse d'impact et visuel propre à l'élément. */
+/**
+ * Fiche d'un objet (maquette carte objet §6, addendum du 27/11) : titre, type et provenance, actions, propriétés de premier
+ * plan et décision, puis sections repliées ; relations et historique. Le bloc d'analyse d'impact est retiré : la page
+ * d'analyse répond mieux (règles de la 0.15.14). Le visuel propre à l'élément passe dans les réglages avancés.
+ */
 @Component({
   imports: [RouterLink, ObjectValidation, ObjectHistory, ObjectForm, ObjectRelations, Mark, ScopeNote],
   template: `
@@ -24,56 +30,92 @@ import { HistoryRefresh, ObjectHistory } from '../object-history';
     @if (d(); as d) {
       <a routerLink="/referentiel">← Tous les objets</a>
       <h1><span class="swatch" [style.background]="d.effectiveVisual.fill"></span>{{ d.brief.name || '(sans nom)' }}<app-mark [id]="d.brief.id" /></h1>
+      <!-- Fiche (maquette carte objet §6, addendum du 27/11) : titre, type et provenance, puis les actions. -->
       <p class="lead" style="max-width: none">
-        <span class="chip info">{{ d.brief.typeLabel }}</span> <span class="chip">{{ d.brief.layerLabel }}</span>
-        <span class="chip">Source : {{ sources[d.brief.source] ?? d.brief.source }}</span> <span class="chip">{{ d.brief.status }}</span>
+        <span class="chip info">{{ d.brief.typeLabel }}</span>
+        @if (d.brief.source === 'archi') {
+          <span class="chip" title="Nom, description, propriétés et relations venus d'Archi : à modifier dans Archi">Maîtrisée dans Archi</span>
+        } @else { <span class="chip">Source : {{ sources[d.brief.source] ?? d.brief.source }}</span> }
+        <span class="chip">{{ d.brief.status }}</span>
         @if (d.object.archived) { <span class="chip bad">Archivé</span> }
-        @if (updated(d.object); as u) { <span class="muted small" style="margin: 0 10px 0 4px">{{ u }}</span> }
-        @if (d.hasAssessment) { <a [routerLink]="['/portefeuille', d.brief.id]" style="margin-right: 14px; white-space: nowrap">Voir la notation</a> }
-        <a routerLink="/impact" [queryParams]="{ objet: d.brief.id }" style="white-space: nowrap">Analyser l'impact</a>
-        <a [routerLink]="['/parcours', d.brief.id]" style="margin-left: 14px; white-space: nowrap">Voir le parcours</a>
+        @if (updated(d.object); as u) { <span class="muted small" style="margin-left: 4px">{{ u }}</span> }
       </p>
+      <div class="actions">
+        @if (canEdit() && !editing() && !confirmArchive()) { <button type="button" (click)="editing.set(true)">Modifier</button> }
+        <a class="btn ghost" [routerLink]="['/parcours', d.brief.id]">Voir le parcours</a>
+        <a class="btn ghost" routerLink="/impact" [queryParams]="{ objet: d.brief.id }">Analyser l'impact</a>
+        @if (d.hasAssessment) { <a class="btn ghost" [routerLink]="['/portefeuille', d.brief.id]">Voir la notation</a> }
+        @if (canEdit() && !editing() && !confirmArchive() && d.object.source !== 'archi') {
+          <button type="button" class="ghost right" (click)="confirmArchive.set(true)">Archiver</button>
+        }
+      </div>
       <app-object-validation [objectId]="d.brief.id" (changed)="load()" />
       @if (notice()) { <div class="note" role="status">{{ notice() }}</div> }
-      <div class="row">
-        <div class="card">
-          <div class="tools">
-            <h2 style="margin: 0">Description et propriétés</h2>
-            @if (canEdit() && !editing() && !confirmArchive()) {
-              <span class="right head-actions">
-                <button type="button" (click)="editing.set(true)">Modifier</button>
-                @if (d.object.source !== 'archi') { <button type="button" class="ghost" (click)="confirmArchive.set(true)">Archiver</button> }
-              </span>
-            }
-          </div>
-          @if (confirmArchive()) {
-            <div class="note" role="alert">
-              Archiver cet objet ? Il ne sera plus proposé dans les listes ni dans les analyses, mais ses données restent conservées.
-              <div class="confirm"><button type="button" (click)="archive()">Archiver l'objet</button> <button type="button" class="ghost" (click)="confirmArchive.set(false)">Annuler</button></div>
-            </div>
-          }
-          @if (editing() && meta(); as m) {
-            @if (d.object.source === 'archi') {
-              <p class="note">Cet objet est maîtrisé dans Archi : son nom, sa description et les propriétés issues d'Archi s'y modifient, sinon le prochain import les écraserait. Son type, son responsable et les propriétés propres à l'outil restent modifiables ici.</p>
-            }
-            <app-object-form [meta]="m" [object]="d.object" (saved)="saved()" (cancelled)="editing.set(false)" />
-          } @else {
-            @if (d.missingRequired.length) {
-              <p class="note warn-note">
-                Propriété(s) obligatoire(s) à renseigner :
-                @for (p of d.missingRequired; track p.key) { <span class="chip warn">{{ p.label }}</span> }
-              </p>
-            }
-            @if (d.object.documentation) { <p style="white-space: pre-wrap">{{ d.object.documentation }}</p> }
-            <dl class="kv">
-              @if (d.object.owner) { <dt>Responsable</dt><dd>{{ d.object.owner }}</dd> }
-              @for (p of d.properties; track $index) { <dt>{{ p.label }}</dt><dd>{{ p.value }}</dd> }
-              <dt>Identifiant</dt><dd class="small muted">{{ d.brief.id }}</dd>
-              @for (f of d.folders; track f) { <dt>Dossier</dt><dd>{{ f }}</dd> }
-            </dl>
-          }
+      @if (confirmArchive()) {
+        <div class="note" role="alert">
+          Archiver cet objet ? Il ne sera plus proposé dans les listes ni dans les analyses, mais ses données restent conservées.
+          <div class="confirm"><button type="button" (click)="archive()">Archiver l'objet</button> <button type="button" class="ghost" (click)="confirmArchive.set(false)">Annuler</button></div>
         </div>
-        <div class="card" style="max-width: 380px">
+      }
+      <div class="card">
+        @if (editing() && meta(); as m) {
+          @if (d.object.source === 'archi') {
+            <p class="note">Cet objet est maîtrisé dans Archi : son nom, sa description et les propriétés issues d'Archi s'y modifient, sinon le prochain import les écraserait. Son type, son responsable et les propriétés propres à l'outil restent modifiables ici.</p>
+          }
+          <app-object-form [meta]="m" [object]="d.object" (saved)="saved()" (cancelled)="editing.set(false)" />
+        } @else {
+          @if (d.missingRequired.length) {
+            <p class="note warn-note">
+              Propriété(s) obligatoire(s) à renseigner :
+              @for (p of d.missingRequired; track p.key) { <span class="chip warn">{{ p.label }}</span> }
+            </p>
+          }
+          @if (d.object.documentation) { <p class="doc">{{ d.object.documentation }}</p> }
+          <dl class="kv">
+            @if (d.object.owner) { <dt>Responsable</dt><dd>{{ d.object.owner }}</dd> }
+            @for (p of props().front; track p.key) {
+              <dt>{{ p.label }} @if (p.unlabeled) { <span class="muted small">(sans libellé)</span> }</dt><dd>{{ p.value }}</dd>
+            }
+            @if (d.decision) { <dt>Décision</dt><dd><span [class]="tone(d.decision)">{{ d.decision }}</span></dd> }
+          </dl>
+          <details>
+            <summary>Autres propriétés ({{ props().rest.length + 1 + d.folders.length }})</summary>
+            <dl class="kv">
+              @for (p of props().rest; track p.key) {
+                <dt>{{ p.label }} @if (p.unlabeled) { <span class="muted small">(sans libellé)</span> }</dt><dd>{{ p.value }}</dd>
+              }
+              @for (f of d.folders; track f) { <dt>Dossier</dt><dd>{{ f }}</dd> }
+              <dt>Identifiant</dt><dd class="small muted">{{ d.brief.id }}</dd>
+            </dl>
+          </details>
+          @if (d.projects.length) {
+            <details>
+              <summary>Projets qui la touchent ({{ d.projects.length }})</summary>
+              @for (p of d.projects; track p.projectId) {
+                <div><a [routerLink]="['/projets', p.projectId]">{{ p.projectName }}</a> <span class="chip">{{ p.nature }}</span></div>
+              }
+            </details>
+          }
+          @if (d.diagrams.length) {
+            <details>
+              <summary>{{ d.diagrams.length > 1 ? 'Présente dans ' + d.diagrams.length + ' vues' : 'Présente dans 1 vue' }}</summary>
+              <div class="views">
+                @for (v of d.diagrams; track v.id) { <div><a [routerLink]="['/vues', v.id]">{{ v.name }}</a></div> }
+              </div>
+            </details>
+          }
+        }
+      </div>
+      @if ($any(d).scopeTrimmed) { <app-scope-note text="Des relations vers l'infrastructure ne sont pas affichées." /> }
+      @if (meta(); as m) {
+        <app-object-relations [objectId]="d.brief.id" [objectName]="d.brief.name" [objectTypeKey]="d.brief.typeKey" [archived]="d.object.archived"
+          [outgoing]="d.outgoing" [incoming]="d.incoming" [meta]="m" (changed)="changed()" />
+      }
+      <app-object-history [objectId]="d.brief.id" />
+      <!-- O3 : le visuel propre à l'élément quitte la fiche, réservé au valideur et à l'administrateur. -->
+      @if (session.can('valideur')) {
+        <details class="card advanced">
+          <summary>Réglages avancés</summary>
           <h2>Visuel de cet élément</h2>
           <p class="muted small">Par défaut, l'élément prend le visuel de son type. Un réglage ici ne vaut que pour lui, dans toutes les vues affichées avec les couleurs du métamodèle.</p>
           <dl class="kv" style="grid-template-columns: 110px 1fr">
@@ -88,57 +130,18 @@ import { HistoryRefresh, ObjectHistory } from '../object-history';
             </dd>
           </dl>
           @if (d.object.visualOverride) { <button class="ghost" style="margin-top: 10px" (click)="resetVisual()">Revenir au visuel du type</button> }
-          @if (d.projects.length) {
-            <h2 style="margin-top: 18px">Projets qui touchent cet objet</h2>
-            @for (p of d.projects; track p.projectId) {
-              <div><a [routerLink]="['/projets', p.projectId]">{{ p.projectName }}</a> <span class="chip">{{ p.nature }}</span></div>
-            }
-          }
-          @if (d.diagrams.length) {
-            <h2 style="margin-top: 18px">Présent dans {{ d.diagrams.length }} vue(s)</h2>
-            <div style="max-height: 180px; overflow: auto">
-              @for (v of d.diagrams; track v.id) { <div><a [routerLink]="['/vues', v.id]">{{ v.name }}</a></div> }
-            </div>
-          }
-        </div>
-      </div>
-      @if ($any(d).scopeTrimmed) { <app-scope-note text="Des relations vers l'infrastructure ne sont pas affichées." /> }
-      @if (meta(); as m) {
-        <app-object-relations [objectId]="d.brief.id" [objectName]="d.brief.name" [objectTypeKey]="d.brief.typeKey" [archived]="d.object.archived"
-          [outgoing]="d.outgoing" [incoming]="d.incoming" [meta]="m" (changed)="changed()" />
+        </details>
       }
-      <app-object-history [objectId]="d.brief.id" />
-      <div class="card">
-        <div class="tools">
-          <h2 style="margin: 0">Analyse d'impact</h2>
-          <label>Profondeur
-            <select (change)="depth.set(+$any($event.target).value); loadImpact()">
-              @for (n of [1, 2, 3, 4]; track n) { <option [selected]="depth() === n">{{ n }}</option> }
-            </select>
-          </label>
-          <span class="muted small">Aval : ce que l'objet sert, réalise ou alimente. Amont : ce dont il dépend.</span>
-        </div>
-        <div class="row">
-          @for (dir of ['amont', 'aval']; track dir) {
-            <div style="flex: 1; min-width: 280px">
-              <b>{{ dir === 'amont' ? 'Amont' : 'Aval' }} ({{ side(dir).length }})</b>
-              <div class="scroll" style="max-height: 300px">
-                <table>
-                  @for (r of side(dir); track r.id) {
-                    <tr><td class="num muted" style="width: 30px">{{ r.depth }}</td>
-                      <td><a [routerLink]="['/objets', r.id]">{{ r.name }}</a> <span class="muted small">{{ r.typeKey }} · via {{ r.via }}</span></td></tr>
-                  } @empty { <tr><td class="muted">Rien à cette profondeur.</td></tr> }
-                </table>
-              </div>
-            </div>
-          }
-        </div>
-      </div>
     }
   `,
   styles: `
-    .row { align-items: flex-start; }
-    .head-actions { display: flex; gap: 8px; }
+    .actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: -4px 0 14px; }
+    .actions .right { margin-left: auto; }
+    .doc { white-space: pre-wrap; margin-top: 0; }
+    details { margin-top: 10px; }
+    summary { cursor: pointer; color: var(--accent); font-weight: 500; }
+    .views { max-height: 180px; overflow: auto; margin-top: 6px; }
+    .advanced summary { font-size: 14px; }
     .confirm { display: flex; gap: 8px; margin-top: 8px; }
     .warn-note { background: #fbe9cc; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
   `,
@@ -153,7 +156,7 @@ export class ObjectPage {
 
   private api = inject(Api);
   private router = inject(Router);
-  private session = inject(Session);
+  session = inject(Session);
   /** Objet introuvable pour un accès sans l'infrastructure : on l'explique au lieu de renvoyer à la liste. */
   missing = signal(false);
   private changes = inject(HistoryRefresh);
@@ -165,8 +168,7 @@ export class ObjectPage {
   notice = signal('');
   // Droit serveur : AccessRules.cs, écriture sous /api/objects → contributeur.
   canEdit = computed(() => this.session.can('contributeur') && !this.d()?.object.archived);
-  impact = signal<any[]>([]);
-  depth = signal(2);
+  props = computed(() => cardProperties(this.d()?.properties ?? [], this.session.can('administrateur'), this.d()?.object.owner ? 1 : 0));
   sources = SOURCE_LABELS;
   shapes = ['rectangle', 'arrondi', 'ellipse'];
 
@@ -213,16 +215,9 @@ export class ObjectPage {
       if (this.session.business()) this.missing.set(true);
       else this.router.navigate(['/referentiel']);
     });
-    this.loadImpact();
   }
 
-  loadImpact(): void {
-    this.api.get(`/analysis/impact/${this.id()}?depth=${this.depth()}&direction=tous`).then((r) => this.impact.set(r));
-  }
-
-  side(direction: string): any[] {
-    return this.impact().filter((r) => r.direction === direction);
-  }
+  tone = decisionTone;
 
   async setVisual(change: Record<string, string>): Promise<void> {
     const current = this.d().object.visualOverride ?? {};
