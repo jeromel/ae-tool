@@ -6,10 +6,11 @@ namespace AeTool.Core;
 public sealed record LinkedApplication(string Id, string Name, string Via);
 public sealed record CapabilityNode(string Id, string Name, List<CapabilityNode> Children, List<LinkedApplication> Applications);
 public sealed record ApplicationRow(string Id, string Name, string Source, int Relations, int Flows, int Technical, int Data,
-    int Capabilities, int Projects, int? Cm, string? Decision);
+    int Capabilities, int Projects, int? Cm, string? Decision, bool ScopeTrimmed = false);
 public sealed record FlowRow(string Id, string? Name, string SourceId, string SourceName, string TargetId, string TargetName,
     string? Protocol, string? Encryption, List<string> Carried, bool ProtocolExpected);
-public sealed record DataRow(string Id, string Name, string TypeLabel, int Applications, int Artifacts);
+/// <remarks>ScopeTrimmed : au périmètre « métier », l'objet a perdu au moins une relation (décision 012) ; un zéro n'y prouve rien.</remarks>
+public sealed record DataRow(string Id, string Name, string TypeLabel, int Applications, int Artifacts, bool ScopeTrimmed = false);
 public sealed record InfrastructureRow(string Id, string Name, string TypeLabel, int Applications, int Relations);
 
 public sealed class SpaceReader
@@ -109,7 +110,7 @@ public sealed class SpaceReader
                 relations.Count(r => _flowTypes.Contains(r.TypeKey)),
                 neighbours.Count(n => _infrastructureTypes.Contains(TypeOf(n))),
                 neighbours.Count(n => _dataTypes.Contains(TypeOf(n)) || _carrierTypes.Contains(TypeOf(n))),
-                capabilityCount.GetValueOrDefault(o.Id), projectCount.GetValueOrDefault(o.Id), a?.Cm, decision);
+                capabilityCount.GetValueOrDefault(o.Id), projectCount.GetValueOrDefault(o.Id), a?.Cm, decision, _repo.Scope?.Objects.Contains(o.Id) == true);
         }).ToList();
     }
 
@@ -149,7 +150,7 @@ public sealed class SpaceReader
             var neighbours = Neighbours(o.Id).ToList();
             var artifacts = neighbours.Where(n => _carrierTypes.Contains(TypeOf(n))).ToList();
             var applications = neighbours.Concat(artifacts.SelectMany(Neighbours)).Where(IsApplication).Distinct().Count();
-            return new DataRow(o.Id, o.Name, _repo.Metamodel.Type(o.TypeKey)?.Label ?? o.TypeKey, applications, artifacts.Count);
+            return new DataRow(o.Id, o.Name, _repo.Metamodel.Type(o.TypeKey)?.Label ?? o.TypeKey, applications, artifacts.Count, _repo.Scope?.Objects.Contains(o.Id) == true);
         }).ToList();
 
     /// <summary>Objets techniques, avec le nombre d'applications qu'ils portent en aval, jusqu'à trois relations de distance.</summary>

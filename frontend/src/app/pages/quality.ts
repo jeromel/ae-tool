@@ -2,6 +2,7 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { Api } from '../api';
 import { Session } from '../session';
+import { isIsolated, isOrphan } from '../space-filters';
 
 const CODE_LABELS: Record<string, string> = {
   'type-inconnu': 'Type inconnu',
@@ -134,7 +135,7 @@ export class QualityPage {
     const flows = this.flows().filter((f) => f.protocolExpected);
     const data = this.data();
     return [
-      { count: apps.filter((a) => a.relations === 0).length, total: apps.length, label: 'Applications sans aucune relation',
+      { count: apps.filter(isIsolated).length, total: apps.length, label: 'Applications sans aucune relation',
         effect: 'Elles n\'apparaissent dans aucune analyse d\'impact ni aucun contexte.', to: '/applications', question: 'isolees' },
       { count: apps.filter((a) => a.capabilities === 0).length, total: apps.length, label: 'Applications rattachées à aucune capacité',
         effect: 'La carte des capacités ne les compte pas, et les doublons ne ressortent pas.', to: '/applications', question: 'sans-capacite' },
@@ -142,7 +143,7 @@ export class QualityPage {
         effect: 'Pas de pastille de protocole sur les vues, pas de lecture cybersécurité des échanges.', to: '/flux', question: 'sans-protocole' },
       { count: flows.filter((f) => !f.encryption).length, total: flows.length, label: 'Flux sans chiffrement renseigné',
         effect: 'Impossible de distinguer un flux en clair d\'un flux non documenté.', to: '/flux', question: 'sans-chiffrement' },
-      { count: data.filter((d) => d.applications === 0).length, total: data.length, label: 'Données utilisées par aucune application',
+      { count: data.filter(isOrphan).length, total: data.length, label: 'Données utilisées par aucune application',
         effect: 'On ne sait pas où la donnée est produite ni lue.', to: '/donnees', question: 'orphelines' },
     ];
   });

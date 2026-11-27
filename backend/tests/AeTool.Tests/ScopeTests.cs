@@ -116,6 +116,36 @@ public static class ScopeTests
                 Equal(0, gaps.Count(g => !full.Contains(g)), $"{name} : lacune inventée par le périmètre");
             }
         });
+
+        // Recette 0.15.9-0.15.14, question 4 : la même règle sur les autres écrans.
+        Test("périmètre métier : la cohérence du catalogue ne compte ni hébergement ni chaîne technique manquants ; le reste est identique", () =>
+        {
+            var full = new CatalogueQuality(repo).Check().Findings.ToDictionary(f => f.Code, f => f.Items.Count);
+            var business = new CatalogueQuality(scoped).Check().Findings.ToDictionary(f => f.Code, f => f.Items.Count);
+            var infra = new[] { "flux-sans-chaine", "chaine-sans-arrivee", "flux-technique-inutilise", "hebergement-inconnu", "partage-sans-sous-type" };
+            Equal("", string.Join(", ", business.Keys.Where(infra.Contains)), "constats d'infrastructure au périmètre métier");
+            True(full.ContainsKey("hebergement-inconnu"), "le contrôle porte : hébergements inconnus au périmètre « tout »");
+            Equal(string.Join(", ", full.Where(kv => !infra.Contains(kv.Key)).Select(kv => $"{kv.Key}={kv.Value}").Order()),
+                string.Join(", ", business.Select(kv => $"{kv.Key}={kv.Value}").Order()), "autres constats inchangés");
+        });
+
+        Test("périmètre métier : une application ou une donnée qui a perdu une relation est signalée, pour qu'un zéro n'y passe pas pour une absence", () =>
+        {
+            var apps = new SpaceReader(scoped, new Analyzer(scoped)).Applications().ToDictionary(a => a.Name);
+            True(apps["ONDINE"].ScopeTrimmed, "ONDINE a perdu son hébergement");
+            True(new SpaceReader(repo, new Analyzer(repo)).Applications().All(a => !a.ScopeTrimmed), "rien de signalé au périmètre « tout »");
+            var data = new SpaceReader(scoped, new Analyzer(scoped)).Data();
+            True(data.Where(d => d.ScopeTrimmed).All(d => scoped.Scope!.Objects.Contains(d.Id)), "signal fidèle à la projection");
+            // Une application reliée à son seul serveur : zéro relation visible, mais signalée, donc pas « isolée ».
+            var small = Imported(out _);
+            small.Objects["app-seule"] = new ArchObject { Id = "app-seule", Name = "App seule", TypeKey = small.Objects["id-itsm"].TypeKey, Source = "saisie" };
+            small.Relationships["r-seule"] = new Relationship { Id = "r-seule", TypeKey = small.Relationships["id-r4"].TypeKey, SourceId = "id-srv", TargetId = "app-seule" };
+            var row = new SpaceReader(ReadScope.Project(small), new Analyzer(ReadScope.Project(small))).Applications().Single(a => a.Id == "app-seule");
+            True(row.Relations == 0 && row.ScopeTrimmed, $"relations {row.Relations}, signalée {row.ScopeTrimmed}");
+            var projected = ReadScope.Project(small);
+            var orphans = new Analyzer(projected).Quality().Single(q => q.TypeKey == small.Objects["app-seule"].TypeKey).Orphans;
+            Equal(new Analyzer(small).Quality().Single(q => q.TypeKey == small.Objects["app-seule"].TypeKey).Orphans, orphans, "« sans relation » identique aux deux périmètres");
+        });
     }
 
     // ---- Les routes, par HTTP ----------------------------------------------------------------------------------------

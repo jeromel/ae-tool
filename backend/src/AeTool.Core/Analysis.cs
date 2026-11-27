@@ -282,7 +282,8 @@ public sealed class Analyzer
             return new TypeQuality(g.Key, type?.Label ?? g.Key, type?.LayerKey ?? "autre", g.Count(),
                 g.Count(o => !string.IsNullOrWhiteSpace(o.Documentation)),
                 g.Count(o => o.Properties.Count > 0),
-                g.Count(o => !_bySource[o.Id].Any() && !_byTarget[o.Id].Any()),
+                // Au périmètre « métier », un objet qui a perdu une relation n'est pas « sans relation » (question 4 de Haussman).
+                g.Count(o => !_bySource[o.Id].Any() && !_byTarget[o.Id].Any() && _repo.Scope?.Objects.Contains(o.Id) != true),
                 g.Count(o => !inDiagram.Contains(o.Id)));
         }).OrderByDescending(q => q.Count).ToList();
     }

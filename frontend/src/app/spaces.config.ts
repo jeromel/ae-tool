@@ -1,4 +1,5 @@
 import { Question } from './questions';
+import { isIsolated, isOrphan } from './space-filters';
 
 /** Colonne d'un espace en liste. « objet » rend un lien vers la fiche, d'après l'identifiant porté par « idKey ». */
 /** « infra » : colonne ou question qui n'a de sens qu'avec l'infrastructure ; retirée pour un accès sans elle (décision 012). */
@@ -53,7 +54,7 @@ export const APPLICATIONS: SpaceConfig = {
     { key: 'echanges', label: 'Lesquelles échangent le plus ?', sort: 'flows', filter: (r) => r.flows > 0 },
     { key: 'projets', label: 'Lesquelles sont touchées par un projet ?', sort: 'projects', filter: (r) => r.projects > 0 },
     { key: 'sans-capacite', label: 'Lesquelles ne servent aucune capacité connue ?', filter: (r) => r.capabilities === 0 },
-    { key: 'isolees', label: 'Lesquelles ne sont reliées à rien ?', filter: (r) => r.relations === 0 },
+    { key: 'isolees', label: 'Lesquelles ne sont reliées à rien ?', filter: isIsolated },
     {
       key: 'acquisition', label: 'Lesquelles sont en SaaS, achetées ou développées ?',
       missing: 'Le mode d\'acquisition et d\'hébergement n\'est renseigné sur aucune application. Ajoutez cette propriété aux applications pour appliquer la règle « SaaS avant achat avant développement ».',
@@ -101,12 +102,12 @@ export const DATA: SpaceConfig = {
     { key: 'name', label: 'Donnée', kind: 'objet', idKey: 'id' },
     { key: 'typeLabel', label: 'Type' },
     { key: 'applications', label: 'Applications qui l\'utilisent', kind: 'nombre' },
-    { key: 'artifacts', label: 'Artefacts', kind: 'nombre' },
+    { key: 'artifacts', label: 'Artefacts', kind: 'nombre', infra: true },
   ],
   questions: [
     { key: 'toutes', label: 'Toutes les données' },
     { key: 'partagees', label: 'Lesquelles sont les plus partagées ?', sort: 'applications', filter: (r) => r.applications > 0 },
-    { key: 'orphelines', label: 'Lesquelles ne sont utilisées par aucune application ?', filter: (r) => r.applications === 0 },
+    { key: 'orphelines', label: 'Lesquelles ne sont utilisées par aucune application ?', filter: isOrphan },
     {
       key: 'maitre', label: 'Quelle application fait référence pour chaque donnée ?',
       missing: 'Le référentiel maître d\'une donnée n\'est pas modélisé. Les accès existent, mais rien ne distingue l\'application qui fait foi de celles qui lisent.',

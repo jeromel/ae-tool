@@ -31,15 +31,25 @@ public sealed class CatalogueQuality
 
     public static bool IsProtected(string? sensitivity) => sensitivity is not null && Protected.Contains(sensitivity.Trim());
 
+    /// <summary>
+    /// Constats qui portent sur l'infrastructure (chaîne technique, hébergement, partages). Au périmètre « métier »
+    /// (décision 012), elle est retirée avant la lecture : ces constats y seraient faux, toute application paraissant
+    /// sans hébergement et tout flux sans chaîne. Ils sont donc retirés, pas comptés à zéro (recette de Haussman, question 4).
+    /// </summary>
+    private static readonly HashSet<string> InfrastructureFindings = new()
+        { "flux-sans-chaine", "chaine-sans-arrivee", "flux-technique-inutilise", "hebergement-inconnu", "partage-sans-sous-type" };
+
     public CatalogueQualityReport Check()
     {
         var findings = new List<CatalogueFinding>();
         var h = _h;
+        var scoped = _repo.Scope is not null;
         var coded = h.Objects.Where(o => o.Get(CatalogueModel.Code) is { Length: > 0 }).ToList();
         var flows = h.Flows.ToList();
         var codedFlows = flows.Where(f => h.P(f, CatalogueModel.Code) is not null).ToList();
         void Add(string code, string severity, string title, string hint, IEnumerable<CatalogueRef> items)
         {
+            if (scoped && InfrastructureFindings.Contains(code)) return;
             var list = items.ToList();
             if (list.Count > 0) findings.Add(new CatalogueFinding(code, severity, title, hint, list));
         }
