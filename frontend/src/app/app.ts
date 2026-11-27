@@ -45,6 +45,7 @@ import { ProjectionState } from './projection';
 
         <div class="group">Explorer</div>
         <a routerLink="/capacites" routerLinkActive="on">Capacités</a>
+        <a routerLink="/chaines" routerLinkActive="on">Chaînes et processus</a>
         <a routerLink="/applications" routerLinkActive="on">Applications</a>
         <a routerLink="/donnees" routerLinkActive="on">Données</a>
         <a routerLink="/flux" routerLinkActive="on">Flux</a>

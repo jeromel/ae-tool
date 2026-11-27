@@ -10,12 +10,18 @@ public static class ChainEndpoints
 {
     public static void Map(RouteGroupBuilder api)
     {
-        api.MapGet("/chaines", (Workspace ws) => ws.Read((repo, _) =>
+        api.MapGet("/chaines", (Workspace ws) => ws.Read((repo, an) =>
         {
             var g = new StepGrid(repo);
+            // Domaines (charte §9) : les capacités de premier niveau, dans l'ordre de la carte des capacités ; chaque capacité
+            // d'une cellule dit son domaine, l'écran en tire la couleur.
+            var domains = new SpaceReader(repo, an).CapabilityMap().Select(n => new { n.Id, n.Name }).ToList();
+            var caps = g.Chains.SelectMany(c => c.Columns.Concat(c.Whole is null ? Array.Empty<StepColumn>() : new[] { c.Whole }))
+                .SelectMany(col => col.Layers.Values.SelectMany(l => l)).Select(i => i.Capability).OfType<string>().Distinct();
             return new
             {
                 g.ServersAvailable, g.NatureKnown, Layers = StepGrid.LayerKeys.Where(k => k != StepGrid.Servers || g.ServersAvailable),
+                Domains = domains, DomainOf = caps.ToDictionary(c => c, g.Top),
                 g.Chains, Processes = g.ProcessViews, g.OffChain,
             };
         }));

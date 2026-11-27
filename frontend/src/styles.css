@@ -3,6 +3,16 @@
  * Titres en Bahnschrift (DIN, livrée avec Windows) avec repli système : aucune police téléchargée.
  */
 :root {
+  /* Couleurs des domaines (charte §9) : une teinte par capacité de premier niveau, dans l'ordre de la carte. */
+  --dom-bleu-fond: #ebf3f9; --dom-bleu-trait: #5d9ad0; --dom-bleu-texte: #20527e;
+  --dom-sarcelle-fond: #ebf9f9; --dom-sarcelle-trait: #30a2a6; --dom-sarcelle-texte: #175b5e;
+  --dom-vert-fond: #ebf9f0; --dom-vert-trait: #30a657; --dom-vert-texte: #175e2f;
+  --dom-olive-fond: #f5f9eb; --dom-olive-trait: #7c9e2e; --dom-olive-texte: #465a16;
+  --dom-orange-fond: #f9f1eb; --dom-orange-trait: #cb844d; --dom-orange-texte: #76441e;
+  --dom-rose-fond: #f9ebec; --dom-rose-trait: #d16168; --dom-rose-texte: #93252c;
+  --dom-magenta-fond: #f9ebf5; --dom-magenta-trait: #d161af; --dom-magenta-texte: #8b236c;
+  --dom-violet-fond: #f3ebf9; --dom-violet-trait: #9d61d1; --dom-violet-texte: #6a29a3;
+  --dom-indigo-fond: #ebecf9; --dom-indigo-trait: #6168d1; --dom-indigo-texte: #2931a3;
   --ink: #14262d; --muted: #5c6c73; --line: #d9e0e2; --bg: #eef1f1; --card: #ffffff;
   --accent: #0c5a70; --accent-soft: #e0eef2; --signal: #e5a50a;
   --ok: #2a7748; --warn: #a86200; --bad: #b3261e;

@@ -1,7 +1,11 @@
 namespace AeTool.Core;
 
 /// <summary>Un objet sous une étape, dans une couche. <c>Via</c> : par où il y arrive, avec la nature de ce maillon.</summary>
-public sealed record StepItem(string Id, string Name, string TypeLabel, string? Via = null, string? ViaKind = null, string? ViaId = null);
+public sealed record StepItem(string Id, string Name, string TypeLabel, string? Via = null, string? ViaKind = null, string? ViaId = null)
+{
+    /// <summary>Capacité de l'étape par laquelle l'objet y arrive : l'écran groupe une cellule par capacité, sur la couleur de son domaine.</summary>
+    public string? Capability { get; init; }
+}
 
 /// <summary>Une colonne : une étape (chaîne ou processus), ou une capacité quand la chaîne n'a pas d'étapes.</summary>
 public sealed record StepColumn(string Id, string Name, string Kind, List<StepItem> Capabilities, Dictionary<string, List<StepItem>> Layers);
@@ -139,7 +143,8 @@ public sealed class StepGrid
             var wholeColumn = whole.Count > 0 ? Column(chain.Id + ":toute", "Toute la chaîne", "toute", whole, reached) : null;
             Chains.Add(new ChainView(chain.Id, chain.Name, steps.Count > 0, ordered, columns, wholeColumn));
         }
-        Chains.Sort((a, b) => string.Compare(a.Name, b.Name, StringComparison.CurrentCulture));
+        // Les chaînes renseignées d'abord : ce sont elles que le comité lit ; puis par nom.
+        Chains.Sort((a, b) => a.HasSteps != b.HasSteps ? (a.HasSteps ? -1 : 1) : string.Compare(a.Name, b.Name, StringComparison.CurrentCulture));
 
         // Niveau 2 : les processus découpés en étapes (sous-processus composés, ordre par déclenchement).
         foreach (var p in _repo.ActiveObjects.Where(o => Is(o.Id, _processes)).OrderBy(o => o.Name, StringComparer.CurrentCulture))
@@ -160,8 +165,8 @@ public sealed class StepGrid
         }
     }
 
-    /// <summary>Capacité de premier niveau (racine de l'arbre des capacités).</summary>
-    private string Top(string capability)
+    /// <summary>Capacité de premier niveau (racine de l'arbre des capacités) : le domaine, pour la couleur (charte §9).</summary>
+    public string Top(string capability)
     {
         var seen = new HashSet<string>();
         while (_parentCapability.TryGetValue(capability, out var parent) && seen.Add(capability)) capability = parent;
@@ -197,7 +202,7 @@ public sealed class StepGrid
     {
         var caps = capabilities.Distinct().ToList();
         var layers = LayerKeys.Where(k => k != Servers || ServersAvailable).ToDictionary(k => k, _ => new List<StepItem>());
-        layers[Capacities].AddRange(caps.Select(c => Item(c)));
+        layers[Capacities].AddRange(caps.Select(c => Item(c) with { Capability = c }));
 
         var processes = new Dictionary<string, StepItem>();
         var apps = new Dictionary<string, StepItem>();
@@ -207,19 +212,19 @@ public sealed class StepGrid
             {
                 foreach (var n in Linked(c))
                 {
-                    if (Is(n, _processes)) processes.TryAdd(n, Item(n, sub is null ? null : Obj(sub).Name, sub is null ? null : "capacite", sub));
-                    else if (Is(n, _apps)) apps.TryAdd(n, Item(n, sub is null ? null : Obj(sub).Name, sub is null ? null : "capacite", sub));
-                    else if (Is(n, _projects) && sub is null) projects.TryAdd(n, Item(n, Obj(c).Name, "capacite", c));
+                    if (Is(n, _processes)) processes.TryAdd(n, Item(n, sub is null ? null : Obj(sub).Name, sub is null ? null : "capacite", sub) with { Capability = cap });
+                    else if (Is(n, _apps)) apps.TryAdd(n, Item(n, sub is null ? null : Obj(sub).Name, sub is null ? null : "capacite", sub) with { Capability = cap });
+                    else if (Is(n, _projects) && sub is null) projects.TryAdd(n, Item(n, Obj(c).Name, "capacite", c) with { Capability = cap });
                 }
                 if (sub is null)
                     foreach (var i in _repo.Impacts.Where(i => i.ObjectId == c && i.Nature != "Hors périmètre" && Is(i.ProjectId, _projects)))
-                        projects.TryAdd(i.ProjectId, Item(i.ProjectId, Obj(c).Name, "capacite", c));
+                        projects.TryAdd(i.ProjectId, Item(i.ProjectId, Obj(c).Name, "capacite", c) with { Capability = cap });
             }
         foreach (var p in processes.Keys.ToList())
         {
             reached.Add(p);
             foreach (var a in Linked(p).Where(x => Is(x, _apps)))
-                apps.TryAdd(a, Item(a, Obj(p).Name, "processus", p));
+                apps.TryAdd(a, Item(a, Obj(p).Name, "processus", p) with { Capability = processes[p].Capability });
         }
         layers[Processes].AddRange(Sorted(processes.Values));
         layers[Applications].AddRange(Sorted(apps.Values));
@@ -229,7 +234,7 @@ public sealed class StepGrid
             var servers = new List<StepItem>();
             foreach (var a in apps.Keys)
                 foreach (var h in _hostsOfApp.GetValueOrDefault(a) ?? new List<string>())
-                    servers.Add(Item(h, Obj(a).Name, "application", a));
+                    servers.Add(Item(h, Obj(a).Name, "application", a) with { Capability = apps[a].Capability });
             layers[Servers].AddRange(servers.OrderBy(s => s.Name, StringComparer.CurrentCulture).ThenBy(s => s.Via, StringComparer.CurrentCulture));
         }
         return new StepColumn(id, name, kind, layers[Capacities], layers);
