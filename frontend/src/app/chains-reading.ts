@@ -152,3 +152,21 @@ export function noPlaceText(nature: string | null | undefined): { text: string; 
     ? { text: `Processus de ${nature} : ne fait partie d'aucune chaîne`, attach: false }
     : { text: 'Fait partie de : aucune chaîne de valeur', attach: true };
 }
+
+/**
+ * Domaines de la chaîne affichée (revue §4.4) : ceux de ses capacités, et des capacités par lesquelles ses objets y
+ * arrivent, dans l'ordre de la carte des capacités. La légende n'en montre que 2 à 4, et non les 9.
+ */
+export function chainDomains(
+  columns: { id: string; kind: string; capabilities: { id: string }[]; layers: Record<string, { capability: string | null }[]> }[],
+  domainOf: Record<string, string>, domains: { id: string; name: string }[],
+): { id: string; name: string }[] {
+  const present = new Set<string>();
+  const add = (cap: string | null | undefined) => { if (cap && domainOf[cap]) present.add(domainOf[cap]); };
+  for (const c of columns) {
+    if (c.kind === 'capacite') add(c.id);
+    c.capabilities.forEach((k) => add(k.id));
+    Object.values(c.layers).forEach((items) => items.forEach((i) => add(i.capability)));
+  }
+  return domains.filter((d) => present.has(d.id));
+}

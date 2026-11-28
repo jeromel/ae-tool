@@ -5,7 +5,7 @@ import { Api, Brief } from '../api';
 import { Session } from '../session';
 import { ObjectSearch } from '../object-search';
 import { ScopeNote } from '../scope-note';
-import { LAYER_LABELS, NO_LAYER, OFF_CHAIN, type StepItem, type CellLine, carriesImpact, cellLine, chainQuery, choosableLayers, domainQuery, emptyText, hueOf, layerQuery, moreDirectText, objectQuery, offMark, openChain, SHOWN_DIRECT, stepsByChain, tabMark, touchedSummary, viaText } from '../chains-reading';
+import { LAYER_LABELS, NO_LAYER, OFF_CHAIN, type StepItem, type CellLine, carriesImpact, cellLine, chainDomains, chainQuery, choosableLayers, domainQuery, emptyText, hueOf, layerQuery, moreDirectText, objectQuery, offMark, openChain, SHOWN_DIRECT, stepsByChain, tabMark, touchedSummary, viaText } from '../chains-reading';
 
 interface Column { id: string; name: string; kind: string; capabilities: StepItem[]; layers: Record<string, StepItem[]>; }
 interface Chain { id: string; name: string; hasSteps: boolean; ordered: boolean; columns: Column[]; whole: Column | null; }
@@ -147,13 +147,13 @@ interface Impact { object: Brief; layer: string | null; steps: Touched[]; offCha
               @if (c.ordered && !last && columnsOf(c)[$index + 1]?.kind !== 'toute') { <div class="down" aria-hidden="true">▼</div> }
             }
           </div>
+          <!-- Légende (§4.4) : les seuls domaines de la chaîne, sous elle, en texte discret ; un clic estompe les autres. -->
           @if (domainsShown().length) {
-            <div class="legend no-print" aria-label="Domaines">
+            <ul class="legend" aria-label="Domaines de la chaîne">
               @for (d of domainsShown(); track d.id) {
-                <button type="button" class="dom" [class.off]="domain() && domain() !== d.id" [attr.aria-pressed]="domain() === d.id"
-                  [style.--fond]="fond(d.id)" [style.--trait]="trait(d.id)" [style.--texte]="texte(d.id)" (click)="setDomain(d.id)">{{ d.name }}</button>
+                <li><button type="button" class="dom" [class.off]="domain() && domain() !== d.id" [attr.aria-pressed]="domain() === d.id" (click)="setDomain(d.id)"><span class="sq" [style.background]="trait(d.id)" aria-hidden="true"></span>{{ d.name }}</button></li>
               }
-            </div>
+            </ul>
           }
           @if (panelOf(c.id); as col) {
             <div class="panel" role="region" [attr.aria-label]="col.name + ', ce que l\\'étape mobilise'">
@@ -162,9 +162,12 @@ interface Impact { object: Brief; layer: string | null; steps: Touched[]; offCha
                 @for (l of panelLayers(); track l) {
                   <dt>{{ label(l) }}</dt>
                   <dd>
-                    @for (i of col.layers[l]; track i.id + (i.via ?? '')) {
-                      <span class="pitem"><a [routerLink]="[l === 'processus' ? '/processus' : '/objets', i.id]">{{ i.name }}</a>@if (via(i); as v) { <span class="via"> ({{ v }})</span> }@if (l === 'applications' || l === 'serveurs') { · <a routerLink="/impact" [queryParams]="{ objet: i.id }">Analyser l'impact</a> }</span>
-                    } @empty { <span class="gap">{{ emptyOf(l) }}</span> }
+                    <!-- Une ligne par objet (§4.6) : le nom, le chemin en gris, « Analyser l'impact » à droite (applications, serveurs). -->
+                    <ul class="plist">
+                      @for (i of col.layers[l]; track i.id + (i.via ?? '')) {
+                        <li><a [routerLink]="[l === 'processus' ? '/processus' : '/objets', i.id]">{{ i.name }}</a>@if (via(i); as v) { <span class="via">{{ v }}</span> }@if (l === 'applications' || l === 'serveurs') { <a class="act" routerLink="/impact" [queryParams]="{ objet: i.id }">Analyser l'impact</a> }</li>
+                      } @empty { <li class="gap">{{ emptyOf(l) }}</li> }
+                    </ul>
                   </dd>
                 }
               </dl>
@@ -253,8 +256,9 @@ interface Impact { object: Brief; layer: string | null; steps: Touched[]; offCha
     /* Onglets : style commun de la charte (styles.css), seulement le retour à la ligne en plus (petit écran). */
     .tabs { flex-wrap: wrap; }
     .tabs button { white-space: normal; }
-    .legend { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
-    .dom { background: var(--fond, var(--bg)); border: 1px solid var(--trait, var(--line)); color: var(--texte, var(--ink)); border-radius: 12px; padding: 3px 10px; font-size: 12.5px; font-weight: 600; }
+    .legend { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 10px 0 0; padding: 0; list-style: none; }
+    .dom { background: none; border: 0; padding: 0; color: var(--muted); font-size: 12.5px; font-weight: 400; display: flex; gap: 6px; align-items: center; }
+    .dom:hover { background: none; color: var(--ink); }
     .dom.off { opacity: 0.35; }
     .chain { padding: 12px 14px; }
     .chain header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin-bottom: 8px; }
@@ -304,8 +308,10 @@ interface Impact { object: Brief; layer: string | null; steps: Touched[]; offCha
     .panel-head { display: flex; justify-content: space-between; align-items: center; }
     .panel dl { display: grid; grid-template-columns: 120px 1fr; gap: 4px 12px; margin: 8px 0 0; font-size: 13px; }
     .panel dt { color: var(--muted); }
-    .pitem { margin-right: 14px; }
-    .pitem .via { display: inline; }
+    .plist { list-style: none; margin: 0; padding: 0; }
+    .plist li { display: flex; gap: 8px; align-items: baseline; border-bottom: 1px solid var(--line); }
+    .plist .via { display: inline; }
+    .plist .act { margin-left: auto; white-space: nowrap; }
     li.hit { font-weight: 600; }
     .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
     .narrow { display: none; }
@@ -368,12 +374,10 @@ export class ChainsPage {
   offTabMark = computed(() => offMark(this.touchedOff().length));
   offSupport = computed(() => (this.grid()?.offChain ?? []).filter((p) => p.nature === 'support' || p.nature === 'pilotage'));
   offOther = computed(() => (this.grid()?.offChain ?? []).filter((p) => p.nature !== 'support' && p.nature !== 'pilotage'));
-  /** Domaines présents à l'écran, dans l'ordre de la carte des capacités. */
+  /** Domaines de la chaîne affichée, dans l'ordre de la carte des capacités (§4.4). */
   domainsShown = computed(() => {
-    const g = this.grid();
-    if (!g) return [];
-    const present = new Set(Object.values(g.domainOf));
-    return g.domains.filter((d) => present.has(d.id));
+    const g = this.grid(), c = this.openedChain();
+    return g && c ? chainDomains(this.columnsOf(c), g.domainOf, g.domains) : [];
   });
   summary = computed(() => {
     const im = this.impact();

@@ -1,7 +1,7 @@
 // Tests de chains-reading.ts (écran « Chaînes et processus », EV-06), hors navigateur.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { OFF_CHAIN, carriesImpact, noPlaceText, cellLine, chainQuery, choosableLayers, domainQuery, emptyText, hueOf, layerQuery, moreDirectText, objectQuery, offMark, openChain, stepsByChain, tabMark, touchedSummary, viaText } from '../src/app/chains-reading.ts';
+import { OFF_CHAIN, carriesImpact, chainDomains, noPlaceText, cellLine, chainQuery, choosableLayers, domainQuery, emptyText, hueOf, layerQuery, moreDirectText, objectQuery, offMark, openChain, stepsByChain, tabMark, touchedSummary, viaText } from '../src/app/chains-reading.ts';
 
 const I = (id: string, capability: string | null, via: string | null = null, viaKind: string | null = null) =>
   ({ id, name: id.toUpperCase(), typeLabel: 'Application', via, viaKind, viaId: null, capability });
@@ -104,4 +104,14 @@ test('§4.3 : le porteur de l\'impact est l\'objet désigné ou un maillon de so
 test('§4.5 : processus sans place, support ou à rattacher', () => {
   assert.deepEqual(noPlaceText(null), { text: 'Fait partie de : aucune chaîne de valeur', attach: true });
   assert.deepEqual(noPlaceText('support'), { text: 'Processus de support : ne fait partie d\'aucune chaîne', attach: false });
+});
+
+test('§4.4 : la légende ne montre que les domaines de la chaîne affichée, dans l\'ordre de la carte', () => {
+  const domains = [{ id: 'd1', name: 'Relation' }, { id: 'd2', name: 'Eau potable' }, { id: 'd3', name: 'Patrimoine' }, { id: 'd4', name: 'Ressources' }];
+  const domainOf = { c1: 'd3', c2: 'd1', c3: 'd2', c4: 'd4' };
+  const cols = [
+    { id: 's1', kind: 'etape', capabilities: [{ id: 'c1' }], layers: { applications: [{ capability: 'c2' }] } },
+    { id: 'c3', kind: 'capacite', capabilities: [], layers: {} },
+  ];
+  assert.deepEqual(chainDomains(cols, domainOf, domains).map((d) => d.id), ['d1', 'd2', 'd3'], 'd4 n\'est pas dans la chaîne');
 });
